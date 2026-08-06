@@ -1,0 +1,15 @@
+# Data source / run discovery configuration.
+# Points to where runinfo.json and raw binary files live.
+#
+# Example runinfo layout:
+#   /mnt/data/TPC/run_R8520/<run_id 5-digit>/runinfo.json
+#   /mnt/data/TPC/run_R8520/<run_id 5-digit>/RAW/*_raw_*.bin
+
+data_root: "/mnt/data/TPC"
+
+# Explicit runtype to scope search; empty '' => auto-discover by probing
+# candidate runtype dirs under data_root (e.g. run5_Ar, run6_Xe, run7_Xe).
+runtype: ""
+
+# Optional restricted list of runtype names to probe (auto-discovery).
+runtype_candidates: []

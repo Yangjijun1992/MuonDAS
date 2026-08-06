@@ -1,0 +1,85 @@
+# Muon analysis parameters — all tunable knobs live here.
+# Override precedence: CLI > user config file > this default file.
+
+parameter_version: "0.1.0"
+
+# --- data source ---
+data_source:
+  data_root: "/mnt/data/TPC"
+  data_format: "waveform_analysis_records" # or "npy" / "hdf5"
+  # data_dir: null                            # optional override of raw_dir
+
+# --- runinfo ---
+runinfo:
+  # Explicit runtype to scope search; empty '' => auto-discover by probing
+  # candidate runtype dirs under data_root (e.g. run6_Xe, run_R8520).
+  runtype: ""
+  # Optional restricted list of runtype names to probe (auto-discovery).
+  runtype_candidates: []
+  run_tag: "TPC Run"
+
+# --- timing / matching ---
+matching:
+  sample_interval_ns: 4
+  dynode_shift_ns: 16
+  match_window_ns: [0, 30]
+  min_diff_ns: 0
+  max_diff_ns: 30
+  # per-channel delay calibration (ns); empty = no per-channel override
+  channel_delay_ns: {}
+
+# --- filtering ---
+filtering:
+  signal_positive_polarity: # dynode
+    asym_min: 0.7
+    height_min: null
+    height_max: null
+  signal_negative_polarity: # anode
+    asym_min: 0.7
+    height_min: null
+    height_max: null
+  min_event_length: 7000
+  min_seg_area_pe: 20000
+  # pulse-shape criteria (reserved; computed features used as jitter)
+  width_min: null
+  width_max: null
+  rise_time_max: null
+
+# --- features / integration ---
+features:
+  # Integration window strategy:
+  #   - fixed: [integral_start, integral_end)
+  #   - peak_finder: reserved, plug-in later (user provides peak-finding algo)
+  integral_window_mode: "fixed"
+  integral_start: 20
+  integral_end: 100
+  baseline_samples: 10
+  rise_time_low: 0.1 # amplitude fraction (10%)
+  rise_time_high: 0.9 # amplitude fraction (90%)
+
+# --- PMT SPE gain database ---
+gain_db:
+  backend: "pmtdata" # pmtdata (preferred) | sqlite | csv
+  run_id: "00179" # used by pmtdata backend
+  sqlite_path: "" # used when backend == sqlite
+  csv_path: "" # used when backend == csv
+
+# --- output ---
+output:
+  output_dir: "output"
+  save_waveforms: true # save .npy waveform clips
+  save_plots: true
+  cache_dir: "/tmp/muon_analysis"
+
+# --- plotting ---
+plotting:
+  backend: "Agg"
+  dynode_scale: 110
+  # Low-pass cutoff (Hz) applied to the dynode waveform in compare_run plots.
+  # None => no dynode low-pass filter (raw dynode, matching notebook default).
+  dynode_lp_cutoff_hz: 45e6
+  plot_len: 100
+  cutoff_hz: 20e6
+  fs: 250e6
+  sample_interval_ns: 4
+  num_samples: 3
