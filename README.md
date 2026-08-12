@@ -12,7 +12,7 @@ src/muon_analysis/ # 核心包（模块化实现）
 scripts/           # 命令行入口与示例数据生成
 tests/             # pytest 单元测试
 output/            # 默认输出目录
-docs/              # 需求与实施计划文档
+docs/              # 需求、实施计划、交付、架构、批量结果与路径清单等文档
 ```
 
 ## 安装
@@ -60,19 +60,38 @@ python scripts/run_analysis.py 00179 \
     --gain-backend sqlite --gain-path /tmp/muon_demo/gains.db
 ```
 
-## 运行流程
+## 分析 Pipeline 与架构
 
-1. `get_runinfo` 从 `runinfo.json` 读取每 run 配置与真实数据路径（`raw_dir`）。
-2. 读取 records（`waveform_analysis` / `npy` / `hdf5` 后端），按 `board` 分离
-   dynode（board=1）与 anode（board=0）。
-3. 时间匹配：dynode 时间迁移 `+16 ns`（或配置值）→ 按 channel 的
-   `merge_asof` 最近匹配 → 保留 `dt = t_dyn - t_ano ∈ [min, max]`。
-4. 候选筛选：波形不对称度（`asym`）噪声剔除、波形长度 / 段面积筛选
-   （大脉冲）、可选高度阈值。
-5. 特征量 / PE：按配置的积分窗口策略（默认固定窗口，预留寻峰算法接口）
-   计算面积并据 PMT SPE gain 换算为 PE。
-6. 输出：事例级 CSV（含 `parameter_version` / `gain_db_version` 溯源列）、
-   `.npy` 波形片段、统计分布 `.png`。
+> 详细版（含架构图、各阶段算法约定、模块-代码对照、排查路径、配置表）：
+> **[docs/muon_analysis_architecture.md](docs/muon_analysis_architecture.md)**
+
+数据流（单 run）：`runinfo → read → match → filter → features/PE → plot → output`
+
+```
+输入 run_id清单 ─► config(CLI>用户>默认+参数哈希)
+                 ─► io/runinfo   runinfo.json 发现/解析(runtype 自动探测)
+                 ─► io/readers   waveform_analysis | npy | hdf5
+                 ─► io/data      RunData: 按 board 分离 dynode(1)/anode(0)
+                 ─► matching     时间匹配: dynode +16ns → 按channel merge_asof → dt∈[0,30]
+                 ─► filtering    asym 噪声剔除 + 长度/段面积(大脉冲) + 高度阈值
+                 ─► features/gain/pe  积分窗口策略 + 电荷→PE(pe_fact/gain)
+                 ─► plotting     波形图 + 统计分布图
+                 ─► output       <out-dir><run_id>/{CSV, .npz, .png, metadata}
+                 ─► cache        /tmp/muon_analysis (run_id+参数哈希, 匹配缓存)
+```
+
+各阶段处理细节（模块-代码对照、算法约定、时间关系、常见问题排查）见上述文档，
+其中关键算法约定：
+
+1. **时间匹配**：dynode 全局迁移 `+16 ns`（`dynode_shift_ns`），按 channel 用
+   `merge_asof(backward)` 最近匹配，保留 `dt = t_dyn_shifted − t_ano ∈ [0,30] ns`。
+   实测 146 候选：原始 `dynode_time − anode_time ∈ [-16, 0]`（dynode 提前）。
+2. **候选筛选**：波形不对称度（`asym`）噪声剔除、波形长度/段面积筛选（大脉冲）、
+   可选高度阈值。
+3. **特征量 / PE**：按配置积分窗口策略（默认固定窗口，预留寻峰算法接口）计算面积，
+   据 PMT SPE gain 换算为 PE。
+4. **输出**：每个 run 独立目录 `<out-dir><run_id>/`（run_id 补零），含
+   事例级 CSV（带 `parameter_version` / `gain_db_version` 溯源列）、`.npy` 波形片段、统计分布 `.png`。
 
 ## 配置要点
 
