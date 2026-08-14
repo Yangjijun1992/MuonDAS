@@ -20,6 +20,7 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "analysis
 # Deep-copied defaults so callers can't accidentally mutate shared state.
 _DEFAULTS: Dict[str, Any] = {
     "parameter_version": "0.1.0",
+    "progress": True,  # tqdm progress bars in the pipeline
     "data_source": {
         "data_root": "/mnt/data/TPC",
         "data_format": "waveform_analysis_records",
@@ -35,20 +36,27 @@ _DEFAULTS: Dict[str, Any] = {
     },
     "matching": {
         "sample_interval_ns": 4,
-        "dynode_shift_ns": 16,
-        "match_window_ns": [0, 30],
+        "dynode_shift_ns": 6,
+        "match_window_ns": [0, 40],
         "min_diff_ns": 0,
-        "max_diff_ns": 30,
+        "max_diff_ns": 40,
         "channel_delay_ns": {},
+    },
+    "clustering": {
+        "window_ns": 100,
     },
     "filtering": {
         "signal_positive_polarity": {"asym_min": 0.7, "height_min": None, "height_max": None},
         "signal_negative_polarity": {"asym_min": 0.7, "height_min": None, "height_max": None},
         "min_event_length": 7000,
         "min_seg_area_pe": 20000,
+        "height_min": None,          # peak-level amplitude bounds
+        "height_max": None,
         "width_min": None,
         "width_max": None,
         "rise_time_max": None,
+        "min_area_pe_anode": None,
+        "min_area_pe_dynode": None,
     },
     "features": {
         "integral_window_mode": "fixed",
@@ -68,7 +76,7 @@ _DEFAULTS: Dict[str, Any] = {
         "output_dir": "output",
         "save_waveforms": True,
         "save_plots": True,
-        "cache_dir": "/tmp/muon_analysis",
+        "cache_dir": "/mnt/data/tmp/muon_analysis",
     },
     "plotting": {
         "backend": "Agg",
@@ -79,6 +87,17 @@ _DEFAULTS: Dict[str, Any] = {
         "fs": 250e6,
         "sample_interval_ns": 4,
         "num_samples": 3,
+    },
+    "cog": {
+        "pattern_path": "",          # empty => try runinfo pos / fallback
+        "pattern_format": "auto",    # auto | json | csv | yaml
+        "charge_source": "anode",    # anode | dynode  (which side's charge feeds COG)
+        "use_fallback": False,       # use built-in 7-PMT fallback geometry when no other source
+    },
+    "track": {
+        "slice_us": 1.0,             # time-slice width for track reconstruction
+        "fs": 250e6,                 # sample rate (Hz) for waveform time slicing
+        "save_plots": True,          # save per-candidate 3D track PNGs
     },
 }
 
@@ -130,6 +149,15 @@ def _validate(config: Dict[str, Any]) -> None:
         raise ConfigError(f"Unsupported gain_db.backend: {gain_backend!r}")
 
 
+def _normalize(config: Dict[str, Any]) -> None:
+    """Coerce string-typed numeric YAML values (e.g. ``'45e6'``) to floats."""
+    plot = config.get("plotting", {})
+    for key in ("dynode_lp_cutoff_hz", "cutoff_hz", "fs"):
+        val = plot.get(key)
+        if isinstance(val, str):
+            plot[key] = float(val)
+
+
 def build_config(
     config_path: Optional[str | Path] = None,
     overrides: Optional[Dict[str, Any]] = None,
@@ -151,6 +179,7 @@ def build_config(
     else:
         base = _deep_merge(base, load_yaml(config_path))
     base = _deep_merge(base, overrides)
+    _normalize(base)
     _validate(base)
     return base
 

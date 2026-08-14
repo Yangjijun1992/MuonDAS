@@ -19,6 +19,9 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 
 
+from muon_analysis.models import MuonCandidate
+
+
 @dataclass
 class Candidate:
     """A surviving candidate event (matched pair)."""
@@ -37,6 +40,8 @@ class Candidate:
     def as_dict(self) -> Dict[str, Any]:
         d = self.metadata.copy()
         d.update({
+            "anode_record_id": self.anode_idx,
+            "dynode_record_id": self.dynode_idx,
             "channel": self.channel,
             "dt_ns": self.dt_ns,
             "anode_area_pe": self.anode_area_pe,
@@ -234,3 +239,55 @@ def _heights(records, accessor) -> np.ndarray:
     baseline = np.mean(signals[:, :10], axis=1)
     peaks = np.max(signals, axis=1)
     return np.abs(peaks - baseline)
+
+
+def filter_muon_candidates(peaks, peak_features, config) -> List[MuonCandidate]:
+    """Peak-level muon candidate selection.
+
+    All criteria come from ``config["filtering"]``; a ``None``/absent value
+    disables that cut.  Surviving peaks are returned as
+    :class:`~muon_analysis.models.MuonCandidate` with a
+    ``passed_conditions`` map recording each criterion's verdict.
+
+    ``peaks`` and ``peak_features`` are parallel lists matched by ``peaks_id``;
+    a ``ValueError`` is raised if a peak has no corresponding
+    :class:`~muon_analysis.models.PeakFeatures`.
+    """
+    filt_cfg = config.get("filtering", {})
+    height_min = filt_cfg.get("height_min")
+    height_max = filt_cfg.get("height_max")
+    width_min = filt_cfg.get("width_min")
+    width_max = filt_cfg.get("width_max")
+    rise_time_max = filt_cfg.get("rise_time_max")
+    min_area_pe_anode = filt_cfg.get("min_area_pe_anode")
+    min_area_pe_dynode = filt_cfg.get("min_area_pe_dynode")
+
+    feat_by_id = {pf.peaks_id: pf for pf in peak_features}
+
+    candidates: List[MuonCandidate] = []
+    for peak in peaks:
+        pf = feat_by_id.get(peak.peaks_id)
+        if pf is None:
+            raise ValueError(f"no PeakFeatures for peaks_id={peak.peaks_id}")
+
+        conditions = {
+            "height_min": height_min is None or pf.peak_height >= height_min,
+            "height_max": height_max is None or pf.peak_height <= height_max,
+            "width_min": width_min is None or pf.peak_width >= width_min,
+            "width_max": width_max is None or pf.peak_width <= width_max,
+            "rise_time_max": rise_time_max is None
+            or pf.peak_rise_time <= rise_time_max,
+            "min_area_pe_anode": min_area_pe_anode is None
+            or pf.anode_area_pe >= min_area_pe_anode,
+            "min_area_pe_dynode": min_area_pe_dynode is None
+            or pf.dynode_area_pe >= min_area_pe_dynode,
+        }
+        if all(conditions.values()):
+            candidates.append(MuonCandidate(
+                peaks_id=peak.peaks_id,
+                features=pf,
+                start_time_ns=peak.start_time_ns,
+                end_time_ns=peak.end_time_ns,
+                passed_conditions=conditions,
+            ))
+    return candidates

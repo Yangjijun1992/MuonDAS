@@ -1,16 +1,14 @@
-# Muon 示例筛选与打拿极读出快速分析 分模块实施计划与任务清单
+# Muon 事例筛选、打拿极读出分析与径迹重建 分模块实施计划与任务清单
 
-> 配套文档：[muon_dynode_analysis_requirements.md](./muon_dynode_analysis_requirements.md)
+> 配套文档：[需求规格](./muon_dynode_analysis_requirements.md)
 >
-> 本计划基于需求规格说明书，将系统拆分为多个高内聚、低耦合的模块。每个模块含目标、接口约定、以及可勾选的任务清单。
+> 本计划将系统按新算法流程拆分为多个高内聚、低耦合模块。每个模块含目标、接口约定与可勾选任务清单。
 >
-> **基准实现（reference）**：本计划各模块的字段命名、时间匹配、面积/PE 计算与增益数据库访问约定，均以已提供的示例代码为**最终对齐基准**：
-> - 数据读取：[`examples/raw_reader.py`](../examples/raw_reader.py)
-> - Run 配置（runinfo.json 解析、真实数据路径调取）：[`examples/runinfo.py`](../examples/runinfo.py)
-> - 主流程编排： [`examples/pipeline.py`](../examples/pipeline.py)
-> - 匹配/筛选/面积/PE/绘图：[`examples/dynode_large_pulse_selection.ipynb`](../examples/dynode_large_pulse_selection.ipynb)
+> **处理流程**：数据读取 → 时间匹配 → 波形聚类(peaks) → 波形可视化与验证 → 事例特征分析 → muon 事例筛选 → 结果输出 → PMT pattern + COG 位置重建 → muon 径迹重建。
 >
-> 请结合文末「附录 A：示例代码接口清单」阅读；示例中暂未覆盖的**上升沿/宽度等特征量**作为新增能力纳入开发流程（模块五）。
+> **基准实现（reference）**：读取/匹配/面积/PE/绘图约定对齐示例代码：`raw_reader.py`、`runinfo.py`、`pipeline.py`、`dynode_large_pulse_selection.ipynb`。PMT pattern 与 COG 位置重建复用已有成熟脚本。
+
+---
 
 ## 0. 总体架构与目录结构
 
@@ -18,396 +16,344 @@
 
 ```
 MuonDAS/
-├── docs/                        # 需求与本文档
+├── docs/                        # 需求、实施计划、架构、报告等
 ├── config/
-│   ├── analysis.yaml            # 默认分析参数（筛选阈值、窗口、形状判据）
-│   └── data_source.yaml         # 数据目录、文件格式、通道延迟校准、gain 库路径
+│   ├── analysis.yaml            # 全部可调参数（聚类窗口、滤波/放大、筛选、pattern 等）
+│   └── data_source.yaml         # 数据目录、文件格式、通道延迟校准、gain 与 pattern 库路径
 ├── src/muon_analysis/
 │   ├── __init__.py
-│   ├── config.py                # 配置加载/校验/默认值
+│   ├── config.py                # 配置加载/校验/默认值/参数哈希
 │   ├── io/
 │   │   ├── __init__.py
-│   │   ├── readers.py           # HDF5 / .npy 数据读取抽象
-│   │   ├── run_index.py         # run_id 解析（列表/通配符/外部配置文件）
-│   │   └── runinfo.py           # runinfo.json 解析、RunInfo、真实数据路径调取
-│   ├── matching.py              # 打拿极-阳极时间对齐（含通道延迟校准）
-│   ├── filtering.py             # muon 候选事例粗糙筛选
-│   ├── features.py              # 特征量计算（charge/height/上升时间/宽度）+ 积分窗口策略
-    │   ├── gain.py                  # PMT SPE gain 数据库访问（优先对齐 pmtdata，可扩展 SQLite）
-    │   ├── pe_calibration.py        # 积分电荷 -> 光电子数 (PE)：pe_fact/gain
+│   │   ├── readers.py           # waveform_analysis / npy / hdf5 读取
+│   │   ├── run_index.py         # run_id 解析
+│   │   ├── runinfo.py           # runinfo.json 解析、真实路径调取
+│   │   └── data.py              # RunData（按 board 分离 dynode/anode）
+│   ├── matching.py              # 打拿极-阳极时间对齐（移位 + merge_asof）
+│   ├── clustering.py            # 波形聚类：100ns 内聚合成 peaks（多 anode + 多 dynode）
+│   ├── features.py              # peak 级特征量（charge/height/上升沿/宽度）+ dynode 低通/放大
+│   ├── gain.py                  # PMT SPE gain 数据库
+│   ├── pe_calibration.py        # 电荷 -> PE
+│   ├── filtering.py             # muon 候选事例筛选（可视化验证之后）
 │   ├── plotting/
 │   │   ├── __init__.py
-│   │   ├── waveforms.py         # 波形可视化（叠加/并排、标注候选区）
-│   │   └── distributions.py     # 特征量统计分布图
-│   ├── cache.py                 # /tmp/muon_analysis 缓存管理
+│   │   ├── waveforms.py         # 可视化（验证）：逐对 + anode 叠加 + dynode 叠加
+│   │   └── distributions.py     # 特征统计分布图
+│   ├── cog.py                   # PMT pattern 导入 + COG 位置重建
+│   ├── track.py                 # 基于 dynode 波形的时间切片 + 重心法三维径迹重建
+│   ├── cache.py                 # /mnt/data/tmp/muon_analysis 缓存管理
 │   ├── output.py                # CSV / .npy 结果持久化
 │   └── pipeline.py              # 主流程编排
 ├── scripts/
 │   ├── run_analysis.py          # 命令行入口
-│   └── sample_data.py           # （可选）生成模拟示例数据便于联调
+│   ├── run_batch.py             # 批量驱动（分组/并行/内存保护/断点续跑）
+│   └── sample_data.py           # （可选）模拟数据
 ├── tests/                       # pytest 单元测试
 └── output/                      # 默认输出目录（CSV/PNG/NPY）
 ```
 
-**技术决策（依据已提供的示例代码而定）**
-- Python 3.10+，主要依赖：NumPy、SciPy、Matplotlib、PyYAML、pandas、h5py。
-- 数据读取：**以示例 `waveform_analysis.records_view(ctx, run_id)` 返回的记录为事实标准**（结构化数组字段含 `time/channel/board/record_id/event_length`）；HDF5/`.npy` 作为可选持久化/中间缓存格式，由配置文件选择读取器。
-- 通道约定：`board == 1` 为打拿极(dynode)，`board == 0` 为阳极(anode)。
-- gain 数据库：**优先复刻示例的 `pmtdata.PMTDataClient.get_pmt_data()`**（run_id/channel_id/gain），并封装统一抽象接口，可再扩展 SQLite/CSV 后端（原始选择 SQLite 优先，改为以 pmtdata 为基准、SQLite 作为可选替换）。
-- 性能：NumPy 向量化 + 可选 `multiprocessing`/`concurrent.futures` 并行按 run 处理。
+**技术决策**
+
+- Python 3.10+，依赖：NumPy、SciPy、Matplotlib、PyYAML、pandas、h5py。
+- 通道约定：`board == 1` 为 dynode，`board == 0` 为 anode。
+- 聚类时间窗默认 100 ns（可配置 `clustering.window_ns`）。
+- dynode 特征分析前置：低通滤波 + 110× 放大，且 area 也按 ×110 scale（写入配置）。
+- 缓存根目录：`/mnt/data/tmp/muon_analysis/`（含缓存追踪与来源溯源）。所有缓存与分析产生的输出统一保存于该路径下。
+- 性能：NumPy 向量化 + 可选 `multiprocessing`/`concurrent.futures` 并行按 run/peak 处理。
 
 ---
 
 ## 1. 模块一：配置与命令行接口（config / CLI）
 
-**目标**：集中管理所有可调参数；提供清晰、可复用的命令行接口。
+**目标**：集中管理所有可调参数（含聚类窗口、dynode 滤波/放大、筛选、pattern、切片等）；提供清晰命令行接口。
 
 **接口约定**
-- 配置为 YAML，分 `analysis`（阈值/窗口/形状）与 `data_source`（格式/延迟/gain 路径）两组，支持 CLI 覆盖关键项。
-- CLI 参数（argparse）：`run_id`（N 个，支持通配符）、`--config`、`--out-dir`、`--save-waveforms/--no-save-waveforms`、`--plot-ids`、`--clear-cache`、`--show-cache`、`--debug`、`--parallel`。
+
+- 配置为 YAML，支持 CLI 覆盖关键项。新增分组：`clustering`、`features.dynode_lp`/`features.dynode_scale`、`cog`、`track`。
+- CLI 参数（argparse）：`run_id`（多/通配符，或 `--run-list <file>` 外部配置文件）、`--config`、`--data-root/--data-format/--runtype`、`--out-dir`、`--gain-backend/--gain-path`、`--no-save-waveforms`、`--no-save-plots`、`--plot-ids`（按 record_id 绘制）、`--plot-peaks`（按 peak/事例序号绘制）、`--clear-cache`、`--show-cache`、`--parallel`、`--debug`。
 
 **任务清单**
-- [ ] 定义 config 数据模型与默认值（阈值、时间窗、匹配窗口、形状判据、积分窗口策略、目录、gain 库路径）。
-- [ ] 将示例默认参数纳入 `analysis.yaml`：`match_window_ns=[0,30]`、`dynode_shift_ns=16`、`sample_interval_ns=4`、`asym_min=0.7`、`min_event_length=7000`、`min_seg_area_pe=20000`、`integral_window_mode=fixed`（`integral_start=20`、`integral_end=100/60`；预留 `peak_finder` 模式，后期接入寻峰算法）、并含 `dynode_scale=110`、`plot_len=100`、`cutoff_hz=20e6`、`fs=250e6` 等绘图默认值）。
-- [ ] 实现 YAML 加载、参数覆盖（CLI > 用户配置文件 > 默认值）与校验。
-- [ ] 实现 `scripts/run_analysis.py` argparse 参数解析与帮助文本。
-- [ ] 配置版本号：`parameter_version`，用于结果可重复性标注。
-- [ ] （联调）提供默认示例 `config/*.yaml`（data_source 含数据目录、gain/pmtdata 配置、`pyth12`/`waveform_analysis` 环境依赖说明）。
+
+- [ ] config 数据模型与默认值：匹配窗口 `[0,40]`、`dynode_shift_ns=6`、聚类 `window_ns=100`、特征积分窗口、dynode 低通 cutoff/scale=110、筛选阈值、`cog`/`track` 参数、`cache_dir=/mnt/data/tmp/muon_analysis`。
+- [ ] YAML 加载、覆盖（CLI > 用户配置 > 默认）与校验。
+- [ ] `analysis.yaml` 完善（含 `clustering`、`features.dynode_*`、`cog`、`track` 默认值）。
+- [ ] `scripts/run_analysis.py` argparse 解析与帮助文本。
+- [ ] `--run-list <file>` 外部配置文件方式读取 run_id 清单（每行一个 run_id，与命令行列表/通配符并列，覆盖需求 §1）。
+- [ ] 配置版本号 `parameter_version`（用于可重复性与缓存哈希）。
+- [ ] （联调）默认示例 `config/*.yaml`。
 
 ---
 
 ## 2. 模块二：数据读取（io）
 
-**目标**：批量解析多 run（每 run 依 runinfo 调取配置与真实数据路径）的打拿极(dynode)与阳极(anode)数据，容错跳过坏 run。
+**目标**：批量解析多 run 的 dynode/anode 数据，容错跳过坏 run，提供记录/波形访问。
 
 **接口约定**
-- `get_runinfo(run_id, data_root="/mnt/data/TPC") -> RunInfo`：调取每个 run 的配置与真实数据路径（**对齐示例 `runinfo.py`**）。
-- `read_run(runinfo, cfg) -> RunData`：`RunData` 含时间戳、波形数组（dynode/anode）、通道号与元信息。
-- `resolve_run_ids(list|glob|config_file) -> list[str]`。
-- 读取器**对齐示例 `raw_reader.py` 的 `RawDataBundle` / `NotebookBasedRawDataReader`**：基于 `waveform_analysis` 的 `records_view(ctx, run_id)` 返回结构化 records；HDF5/`.npy` 作为可选持久化/中间格式读取器，按配置选择。
-- 分离打拿极/阳极：`records[records["board"] == 1]` → dynode，`== 0` → anode。
 
-**RunInfo 调取流程（对齐 `runinfo.py`）**
-- `normalize_run_id`（补零到 5 位）→ `discover_runinfo_path`（`run_R8520/<rid>/runinfo.json`）→ `load_runinfo_json` → `build_runinfo`。
-- 从 `runinfo.json` 获取 `datatype`（dark rate / spe gain / after pulse）、`raw_dir`（outfile_path 或回退 `run_dir/RAW`）、`mapping`（board_id/channel→pmt_id）、及全部元信息。
+- `get_runinfo(run_id, data_root, runtype,...) -> RunInfo`（含 runtype 自动探测、宽松校验）。
+- `read_data(runinfo, fmt, data_dir) -> RunData`（`waveform_analysis` / `npy` / `hdf5`；`board==1` dynode、`==0` anode）。
+- `RunData.signals(record_ids)`：按 record_id 取波形访问器。
 
 **任务清单**
-- [ ] 移植/封装 `runinfo.py`：`RunInfo`、`normalize_run_id`、`discover_runinfo_path`、`load_runinfo_json`、`build_runinfo`、`get_runinfo`。
-- [ ] 解析 runinfo 的 `datatype` 与 `mapping`（board_id/ch → pmt_id）用于辅助匹配/读出。
-- [ ] 移植/封装 `raw_reader.py`：`resolve_raw_input_path`、`load_raw_data_from_notebook_logic`、`summarize_raw_data`、`RawDataBundle`。
-- [ ] 实现 `run_id` 解析（列表、通配符 glob、外部配置文件）。
-- [ ] 实现按 `board` 分离 dynode/anode records。
-- [ ] 实现 `.npy` / HDF5 可选读取器（时间戳、波形、元信息）。
-- [ ] 定义统一 `RunData` 数据结构（dataclass）。
-- [ ] 文件缺失/格式错误/waveform_analysis 不可用/runinfo 缺失 → 打印明确 WARNING 并 `skip` 当前 run，不中断批次。
-- [ ] 单元测试：构造最小 runinfo.json 与示例文件验证解析与容错。
+
+- [ ] 移植/封装 `runinfo.py`、`raw_reader.py`（含 runtype 发现/作用域、容错跳过）。
+- [ ] 按 `board` 分离 dynode/anode records。
+- [ ] npy/hdf5 可选读取器 + `RunData` 容器。
+- [ ] 单元测试：读取与容错。
 
 ---
 
 ## 3. 模块三：时间匹配（matching）
 
-**目标**：打拿极与阳极信号高精度时间对齐，输出配对事件列表。
-
-**对齐示例逻辑（`dynode_large_pulse_selection.ipynb`）**
-- 先对打拿极时间戳整体迁移 `+16 ns`（`shift_time_records`，4 sample × 4ns）。
-- 用 pandas `merge_asof` 按 `channel` 物理隔离匹配，`direction='backward'`。
-- 计算 `dt = t_dyn - t_ano`，筛选窗口 `min_diff ≤ dt ≤ max_diff`（示例默认 `[0, 30] ns`）。
-- 输出 `dynode_idx` / `anode_idx` / `dt` / `channel`。
+**目标**：dynode/anode 高精度时间对齐，输出配对事件列表供聚类阶段使用。
 
 **接口约定**
-- `match_events(run_data, cfg) -> DataFrame`：列 `[dynode_idx, anode_idx, dt, channel]`。
-- 时间匹配窗口与 dynode 时间迁移量放入配置文件（`match_window_ns=[0,30]`、`dynode_shift_ns=16`、`sample_interval_ns=4`）。
-- 通道延迟校准参数从 `data_source` 配置读取（对齐 `shift_time_records` / 按通道 `channel_delay`）。
+
+- `match_events(run_data, cfg) -> DataFrame[dynode_idx, anode_idx, dt, channel]`。
+- dynode 移位 `dynode_shift_ns`（默认 6 ns，可配置）+ 按 channel `merge_asof` + `dt∈[0,40]` 窗口；逐通道延迟校准 `channel_delay_ns`。匹配默认参数统一以本计划为准（`dynode_shift_ns=6`、`dt∈[0,40]`，README 已同步更新）。
+- 匹配结果可缓存（见模块九）。
 
 **任务清单**
-- [ ] 移植 `shift_time_records`（dynode 时间迁移，改由配置驱动）。
-- [ ] 移植 `get_matched_indices_by_channel`（`merge_asof` + `dt` 窗口筛选）。
-- [ ] 匹配窗口/迁移量/采样间隔参数集中到配置文件。
-- [ ] 输出 `MatchedEvent`（dynode_idx/anode_idx/dt/channel）。
-- [ ] （可选）中间匹配结果可缓存（见模块八）。
-- [ ] 单元测试：构造已知时间偏移的数据验证对齐正确性。
+
+- [ ] `shift_time_records`（配置驱动移位量）。
+- [ ] `get_matched_indices_by_channel`（merge_asof + dt 窗口）。
+- [ ] 参数集中配置；输出匹配表。
+- [ ] 单元测试：已知偏移验证对齐。
 
 ---
 
-## 4. 模块四：muon 候选事例粗糙筛选（filtering）
+## 4. 模块四：波形聚类（clustering → peaks）【新增】
 
-**目标**：基于幅度阈值、时间符合窗口、脉冲形状等条件筛选候选事例。
-
-**对齐示例的筛选逻辑（可配置化）**
-- **噪声剔除**：`asymmetry_calculation`（正/负脉冲）→ 保留 `asym > 0.7`（示例）。
-- **大脉冲挑选**：`event_length > 7000` 且 `seg_area_pe > 20000`（示例大脉冲事例）。
-- 匹配/时间符合筛选已在模块三完成。
+**目标**：将时间匹配后、同一事件的多通道波形按时间聚合成 **peak**，供可视化与特征/筛选使用。
 
 **接口约定**
-- `filter_candidates(matched_records, cfg) -> list[Candidate]`；`Candidate` 含候选标识及基本属性（幅度、时间、asym、面积、通过项）。
-- 所有判据参数（`asym_min`、`min_event_length`、`min_seg_area_pe`、幅度阈值等）均来自 `config/analysis.yaml`。
+
+- `cluster_peaks(match_df, run_data, cfg) -> list[Peak]`：
+  - 将 **record time 在 `window_ns`（默认 100 ns）范围内**的所有波形聚合成一个 `Peak`。
+  - 每个 `Peak` 含**多个 anode 通道波形**与**多个 dynode 通道波形**（同窗内命中的所有通道），各自 `record_id`/`channel`/`time`。
+  - 每个 `Peak` 分配 `peaks_id`。
+- `Peak` 数据模型：`peaks_id`、时间范围（start/end）、anode 记录列表（record_id/ch）与 dynode 记录列表。
 
 **任务清单**
-- [ ] 移植 `asymmetry_calculation`（批量处理、正/负极性、baseline/peak/valley）。
-- [ ] 实现基于 `asym > asym_min` 的噪声剔除（dynode 正、anode 负）。
-- [ ] 移植/实现面积筛选（`seg_area_pe`、`event_length` 阈值）。
-- [ ] 实现幅度阈值（height ≥/≤，dynode 与 anode 可分别设定）。
-- [ ] 时间符合窗口（模块三已部分覆盖，此处汇总为筛选条件）。
-- [ ] 脉冲形状判据（脉宽、上升时间范围，基于模块五特征量或简化判据）。
-- [ ] 参数全部集中到配置文件。
-- [ ] 输出候选事例集合及基本属性。
-- [ ] 单元测试：构造正/负例验证筛选正确性。
+
+- [ ] 设计 `Peak` 数据模型（含 peaks_id、所占通道集合、波形记录索引、时间窗）。
+- [ ] 实现按时间窗（默认 100 ns）对匹配记录聚类成 peak 的算法。
+- [ ] peak 聚类窗口参数写入配置（`clustering.window_ns`）。
+- [ ] 输出 peak 列表（供可视化、特征、筛选）。
+- [ ] 单元测试：构造多通道时间邻近事件验证聚类正确性。
 
 ---
 
-## 5. 模块五：特征量与 PE 标定（features / gain / pe_calibration）
+## 5. 模块五：波形可视化与验证（在筛选之前）【重排】
 
-**目标**：计算特征量，并按通道查询 PMT SPE gain，积分电荷换算为光电子数。
-
-**面积（charge）积分策略（重要说明）**
-- **初版**：采用**固定窗口/给定区间**积分（对齐示例 `compute_integral_pe`，如 `[start,end)`，用于 `area_pe`）。
-- **更合理的目标方案（后期补齐）**：由**寻峰算法**自动定位波形起始点，再从起始点积分；用户后期可提供寻峰算法（确定波形起始位置）挂接替换。
-- 因此模块预留**积分策略接口**，将「积分区间求取」抽象为可插拔组件：默认实现 = 固定窗口；后续接入寻峰起点策略而不改动调用方。
-
-**积分区间求取接口（预留）**
-- `IntegrationWindowResolver`（抽象基类）→ `resolve(waveform, baseline, ...) -> (start, end)`。
-  - `FixedWindowResolver(start, end)`：初版默认实现。
-  - `PeakFinderWindowResolver`：占位/预留，后续由用户提供寻峰算法实现（确定波形起始位置后积分）。
-- 上下采样窗口长度不足时自动截断（对齐示例 `actual_end = min(integral_end, n_samples)`）。
+**目标**：在筛选**之前**可视化每个 peak，快速检查 peaks 内波形与通道合并是否合理。
 
 **接口约定**
-- `compute_charge(waveform, window_resolver, signal_polarity) -> charge`：按窗口求积分电荷。
-- `compute_features(waveform_segment) -> Features{charge, height, rise_time, width, ...}`。
-- gain 数据库抽象 `GainDB`（首版实现 `SQLiteGainDB`），`get_gain(channel_id) -> float`（及增益版本 `gain_db_version`）。
-- `charge_to_pe(charge, gain) -> float`。
+
+- `plot_peak_pairs(peak, run_data, out_dir)`：将每个 peak 中**所有 anode/dynode 通道对**逐一绘制。
+- `plot_peak_overlay(peak, run_data, out_dir)`：
+  - 将所有 **anode** 波形叠加显示；
+  - 将所有 **dynode** 波形叠加显示。
+- 支持交互式缩放/平移；保存 `.png`；支持自动批量或指定 peak 序号。
 
 **任务清单**
-- [ ] 设计可插拔的积分区间接口 `IntegrationWindowResolver`（含默认 `FixedWindowResolver` 与预留的寻峰策略）。
-- [ ] 实现基于窗口解析器的面积计算 `compute_charge`（固定窗口 [start,end)，正/负极性，窗口越界自动截断）。
-- [ ] `FixedWindowResolver`：初版默认固定/给定区间（示例 [20,100] 或 [20,60]，可配置）。
-- [ ] 预留 `PeakFinderWindowResolver` 抽象与占位实现（TODO：待用户提供寻峰算法后确定波形起始点）。
-- [ ] 实现特征量计算（积分面积、峰高、上升时间 10%-90%、半高宽/宽度）。
-- [ ] 拟合 `pe_fact = (2./16384) * 4.e-9 / (50 * 1.6e-19) / 1.e6`；`pe_calib = pe_fact / gain`。
-- [ ] 设计 gain 数据库抽象接口；**优先移植示例 `pmtdata.PMTDataClient.get_pmt_data()`**（run_id/channel_id/gain），同时提供 SQLite/CSV 可选后端。
-- [ ] 支持按 `run_id` + `channel_id` 查询 gain，`gain==0` 时报错/跳过。
-- [ ] 移植 `compute_integral_pe`（基于窗口解析器，`area_pe`）。
-- [ ] 移植 `compute_raw_segment`（整段积分，`seg_area_pe`）。
-- [ ] （新增，示例未含）实现**上升时间、半高宽/宽度、峰高(height)** 特征量，纳入开发流程。
-- [ ] 记录 gain 库标识（`gain_db_version`）到输出。
-- [ ] 单元测试：用已知高斯脉冲验证特征量；用已知 gain 验证 PE 换算；验证固定窗口与窗口越界截断。
+
+- [ ] 逐对绘制（peak 内所有 anode/dynode 对）。
+- [ ] anode 叠加图、dynode 叠加图。
+- [ ] 交互缩放/平移；`.png` 保存与批量/指定绘制（CLI `--plot-peaks` 按 peak/事例序号绘制，区别于 `--plot-ids` 按 record_id）。
+- [ ] 输出作为筛选前验证步骤。
 
 ---
 
-## 6. 模块六：波形可视化与验证（plotting/waveforms）
+## 6. 模块六：事例特征分析（对合并后的 peaks，含 dynode 滤波/放大 与 PE 标定）
 
-**目标**：叠加/并排绘制 dynode 与 anode 波形，高亮候选区，支持交互缩放与保存 PNG。
-
-**对齐示例的绘图函数**
-- `plot_pmt_comparison`（打拿极放大 `dynode_scale` 叠加到阳极坐标系）。
-- `plot_by_record_id` / `plot_dyn_by_record_id` / `plot_dyn_multiband_by_record_id`（按 record_id 对 dynode/anode 按时间对齐绘制）。
-- 低通滤波 `apply_lowpass_filter`（`scipy.signal.butter` + `filtfilt`，20 MHz @ 250 MHz，零相位，用于检查/验证）。
-- 示例默认参数：`sample_interval_ns=4`、`dynode_scale=110`、`plot_len=100`、`cutoff_hz=20e6`、`fs=250e6`。
+**目标**：对每个合并后的 peak 波形计算特征量（charge/height/上升沿/宽度），并按 PMT gain 换算 PE。dynode 部分需低通滤波 + 110× 放大，area 也按 ×110 scale。
 
 **接口约定**
-- `plot_waveform(event, out_path, mode='overlay'|'sidebyside')`；`plot_by_record_id(record_id,...)`。
-- 交互式：Matplotlib 默认缩放/平移；`--plot-ids` 指定事例，否则自动批量。
+
+- `compute_peak_features(peak, run_data, cfg) -> PeakFeatures`：
+  - 对 peak 内 anode 与 dynode 波形分别计算 area/height/rise_time/width。
+  - **dynode 处理**：先低通滤波（`apply_lowpass_filter`），再 110× 放大，最终 dynode **area ×110 scale**。
+- `compute_integral_pe` / 积分窗口策略（固定窗口，预留寻峰）；`pe_fact/gain` 按通道换算 PE。
+- `GainDB`（pmtdata/sqlite/csv，**沿用现有读取方式，不新增后端**）按通道查增益。
 
 **任务清单**
-- [ ] 移植 `apply_lowpass_filter`（低通滤波器）。
-- [ ] 移植 `plot_pmt_comparison`（叠加对比，dynode 放大/反相、按 channel 筛选）。
-- [ ] 移植 `plot_by_record_id`（按 record_id 时间对齐绘制 dynode/anode）。
-- [ ] 候选脉冲区域高亮标注（基于匹配/筛选时间窗）。
-- [ ] 保存为 `.png`（自动批量 or 指定事例序号）。
-- [ ] 交互式缩放/平移验证（依赖 Matplotlib 后端）。
-- [ ] 样例输出目测验证。
+
+- [ ] 特征量计算（面积、峰高、上升沿 10-90%、半高宽/宽度）。
+- [ ] dynode 低通滤波 `apply_lowpass_filter`。
+- [ ] dynode 放大 110×（幅度与 area 均 ×scale）。
+- [ ] 固定窗口积分策略 + 预留寻峰接口；PE 换算。
+- [ ] 生成特征统计分布图（PE 谱、时间差谱）验证聚类/筛选合理性，保存 `.png`。
 
 ---
 
-## 7. 模块七：特征量统计分布图（plotting/distributions）
+## 7. 模块七：muon 事例筛选（在可视化验证之后）
 
-**目标**：生成 PE 谱、时间差谱、面积-长度相关图等统计分布，验证筛选条件合理性，保存 PNG。
-
-**对齐示例的绘图**
-- `plot_correlation`（Anode Area vs Dynode Area 二维散点，按 channel 分色）。
-- `plt.hist2d(seg_area_pe, event_length)`（面积对波形长度），`plt.hist` 分布图。
+**目标**：在波形可视化验证与特征分析之后，根据 peak 级特征设置筛选条件，判定 muon 候选事例。
 
 **接口约定**
-- `plot_distributions(candidates_df, out_dir)` 输出多张 PNG（PE 谱、dynode-anode 时间差谱、anode-dynode 面积相关、seg_area_pe vs event_length、height/charge 分布等）。
+
+- `filter_muon_candidates(peaks, peak_features, cfg) -> list[MuonCandidate]`。
+- 判据基于：幅度阈值、时间符合/聚类窗口、脉冲形状（area/height/width/rise_time）、PE 相关阈值。
+- 所有筛选参数集中配置文件。
 
 **任务清单**
-- [ ] 移植 `plot_correlation`（anode/dynode area 相关散点，按通道分色）。
-- [ ] 实现 `seg_area_pe` vs `event_length` 二维直方图。
-- [ ] 实现 PE 谱直方图。
-- [ ] 实现 dynode-anode 时间差谱。
-- [ ] 实现 height/charge/rise_time 等分布图。
-- [ ] 图像保存 `.png` 至指定目录。
+
+- [ ] 设定 muon 筛选判据（阈值/窗口/形状，基于 peak 特征）。
+- [ ] 参数全部配置文件化。
+- [ ] 输出 muon 候选事例集合（含 peaks_id、通道、各 record_id）及筛选通过属性。
+- [ ] 单元测试：正/负例验证筛选正确性。
 
 ---
 
-## 8. 模块八：缓存管理与数据溯源（cache）
+## 8. 模块八：结果输出【含 record_id 等】
 
-**目标**：中间数据缓存至 `/tmp/muon_analysis/`，以 `run_id + 参数哈希` 命名，保证一致性与避免重复计算。
+**目标**：保存 muon 事例信息（peak 级参数、peaks_id、pmt_id、anode/dynode record_id）及波形片段、统计图。
 
 **接口约定**
-- `cache_path(run_id, param_hash) -> /tmp/muon_analysis/<run_id>_<hash>.<ext>`。
-- `param_hash = sha1(cfg_param_bytes + gain_db_version)`。
-- CLI：`--clear-cache` 清空该目录；`--show-cache` 列出条目及对应原始数据标识。
+
+- `save_muon_csv(candidates, ...)`：每行含 run_id、event_id、`peaks_id`、`pmt_id`、anode/dynode `record_id`、peak 级 area/height/width、PE、time、COG 重建位置（`cog_x`/`cog_y`，由模块十回填、与 `record_id` 对应）、溯源列（parameter_version / gain_db_version）。
+- `save_waveforms_npy(...)`：波形片段 `.npy`（可开关）。
+- 统计图 `.png` 保存至指定目录。
 
 **任务清单**
-- [ ] 实现 key 哈希（run_id + 处理参数 + gain 版本）。
-- [ ] 实现缓存读写（匹配后事件结构等中间数据）。
-- [ ] 实现 `--show-cache`：列出条目与溯源标识。
-- [ ] 实现 `--clear-cache`：清空 `/tmp/muon_analysis/`。
-- [ ] 缓存空间不足警告（不自动清除）。
-- [ ] 单元测试：哈希一致性 + (无缓存/命中缓存) 行为。
+
+- [ ] CSV 输出含 **peaks_id、各 pmt_id 的 anode/dynode record_id、peak 级参数**（area/height/width）与溯源列。
+- [ ] 事例 CSV 预留并回填 `cog_x`/`cog_y` 列（衔接模块十 COG 重建）。
+- [ ] 全通道波形片段 `.npy`（可配置）。
+- [ ] 统计分布图 `.png`。
+- [ ] 输出目录自动创建、按指定路径落盘。
 
 ---
 
-## 9. 模块九：结果输出（output）
+## 9. 模块九：缓存管理与数据溯源
 
-**目标**：保存波形片段 `.npy`、事例级参数 CSV、统计图 PNG。
+**目标**：中间数据（匹配结构、peak 结构、特征结果）缓存至 **`/mnt/data/tmp/muon_analysis/`**；所有缓存文件及分析过程中产生/输出的信息统一保存于该路径；缓存追踪与来源溯源也从该路径进行。
 
 **接口约定**
-- `save_waveforms_npy(candidates, out_dir)`（可由参数关闭）。
-- `save_events_csv(candidates_df, out_dir)`：run_id、event_id、PE、height、time 等 + `parameter_version` 与 `gain_db_version` 溯源列。
-- CSV 用 pandas 写出。
+
+- `cache_path(run_id, param_hash) -> /mnt/data/tmp/muon_analysis/<run_id>_<hash>.<ext>`。
+- `param_hash = sha1(处理参数) + gain_db_version`。
+- CLI：`--clear-cache` 清空该目录；`--show-cache` 列出条目及对应原始数据标识（来源追踪）。
+- 缓存空间不足警告（不自动清除）。
 
 **任务清单**
-- [ ] 事例级 CSV 输出（含溯源列：parameter_version、gain_db_version）。
-- [ ] 波形片段 `.npy` 保存（`--save-waveforms/--no-save-waveforms`）。
-- [ ] 统计分布图 PNG 输出。
-- [ ] 输出目录自动创建；全部文件按指定目录落盘。
+
+- [ ] 缓存根目录默认改为 `/mnt/data/tmp/muon_analysis/`（config/config.py/cache.py 已改）。
+- [ ] 缓存 key 哈希（run_id + 处理参数 + gain 版本）。
+- [ ] 缓存读写（匹配、peak 聚类、特征等中间结构）。
+- [ ] `--show-cache`（含来源溯源）/ `--clear-cache`。
+- [ ] 空间不足警告；缓存追踪从新路径进行。
+- [ ] 单元测试：哈希一致 / 命中 / 清除。
 
 ---
 
-## 10. 模块十：主流程编排与多进程（pipeline + CLI）
+## 10. 模块十：PMT pattern 导入与 COG 位置重建【新增】
 
-**目标**：串联 runinfo→读取→匹配→筛选→特征→绘图→输出；进度条/关键统计；可选多进程并行。
-
-**对齐示例 `pipeline.py` 的编排模式**
-- **顶层入口**：`analyze_runs(run_ids, output_dir, data_root, ...)`，逐 run 循环。
-- 每 run：`get_runinfo` → `reader.read`（打印 run_id/type/datatype/raw_dir/event_count/channel_count 等）→ 按 `datatype` 分支分析 → 生成图 → 写库。
-- **容错**：外层对每个 run 包 `try/except`，异常打印 `[run_id=...] ERROR` 后继续下一个，不中断批次；最后打印汇总（处理 run 数/产物路径）。
-- 结果对象：dataclass（如 `DarkCountResult`/`GainAnalysisResult`），携带行列级数据供统计与绘图复用。
+**目标**：导入 pmt pattern 信息，用于 COG（重心）位置重建，复用成熟脚本。
 
 **接口约定**
-- `analyze_runs(run_ids, output_dir, data_root=DEFAULT_TPC_DATA_ROOT, ...) -> int`（对齐示例签名）。
-- `RunReport`：含每 run 总事件数、通过筛选数、产物路径。
-- 并行：按 run 粒度的 `ProcessPoolExecutor`（`--parallel`）。
+
+- `load_pmt_pattern(path) -> Pattern`：PMT_id → 空间位置 (x,y[,z])。
+- `cog_reconstruct(charge_per_pmt, pattern) -> (x_cog, y_cog)`：重心法计算事件横向位置。
 
 **任务清单**
-- [ ] 移植/对齐 `analyze_runs` 编排骨架与打印/汇总风格（`[run_id=...]` 日志、最终 Summary）。
-- [ ] 主流程：runinfo → 读取 → 匹配 → 筛选 → 特征/PE → 绘图 → 输出（含缓存命中短路）。
-- [ ] 进度条/关键统计输出（tqdm 或自绘；总事件数、通过筛选数）。
-- [ ] 按 run `try/except` 容错，失败 run 不中断批次并汇总报告。
-- [ ] 多进程并行（可选，`--parallel`）。
+
+- [ ] 复用/封装成熟 pmt pattern 脚本，导入 pattern。
+- [ ] COG 重心法实现。
+- [ ] 对每个 muon 事例输出重建位置（回填至事例 CSV 的 `cog_x`/`cog_y` 列，与 `record_id` 对应）。
+- [ ] 单元测试：已知电荷/pattern 验证重心位置。
+
+---
+
+## 11. 模块十一：muon 径迹重建【新增】
+
+**目标**：依据筛选出 muon 事例的 dynode 波形重建三维径迹（时间切片 + 重心法 + 连线）。
+
+**接口约定**
+
+- `slice_peak(peak, slice_us=1.0) -> list[slice]`：将 dynode 合并后的 peak 级波形按 **1 µs 一个时间切片**切分。
+- `reconstruct_track(track_slices, pattern) -> Track3D`：
+  - 每个切片内所有 PMT 的 charge 赋给各自 `pmt_id`；
+  - 依据 pmt pattern 用**重心法**重建每个切片位置中心；
+  - 将所有切片中心连接，画出**三维径迹**。
+
+**任务清单**
+
+- [ ] dynode peak 波形时间切片（1 µs）。
+- [ ] 每切片所有 PMT charge → 对应 pmt_id。
+- [ ] 结合 pmt pattern 用重心法重建每切片位置中心。
+- [ ] 切片中心串联，绘制三维径迹（三维图/曲线）。
+- [ ] 单元测试：合成切片数据验证重心与径迹。
+
+---
+
+## 12. 模块十二：主流程编排与多进程（pipeline + CLI）
+
+**目标**：串联 runinfo→ 读取 → 匹配 → 聚类 → 可视化验证 → 特征 → 筛选 → 输出 →COG→ 径迹；进度统计；可选并行。
+
+**接口约定**
+
+- `analyze_run(run_id, cfg, out_dir) -> RunReport`；`analyze_runs(...)`（`--parallel`）。
+- `scripts/run_batch.py`：批量驱动（每 N 个一组、并行、内存/磁盘保护、断点续跑）。
+
+**任务清单**
+
+- [ ] 主流程：read → match → cluster → plot(验证) → features → filter → output → cog → track。
+- [ ] 每阶段缓存命中短路；进度条（tqdm）与关键统计（总事件、peak 数、候选数、径迹数）。
+- [ ] 按 run `try/except` 容错；多进程并行（可选）。
 - [ ] `scripts/run_analysis.py` 完整接线。
 
 ---
 
-## 11. 模块十一：测试与文档
+## 13. 模块十三：测试与文档
 
 **目标**：可维护性/可重复性验证。
 
 **任务清单**
-- [ ] pytest 覆盖 io/matching/filtering/features/gain/pe/cache/output。
-- [ ] 提供运行说明（README 或 usage）与配置文件注释。
-- [ ] 示例数据生成脚本 `scripts/sample_data.py`（便于无真实数据时联调）。
+
+- [ ] pytest 覆盖 io/matching/clustering/plotting/features/gain/pe_calibration/filtering/output/cache/cog/track。
+- [ ] 运行说明（README/usage）与配置文件注释。
+- [ ] 示例数据生成脚本 `scripts/sample_data.py`。
 
 ---
 
-## 12. 依赖关系与建议实施顺序
-
-依赖顺序（拓扑排序）：
+## 14. 依赖关系与建议实施顺序
 
 ```
 config/CLI (1)
   └─ io (2)
-       └─ matching (3)
-            └─ filtering (4)
-                 ├─ features (5a) + gain/pe (5b)
-                 └─ plotting/waveforms (6)
-                 └─ plotting/distributions (7)
-                 └─ cache (8) —— 贯穿，独立
-                 └─ output (9)
-                      └─ pipeline (10) 串联全部
-                           └─ tests/docs (11)
+       └─ matching (3) ──► clustering (4)
+                               ├─► plotting/waveforms (5) 可视化验证
+                               └─► features (6) ──► filtering (7)
+                                    └─► output (8)
+                                         ├─► cog (10) ──► track (11)
+   cache (9) —— 贯穿，独立
+   pipeline (12) 串联全部
+   tests/docs (13)
 ```
 
-**建议实施批次**（基于已提供的示例代码，可直接对齐开发）
-1. **批次 A（骨架 + 数据接入）**：模块 1（配置/CLI）+ 模块 2（io，移植 `raw_reader.py`）+ `sample_data.py`。
-2. **批次 B（核心逻辑，深度对齐 ipynb）**：模块 3（matching：`merge_asof` 匹配）+ 模块 4（filtering：asym/长度/面积筛选）+ 模块 5（features/gain/pe：面积积分、`pe_fact/gain`、新增上升沿/宽度）。
-3. **批次 C（输出与缓存）**：模块 6/7（绘图：`plot_pmt_comparison`/`plot_by_record_id`/`plot_correlation`）+ 模块 8（cache）+ 模块 9（output）。
-4. **批次 D（贯通发布）**：模块 10（pipeline/并行/CLI 接线）+ 模块 11（测试/文档）。
+**建议实施批次**
 
-> **基准统一**：模块 2/3/4/5/6/7 的字段命名、匹配/筛选/面积/PE 计算与绘图逻辑，一律以 `examples/` 下的 `raw_reader.py` 与 `dynode_large_pulse_selection.ipynb` 为最终对齐基准（见附录 A）。**新增**的上升沿/宽度等特征量不属于示例，将作为扩展能力开发并单测。
-
-## 13. 待澄清/待定项（blockers）
-
-- [x] **example 脚本**：已提供 —— `examples/raw_reader.py` + `examples/dynode_large_pulse_selection.ipynb` + `examples/runinfo.py` + `examples/pipeline.py`。
-- [ ] **示例数据**：用于联调的真实或近真实数据文件路径（或可用数据文件的具体位置）。
-- [ ] **环境依赖**：`waveform_analysis`、`pmtdata` 包的安装来源/版本（`raw_reader.py` 注明需 `pyth12` 环境）；是否有配套数据库文件。
-- [ ] 各筛选阈值的**默认数值**（asym 阈值默认 0.7、min_event_length=7000、min_seg_area_pe=20000 等来自示例，其余先占位，后续依据物理预期标定）。
-- [ ] PE 谱/bin、绘图风格等默认参数细节（dynode_scale=110、plot_len=100 等示例默认值先复用）。
+1. **批次 A**：模块 1（config/CLI）+ 2（io）+ 3（matching）。
+2. **批次 B（新增核心）**：模块 4（clustering）+ 5（可视化验证）+ 6（features，含 dynode 滤波/放大）。
+3. **批次 C**：模块 7（筛选）+ 8（output，含 record_id）+ 9（cache，新路径）。
+4. **批次 D（重建）**：模块 10（Cog）+ 11（track）。
+5. **批次 E（贯通发布）**：模块 12（pipeline/CLI）+ 13（测试/文档）。
 
 ---
 
-## 附录 A：示例代码接口清单（对齐基准）
+## 15. 待澄清/待定项（blockers）
 
-### A.1 Run 配置调取 —— `examples/runinfo.py`
-| 接口 | 说明 |
-|---|---|
-| `RunInfo`(dataclass，来自 `pmt_analysis.models`) | `run_id/runtype/run_dir/runinfo_path/raw_dir/outfile_name/source/datatype/metadata` |
-| `normalize_run_id(run_id)` | 补零到 5 位（`zfill(5)`） |
-| `discover_runinfo_path(run_id, data_root="/mnt/data/TPC")` | `run_R8520/<rid>/runinfo.json` |
-| `load_runinfo_json(path)` | 解析 runinfo.json |
-| `build_runinfo(run_id, runinfo_path, payload)` | 组装 `RunInfo`：`raw_dir` 取 `outfile_path` 或回退 `run_dir/RAW`；解析 `datatype`、`run_tag`、全部元信息 |
-| `get_runinfo(run_id, data_root)` | 一站式：discover + load + build |
+- [ ] **COG/径迹**：pmt pattern 数据结构与成熟脚本接口；径迹重建图例与坐标约定。
+- [ ] **dynode 处理参数**：低通截止频率、放大倍数（默认 110）、area×110 scale 的确认；1 µs 切片宽度确认。
+- [ ] **筛选阈值**：基于 peak 特征（area/height/width/rise_time/PE）的具体判据数值。
+- [ ] **环境依赖**：`waveform_analysis`、`pmtdata` 安装（`pyth12` 环境）。
+- [ ] 聚类与可视化验证的输出规模/文件命名约定。
 
-- `datatype`（来自 `run_comment`）：`dark rate` / `spe gain` / `after pulse`；无效则抛 `RunInfoValidationError`。
-- `validate_run_tag`：要求 `run_tag == "pmt test"`。
-- 每 run 的**真实数据路径**统一经 `RunInfo.raw_dir` 获取（供 `raw_reader` 使用）。
+**已决议事项（2026-08-13）**
 
-### A.2 数据读取 —— `examples/raw_reader.py`
-| 接口 | 说明 |
-|---|---|
-| `RawDataBundle`(dataclass) | 统一原始数据容器：`runinfo/source_path/data/data_format/event_count/channel_count/waveform_count/metadata` |
-| `resolve_raw_input_path(runinfo)` | 由 `runinfo.raw_dir` 用 `glob("*_raw_*.bin")` 解析二进制文件 |
-| `load_raw_data_from_notebook_logic(input_paths, runinfo)` | 用 `waveform_analysis`：`Context(storage_dir=...)` + `records_view(ctx, run_id)`，返回 records view |
-| `summarize_raw_data(data)` | 汇总 event/channel/waveform/board/时间范围/波形长度等 |
-| `NotebookBasedRawDataReader.read(runinfo)` | 组装 `RawDataBundle` |
-
-records 字段：`time`(ns)、`channel`、`board`、`record_id`、`event_length`、`channel_count` 等。`board==1` dynode、`board==0` anode。
-
-### A.3 主流程编排 —— `examples/pipeline.py`
-- 顶层入口：`analyze_runs(run_ids, output_dir, data_root=DEFAULT_TPC_DATA_ROOT, save_plots, write_db, fit_model, noise_suppression_enabled, ...) -> int`。
-- 逐 run：`get_runinfo → reader.read(bundle) → 按 datatype 分支分析 → 绘图 → 写库`，每步打印 `[run_id=...]` 日志。
-- **容错模式**：每个 run 外层 `try/except`，异常不中断批次；runinfo 无效则跳过；结束打印汇总（`Runs processed: X/Y`、产物路径列表）。
-- 结果对象为 dataclass（`DarkCountResult`/`GainAnalysisResult`/`AfterpulseResult`），容纳总量与逐通道结果。
-- `pmt_id_map`：由 runinfo 的 `mapping`（`board_id`→channels→`pmt`）构造 `(board_id, ch) -> pmt_id`。
-
-### A.4 时间匹配 —— ipynb（cell 9 / 14）
-- `shift_time_records(records)`：dynode 时间 `+= 16 ns`（4 sample × 4ns，配置化）。
-- `get_matched_indices_by_channel(raw_rec_ano, raw_rec_dyn, min_diff=0, max_diff=30)`：
-  - pandas `merge_asof`，`on='time'`、`by='channel'`、`direction='backward'`；
-  - `dt = t_dyn - t_ano`，筛选 `min_diff ≤ dt ≤ max_diff`；
-  - 返回 `[dynode_idx, anode_idx, dt, channel]`。
-
-### A.5 噪声/面积/PE —— ipynb（cell 25 / 42 / 45 / 41）
-- `asymmetry_calculation(records, rv, signal_polarity)`：`asym = (peak-baseline)/range`（正）或 `(baseline-valley)/range`（负），`baseline_samples=10`。
-- `get_pmt_gain_map(run_id)`：`pmtdata.PMTDataClient().get_pmt_data()` → `{channel_id: gain}`。
-- `pe_calibration(pmt_id, run_id)`：`pe_fact/gain`，`pe_fact = (2./16384)*4.e-9/(50*1.6e-19)/1.e6`。
-- `compute_integral_pe(..., integral_start=20, integral_end=100, area_field='area_pe')`：窗口积分 → PE。
-- `compute_raw_segment(..., area_field='seg_area_pe')`：整段积分 → PE。
-- 含义：`area_pe` 为匹配窗口内固定区间积分；`seg_area_pe` 为整段波形面积。
-
-### A.6 筛选/挑选 —— ipynb（cell 30 / 54）
-- 噪声剔除：`asym > 0.7`（示例阈值，dynode 正 / anode 负）。
-- 大脉冲：`event_length > 7000` 且 `seg_area_pe > 20000`。
-- 再按匹配 `anode_idx`/`dynode_idx` 取出对应波形对。
-
-### A.7 绘图 —— ipynb（cell 22 / 36 / 49 / 52）
-- `apply_lowpass_filter(waveform, cutoff_hz=20e6, fs=250e6, order=4)`：`butter` + `filtfilt`，零相位。
-- `plot_pmt_comparison(raw_ano, raw_dyn, rv, num_samples, channel_id, plot_length=100, dynode_scale=110, invert_dynode, dt=16)`：叠加对比，dynode `-sig*dynode_scale`。
-- `plot_by_record_id(raw_ano, raw_dyn, rv, record_id, plot_len, sample_interval_ns=4.0, ...)`：按时间对齐绘制单对。
-- `plot_dyn_by_record_id` / `plot_dyn_multiband_by_record_id`：dynode 单/多 band 绘制。
-- `plot_correlation(raw_ano, raw_dyn)`：Anode Area vs Dynode Area 散点（按 channel 分色）。
-- `plt.hist2d(seg_area_pe, event_length)`：面积对长度二维直方图。
-
-### A.8 示例默认参数速查
-`data_root="/mnt/data/TPC"`、`runtype="run_R8520"`、`runinfo.json` 路径、`sample_interval_ns=4`、`shift=16ns`、`match_window=[0,30]ns`、`asym_min=0.7`、`min_event_length=7000`、`min_seg_area_pe=20000`、`integral_start=20`、`integral_end=100`（匹配窗口面积）/ `60`（大脉冲）、`dynode_scale=110`、`plot_len=100`、`cutoff_hz=20e6`、`fs=250e6`。
+- 匹配参数统一：`dynode_shift_ns=6`、窗口 `dt∈[0,40]`，README 已同步更新。
+- PMT gain 数据库格式沿用现有读取方式（pmtdata/sqlite/csv），不新增 JSON 后端。
+- COG 输出方式：回填至事例 CSV 的 `cog_x`/`cog_y` 列，与 `record_id` 对应。
+- run_id 支持外部配置文件（`--run-list`）；CLI 新增 `--plot-peaks`；进度条采用 tqdm；测试覆盖补入 gain/pe_calibration。

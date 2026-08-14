@@ -4,9 +4,12 @@
 Writes a runinfo.json plus ``.npy`` records & waveforms under
 ``<data_root>/run_R8520/<run_id>/`` so the pipeline can be exercised with the
 ``npy`` backend without python's ``waveform_analysis`` / ``pmtdata`` packages.
+An optional SQLite gain DB (``--gain-db``) and JSON PMT pattern
+(``--pattern``) enable the gain / COG / track stages offline.
 
 Usage:
-  python scripts/sample_data.py --run-id 00179 --out /tmp/muon_demo --n 2000
+  python scripts/sample_data.py --run-id 00179 --out /tmp/muon_demo \
+      --gain-db /tmp/muon_demo/gains.db --pattern /tmp/muon_demo/pattern.json
 """
 
 from __future__ import annotations
@@ -33,6 +36,28 @@ def make_waveform(length, amplitude, polarity, seed):
     return wf + amplitude * g
 
 
+def make_gain_db(path, run_id="00179", channels=(0, 1, 2, 3),
+                 gains=(1e6, 1e6, 1e6, 1e6)):
+    """Write a small SQLite gain table (run_id, channel_id, gain)."""
+    import sqlite3
+    conn = sqlite3.connect(str(path))
+    try:
+        conn.execute("CREATE TABLE IF NOT EXISTS gain "
+                     "(run_id TEXT, channel_id INT, gain REAL)")
+        conn.executemany("INSERT OR REPLACE INTO gain VALUES (?,?,?)",
+                         [(run_id, int(ch), float(g))
+                          for ch, g in zip(channels, gains)])
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def make_pattern(path, channels=(0, 1, 2, 3)):
+    """Write a small JSON PMT pattern: pmt_id -> [x, y]."""
+    pattern = {f"pmt{i}": [float(i % 2), float(i // 2)] for i in channels}
+    Path(path).write_text(json.dumps(pattern, indent=2))
+
+
 def generate(run_id, out_root, n, seed=0, runtype="run_R8520"):
     rng = np.random.default_rng(seed)
     rid = str(run_id).zfill(5)
@@ -48,6 +73,12 @@ def generate(run_id, out_root, n, seed=0, runtype="run_R8520"):
         },
         "run_option": {"run_tag": "pmt test",
                        "run_comment": ["spe gain", "dark rate"]},
+        "mapping": [
+            {"board_id": 0, "channels": [{"ch": i, "pmt": f"pmt{i}"}
+                                          for i in range(4)]},
+            {"board_id": 1, "channels": [{"ch": i, "pmt": f"pmt{i}"}
+                                          for i in range(4)]},
+        ],
     }
     (run_dir / "runinfo.json").write_text(json.dumps(payload))
 
@@ -69,7 +100,9 @@ def generate(run_id, out_root, n, seed=0, runtype="run_R8520"):
             wfs[i] = make_waveform(length, amp, polarity, seed + i)
         return rec, wfs
 
-    ano_rec, ano_wf = block(ANODE_BOARD, base + 16, 2000, "negative", 120.0)
+    # anode leads dynode by the configured dynode_shift_ns (6 ns) so the
+    # +6 ns dynode shift in matching lands dt ~ 0 within [0, 40] ns.
+    ano_rec, ano_wf = block(ANODE_BOARD, base + 6, 2000, "negative", 120.0)
     dyn_rec, dyn_wf = block(DYNODE_BOARD, base, 1000, "positive", 2.0)
     records = np.concatenate([ano_rec, dyn_rec])
     waveforms = np.concatenate([ano_wf, dyn_wf])
@@ -87,6 +120,10 @@ def main(argv=None):
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--runtype", type=str, default="run_R8520",
                    help="runtype directory (e.g. run6_Xe)")
+    p.add_argument("--gain-db", type=str, default="",
+                   help="also write a SQLite gain DB at this path")
+    p.add_argument("--pattern", type=str, default="",
+                   help="also write a JSON PMT pattern at this path")
     args = p.parse_args(argv)
 
     run_dir, raw_dir = generate(args.run_id, args.out, args.n, args.seed,
@@ -96,6 +133,12 @@ def main(argv=None):
     print(f"  raw dir : {raw_dir}")
     print(f"  records : {raw_dir / 'records_raw.npy'}")
     print(f"  waveforms: {raw_dir / 'records_waveforms.npy'}")
+    if args.gain_db:
+        make_gain_db(args.gain_db, run_id=str(args.run_id).zfill(5))
+        print(f"  gain db : {args.gain_db}")
+    if args.pattern:
+        make_pattern(args.pattern)
+        print(f"  pattern : {args.pattern}")
     print()
     print("Run the pipeline with the npy backend and a relaxed filter, e.g.:")
     print(f"  python scripts/run_analysis.py {args.run_id} "

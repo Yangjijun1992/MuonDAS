@@ -8,6 +8,123 @@ from typing import Any, Dict, List
 
 
 @dataclass
+class PeakRecord:
+    """A single waveform record belonging to a peak.
+
+    ``record_id`` is the raw record identifier from the records table (also
+    the value used by the ``SignalAccessor``); ``time_ns`` is the record's
+    start time; ``is_dynode`` distinguishes dynode (True) from anode (False).
+    """
+
+    record_id: int
+    channel: int
+    time_ns: float
+    is_dynode: bool
+
+
+@dataclass
+class Peak:
+    """A cluster of matched anode/dynode waveforms within a time window.
+
+    Produced by :func:`muon_analysis.clustering.cluster_peaks`: all matched
+    records whose record time lies within ``clustering.window_ns`` of the
+    cluster anchor are grouped into a single ``Peak`` (possibly spanning
+    several anode channels and several dynode channels).
+    """
+
+    peaks_id: int
+    start_time_ns: float
+    end_time_ns: float
+    anode_records: List[PeakRecord] = field(default_factory=list)
+    dynode_records: List[PeakRecord] = field(default_factory=list)
+    # Row indices into the ``match_df`` DataFrame whose pairs belong to this peak.
+    match_rows: List[int] = field(default_factory=list)
+    # Sorted unique channel numbers across all member records.
+    channels: List[int] = field(default_factory=list)
+
+    @property
+    def n_anode(self) -> int:
+        return len(self.anode_records)
+
+    @property
+    def n_dynode(self) -> int:
+        return len(self.dynode_records)
+
+    @property
+    def n_channels(self) -> int:
+        return len(self.channels)
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "peaks_id": self.peaks_id,
+            "start_time_ns": self.start_time_ns,
+            "end_time_ns": self.end_time_ns,
+            "anode_record_ids": [r.record_id for r in self.anode_records],
+            "dynode_record_ids": [r.record_id for r in self.dynode_records],
+            "channels": list(self.channels),
+            "match_rows": list(self.match_rows),
+        }
+
+
+@dataclass
+class PeakFeatures:
+    """Feature summary for a single :class:`Peak`.
+
+    Per-record features are stored keyed by ``record_id``; dynode-side
+    features are computed **after** the low-pass filter and ``×dynode_scale``
+    amplification (both height and area scaled).  ``charge_per_pmt`` maps
+    ``pmt_id`` -> charge weight for the COG reconstruction (the side is
+    selected by ``cog.charge_source``).
+    """
+
+    peaks_id: int
+    time_ns: float
+    channels: List[int]
+    anode_record_ids: List[int]
+    dynode_record_ids: List[int]
+    anode_features: Dict[int, Any] = field(default_factory=dict)   # record_id -> Features
+    dynode_features: Dict[int, Any] = field(default_factory=dict)  # record_id -> Features
+    anode_pe: Dict[int, float] = field(default_factory=dict)       # record_id -> PE
+    dynode_pe: Dict[int, float] = field(default_factory=dict)      # record_id -> PE
+    charge_per_pmt: Dict[str, float] = field(default_factory=dict) # pmt_id -> charge weight
+    anode_area_pe: float = 0.0
+    dynode_area_pe: float = 0.0
+    peak_height: float = 0.0
+    peak_width: float = 0.0
+    peak_rise_time: float = 0.0
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "peaks_id": self.peaks_id,
+            "time_ns": self.time_ns,
+            "channels": list(self.channels),
+            "anode_record_ids": list(self.anode_record_ids),
+            "dynode_record_ids": list(self.dynode_record_ids),
+            "anode_area_pe": self.anode_area_pe,
+            "dynode_area_pe": self.dynode_area_pe,
+            "peak_height": self.peak_height,
+            "peak_width": self.peak_width,
+            "peak_rise_time": self.peak_rise_time,
+            "charge_per_pmt": dict(self.charge_per_pmt),
+        }
+
+
+@dataclass
+class MuonCandidate:
+    """A peak that passed the muon candidate selection."""
+
+    peaks_id: int
+    features: PeakFeatures
+    start_time_ns: float
+    end_time_ns: float
+    passed_conditions: Dict[str, bool] = field(default_factory=dict)
+
+    @property
+    def channels(self) -> List[int]:
+        return self.features.channels
+
+
+@dataclass
 class RunInfo:
     """Metadata describing a single run.
 

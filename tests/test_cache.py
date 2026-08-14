@@ -26,7 +26,7 @@ def test_write_read_npy(tmp_path):
     assert np.array_equal(read, arr)
     # wrong hash -> miss
     cfg2 = build_config(overrides={"output": {"cache_dir": str(tmp_path)},
-                                   "matching": {"max_diff_ns": 40}})
+                                   "matching": {"max_diff_ns": 50}})
     assert cache.read_npy("00179", cfg2, ext="_match.npy") is None
 
 

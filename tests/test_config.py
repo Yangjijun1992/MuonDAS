@@ -4,7 +4,7 @@ from muon_analysis.config import build_config, param_hash, ConfigError
 def test_default_config():
     cfg = build_config()
     assert cfg["features"]["integral_window_mode"] == "fixed"
-    assert cfg["matching"]["max_diff_ns"] == 30
+    assert cfg["matching"]["max_diff_ns"] == 40
 
 
 def test_invalid_window_mode():
@@ -33,5 +33,5 @@ def test_override_precedence():
 def test_param_hash_stable_and_volatile():
     cfg = build_config()
     assert param_hash(cfg) == param_hash(cfg)
-    cfg2 = build_config(overrides={"matching": {"max_diff_ns": 40}})
+    cfg2 = build_config(overrides={"matching": {"max_diff_ns": 50}})
     assert param_hash(cfg) != param_hash(cfg2)

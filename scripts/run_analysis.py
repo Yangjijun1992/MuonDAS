@@ -47,6 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="override gain_db backend")
     p.add_argument("--gain-path", type=str, default="",
                    help="path for sqlite/csv gain backend (with --gain-backend)")
+    p.add_argument("--pattern", type=str, default="",
+                   help="path to PMT pattern file for COG/track reconstruction")
     p.add_argument("--out-dir", type=str, default="output",
                    help="output directory")
     p.add_argument("--no-save-waveforms", action="store_true",
@@ -57,8 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
                    help="disable plot generation")
     p.add_argument("--plot-ids", type=str, default=None,
                    help="comma-separated anode record_ids to plot individually")
+    p.add_argument("--plot-peaks", type=str, default=None,
+                   help="comma-separated peak/event indices to plot (verification)")
+    p.add_argument("--no-progress", action="store_true",
+                   help="disable tqdm progress bars")
     p.add_argument("--no-cache", action="store_true",
-                   help="disable use of the /tmp/muon_analysis cache")
+                   help="disable use of the /mnt/data/tmp/muon_analysis cache")
     p.add_argument("--show-cache", action="store_true",
                    help="list cache entries and exit")
     p.add_argument("--clear-cache", action="store_true",
@@ -126,10 +132,20 @@ def main(argv=None) -> int:
             overrides["gain_db"]["csv_path"] = args.gain_path
         else:
             overrides["gain_db"]["sqlite_path"] = args.gain_path
+    if args.pattern:
+        overrides["cog"] = overrides.get("cog", {})
+        overrides["cog"]["pattern_path"] = args.pattern
 
     plot_ids = None
     if args.plot_ids:
         plot_ids = [int(x) for x in args.plot_ids.split(",") if x.strip()]
+
+    plot_peaks = None
+    if args.plot_peaks:
+        plot_peaks = [int(x) for x in args.plot_peaks.split(",") if x.strip()]
+
+    if args.no_progress:
+        overrides["progress"] = False
 
     rc = analyze_runs(
         run_ids=run_ids,
@@ -139,6 +155,7 @@ def main(argv=None) -> int:
         use_cache=not args.no_cache,
         save_plots=not args.no_save_plots,
         plot_ids=plot_ids,
+        plot_peaks=plot_peaks,
         parallel=args.parallel,
         config_overrides=overrides,
     )

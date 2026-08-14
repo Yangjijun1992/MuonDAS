@@ -3,6 +3,9 @@
 
 parameter_version: "0.1.0"
 
+# Progress bars (tqdm) in the pipeline
+progress: true
+
 # --- data source ---
 data_source:
   data_root: "/mnt/data/TPC"
@@ -21,12 +24,16 @@ runinfo:
 # --- timing / matching ---
 matching:
   sample_interval_ns: 4
-  dynode_shift_ns: 16
-  match_window_ns: [0, 30]
+  dynode_shift_ns: 6
+  match_window_ns: [0, 40]
   min_diff_ns: 0
-  max_diff_ns: 30
+  max_diff_ns: 40
   # per-channel delay calibration (ns); empty = no per-channel override
   channel_delay_ns: {}
+
+# --- waveform clustering into peaks ---
+clustering:
+  window_ns: 100 # record times within this window merge into one peak
 
 # --- filtering ---
 filtering:
@@ -40,10 +47,16 @@ filtering:
     height_max: null
   min_event_length: 7000
   min_seg_area_pe: 20000
-  # pulse-shape criteria (reserved; computed features used as jitter)
+  # peak-level amplitude bounds (None = no cut)
+  height_min: null
+  height_max: null
+  # pulse-shape criteria (peak level; None = no cut)
   width_min: null
   width_max: null
   rise_time_max: null
+  # peak-level PE cuts (None = no cut)
+  min_area_pe_anode: null
+  min_area_pe_dynode: null
 
 # --- features / integration ---
 features:
@@ -69,7 +82,7 @@ output:
   output_dir: "output"
   save_waveforms: true # save .npy waveform clips
   save_plots: true
-  cache_dir: "/tmp/muon_analysis"
+  cache_dir: "/mnt/data/tmp/muon_analysis"
 
 # --- plotting ---
 plotting:
@@ -77,9 +90,26 @@ plotting:
   dynode_scale: 110
   # Low-pass cutoff (Hz) applied to the dynode waveform in compare_run plots.
   # None => no dynode low-pass filter (raw dynode, matching notebook default).
-  dynode_lp_cutoff_hz: 45e6
+  dynode_lp_cutoff_hz: 4.5e7 # 45 MHz (valid YAML float; parsed as string by PyYAML if written as 45e6)
   plot_len: 100
   cutoff_hz: 20e6
   fs: 250e6
   sample_interval_ns: 4
   num_samples: 3
+
+# --- PMT pattern + COG position reconstruction ---
+cog:
+  # Path to the PMT spatial pattern file (pmt_id -> x,y[,z]).
+  # Empty => try runinfo mapping channel["pos"], then the fallback below.
+  pattern_path: ""
+  pattern_format: "auto" # auto | json | csv | yaml
+  charge_source: "anode" # anode | dynode  (charge side fed to the centroid)
+  # Use the built-in 7-PMT fallback geometry when no pattern file / runinfo
+  # position is available (reference xihu_fast_analysis layout).
+  use_fallback: false
+
+# --- muon track reconstruction (dynode time slicing) ---
+track:
+  slice_us: 1.0 # time-slice width (1 µs per requirement §9)
+  fs: 250e6     # sample rate (Hz)
+  save_plots: true # save per-candidate 3D track PNGs

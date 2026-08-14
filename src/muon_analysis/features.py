@@ -15,9 +15,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+
+from muon_analysis.filtering import SignalAccessor
+from muon_analysis.models import Peak, PeakFeatures
+from muon_analysis.plotting.waveforms import apply_lowpass_filter
 
 
 class IntegrationWindowResolver(ABC):
@@ -190,3 +194,133 @@ def compute_features(
         baseline=baseline,
     )
     return feats, peak_index
+
+
+def _feature_records(peak: Peak, side: str):
+    """Anode or dynode records of a peak (side in {'anode', 'dynode'})."""
+    return peak.anode_records if side == "anode" else peak.dynode_records
+
+
+def _max_ignore_nan(values: List[float], default: float = 0.0) -> float:
+    """Max of ``values`` ignoring NaN entries (``default`` when none finite)."""
+    finite = [v for v in values if v == v]
+    return float(max(finite)) if finite else default
+
+
+def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures:
+    """Per-record + aggregate features for a peak.
+
+    Anode records are integrated with ``signal_polarity="negative"`` over the
+    configured fixed window; dynode records are low-pass filtered (when a
+    cutoff is configured), scaled by ``plotting.dynode_scale`` (default 110),
+    then integrated with ``signal_polarity="positive"``.  Because the dynode
+    waveform is scaled before integration, its area (and height) are implicitly
+    ``×dynode_scale``.
+
+    Per-record charge is converted to PE via ``charge_to_pe`` using the
+    channel gain.  ``charge_per_pmt`` aggregates charge by PMT on the side
+    selected by ``cog.charge_source``.
+    """
+    from muon_analysis.pe_calibration import charge_to_pe
+
+    features_cfg = config.get("features", {})
+    integ_start = int(features_cfg.get("integral_start", 20))
+    integ_end = int(features_cfg.get("integral_end", 100))
+    baseline_samples = int(features_cfg.get("baseline_samples", 10))
+    rise_low = float(features_cfg.get("rise_time_low", 0.1))
+    rise_high = float(features_cfg.get("rise_time_high", 0.9))
+
+    plot_cfg = config.get("plotting", {})
+    dynode_scale = float(plot_cfg.get("dynode_scale", 110))
+    lp_cutoff = plot_cfg.get("dynode_lp_cutoff_hz")
+    if lp_cutoff is not None:
+        lp_cutoff = float(lp_cutoff)
+    fs = float(plot_cfg.get("fs", 250e6))
+
+    accessor = SignalAccessor.from_run_data(run_data)
+
+    anode_features: Dict[int, Features] = {}
+    anode_pe: Dict[int, float] = {}
+    for rec in peak.anode_records:
+        sig = accessor.signals([rec.record_id]).reshape(-1)
+        feats, _ = compute_features(
+            sig,
+            signal_polarity="negative",
+            baseline_samples=baseline_samples,
+            rise_low=rise_low,
+            rise_high=rise_high,
+            window=(integ_start, integ_end),
+        )
+        anode_features[rec.record_id] = feats
+        anode_pe[rec.record_id] = charge_to_pe(
+            feats.charge, gain_db.get_gain(rec.channel)
+        )
+
+    dynode_features: Dict[int, Features] = {}
+    dynode_pe: Dict[int, float] = {}
+    for rec in peak.dynode_records:
+        sig = accessor.signals([rec.record_id]).reshape(-1)
+        if lp_cutoff is not None:
+            sig = apply_lowpass_filter(sig, cutoff_hz=lp_cutoff, fs=fs, order=4)
+        sig = sig * dynode_scale
+        feats, _ = compute_features(
+            sig,
+            signal_polarity="positive",
+            baseline_samples=baseline_samples,
+            rise_low=rise_low,
+            rise_high=rise_high,
+            window=(integ_start, integ_end),
+        )
+        dynode_features[rec.record_id] = feats
+        dynode_pe[rec.record_id] = charge_to_pe(
+            feats.charge, gain_db.get_gain(rec.channel)
+        )
+
+    anode_area_pe = float(sum(anode_pe.values()))
+    dynode_area_pe = float(sum(dynode_pe.values()))
+
+    heights = [f.height for f in anode_features.values()] \
+        + [f.height for f in dynode_features.values()]
+    widths = [f.width for f in anode_features.values()] \
+        + [f.width for f in dynode_features.values()]
+    rise_times = [f.rise_time for f in anode_features.values()] \
+        + [f.rise_time for f in dynode_features.values()]
+
+    if peak.dynode_records:
+        time_ns = min(r.time_ns for r in peak.dynode_records)
+    elif peak.anode_records:
+        time_ns = min(r.time_ns for r in peak.anode_records)
+    else:
+        time_ns = peak.start_time_ns
+
+    charge_per_pmt: Dict[str, float] = {}
+    charge_source = config.get("cog", {}).get("charge_source", "anode")
+    feat_map = anode_features if charge_source == "anode" else dynode_features
+    board = 0 if charge_source == "anode" else 1
+    by_chan: Dict[int, float] = {}
+    for rec in _feature_records(peak, charge_source):
+        by_chan[rec.channel] = by_chan.get(rec.channel, 0.0) \
+            + feat_map[rec.record_id].charge
+    pmt_map = run_data.runinfo.pmt_id_map
+    for channel, charge in by_chan.items():
+        pmt_id = pmt_map.get((board, channel))
+        if pmt_id is not None:
+            charge_per_pmt[str(pmt_id)] = charge
+
+    return PeakFeatures(
+        peaks_id=peak.peaks_id,
+        time_ns=time_ns,
+        channels=list(peak.channels),
+        anode_record_ids=[r.record_id for r in peak.anode_records],
+        dynode_record_ids=[r.record_id for r in peak.dynode_records],
+        anode_features=anode_features,
+        dynode_features=dynode_features,
+        anode_pe=anode_pe,
+        dynode_pe=dynode_pe,
+        charge_per_pmt=charge_per_pmt,
+        anode_area_pe=anode_area_pe,
+        dynode_area_pe=dynode_area_pe,
+        peak_height=_max_ignore_nan(heights),
+        peak_width=_max_ignore_nan(widths),
+        peak_rise_time=_max_ignore_nan(rise_times),
+    )

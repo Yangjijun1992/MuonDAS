@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import psutil
+from tqdm.auto import tqdm
 
 from muon_analysis.config import build_config
 from muon_analysis.pipeline import analyze_run
@@ -130,7 +131,7 @@ def main(argv=None) -> int:
     print(f"[batch] groups: {len(groups)}", flush=True)
 
     stats = {"done": 0, "skip": 0, "failed": 0, "passed_total": 0}
-    for gi, group in enumerate(groups, start=1):
+    for gi, group in enumerate(tqdm(groups, desc="groups"), start=1):
         todo = [rid for rid in group if not already_done(args.out_root, rid)]
         skipped = len(group) - len(todo)
         stats["skip"] += skipped

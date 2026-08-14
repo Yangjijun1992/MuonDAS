@@ -1,8 +1,10 @@
 """Cache management for intermediate processed data.
 
 Caches preprocessed data (e.g. matched event structures) under
-``/tmp/muon_analysis/`` keyed by ``<run_id>_<param_hash>`` so the same
-conditions produce identical results and avoid recomputation.
+``/mnt/data/tmp/muon_analysis/`` keyed by ``<run_id>_<param_hash>`` so the same
+conditions produce identical results and avoid recomputation.  This path also
+serves as the single location for tracking cache entries and tracing their
+data provenance (source run + processing parameter hash).
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ import numpy as np
 
 from muon_analysis.config import param_hash
 
-DEFAULT_CACHE_DIR = Path("/tmp/muon_analysis")
+DEFAULT_CACHE_DIR = Path("/mnt/data/tmp/muon_analysis")
 
 
 class CacheWarning(UserWarning):

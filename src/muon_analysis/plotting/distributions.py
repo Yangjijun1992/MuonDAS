@@ -29,20 +29,26 @@ def plot_correlation(
     path.parent.mkdir(parents=True, exist_ok=True)
 
     plt.figure(figsize=(9, 8))
-    ch_list = sorted(set(anode["channel"]).union(set(dynode["channel"])))
-    colors = plt.cm.tab10(np.linspace(0, 1, len(ch_list)))
-    markers = ["o", "s", "^", "v", "D", "*", "p", "h", "x", "+"]
-    for i, ch in enumerate(ch_list):
-        a_mask = anode["channel"] == ch
-        plt.scatter(dynode["dynode_area_pe"][a_mask],
-                    anode["anode_area_pe"][a_mask],
-                    s=15, alpha=0.5, color=colors[i % len(colors)],
-                    marker=markers[i % len(markers)], label=f"Channel {ch}",
-                    edgecolors="none")
+    has_channel = "channel" in anode.columns and "channel" in dynode.columns
+    if has_channel:
+        ch_list = sorted(set(anode["channel"]).union(set(dynode["channel"])))
+        colors = plt.cm.tab10(np.linspace(0, 1, len(ch_list)))
+        markers = ["o", "s", "^", "v", "D", "*", "p", "h", "x", "+"]
+        for i, ch in enumerate(ch_list):
+            a_mask = anode["channel"] == ch
+            plt.scatter(dynode["dynode_area_pe"][a_mask],
+                        anode["anode_area_pe"][a_mask],
+                        s=15, alpha=0.5, color=colors[i % len(colors)],
+                        marker=markers[i % len(markers)], label=f"Channel {ch}",
+                        edgecolors="none")
+        plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", markerscale=2)
+    else:
+        plt.scatter(dynode["dynode_area_pe"], anode["anode_area_pe"],
+                    s=15, alpha=0.5, edgecolors="none")
+
     plt.xlabel("Dynode Area [PE]")
     plt.ylabel("Anode Area [PE]")
     plt.title("Correlation: Anode Area vs Dynode Area")
-    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", markerscale=2)
     plt.grid(True, linestyle=":", alpha=0.6)
     plt.tight_layout()
     plt.savefig(path, dpi=120)

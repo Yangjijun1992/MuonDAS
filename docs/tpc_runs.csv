@@ -1,0 +1,51 @@
+run_id,run_comment,run_tag,acq_time,start_time
+00183,"Normal Reference Run, Anode 30adc threshold & Dynode 40adc",TPC Run,3600.0,2026-06-09T14:10:56
+00184,"Normal Reference Run, Anode 30adc threshold & Dynode 40adc",TPC Run,3600.0,2026-06-09T15:11:15
+00185,"Normal Reference Run, Anode 30adc threshold & Dynode 40adc",TPC Run,3600.0,2026-06-09T16:11:34
+00189,tuning trigger threshold,TPC Run,3600.0,2026-06-10T14:06:29
+00190,tuning trigger threshold,TPC Run,3600.0,2026-06-10T15:06:48
+00191,tuning trigger threshold,TPC Run,3600.0,2026-06-10T16:07:07
+00192,tuning trigger threshold,TPC Run,3600.0,2026-06-10T17:07:26
+00193,tuning trigger threshold,TPC Run,3600.0,2026-06-10T18:07:46
+00194,tuning trigger threshold,TPC Run,3600.0,2026-06-11T10:50:13
+00195,tuning trigger threshold,TPC Run,3600.0,2026-06-11T11:50:32
+00196,tuning trigger threshold,TPC Run,3600.0,2026-06-11T12:50:51
+00197,tuning trigger threshold,TPC Run,3600.0,2026-06-11T13:51:10
+00205,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-11T22:09:13
+00206,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-11T23:09:32
+00207,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T00:09:50
+00208,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T01:10:09
+00209,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T02:10:29
+00210,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T03:10:48
+00211,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T04:11:07
+00212,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T05:11:26
+00213,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T06:11:46
+00214,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T07:12:05
+00215,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T08:12:24
+00216,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T09:12:43
+00217,"ADD 2inch PMT & PS, Anode 50adc & Dynode 30 adc & 2inch 50 adc",TPC Run,3600.0,2026-06-12T10:13:03
+00219,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-12T14:20:41
+00220,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-12T15:21:00
+00221,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-12T16:21:20
+00222,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-12T17:21:39
+00223,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-12T18:21:58
+00224,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-12T19:22:18
+00225,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-12T20:22:37
+00226,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-12T21:22:56
+00227,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-12T22:23:15
+00228,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-12T23:23:35
+00229,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T00:23:54
+00230,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T01:24:13
+00231,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T02:24:33
+00232,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T03:24:52
+00233,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T04:25:11
+00234,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T05:25:30
+00235,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T06:25:49
+00236,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T07:26:08
+00237,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T08:26:28
+00238,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T09:26:47
+00239,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T10:27:06
+00240,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T11:27:26
+00241,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T12:27:45
+00242,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T13:28:04
+00243,"Refrence Run, Elife Monitor, ADD 2inch PMT bottom & PS, Tuning threshold channel independent",TPC Run,3600.0,2026-06-13T14:28:23

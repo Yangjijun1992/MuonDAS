@@ -5,9 +5,7 @@ __pycache__/
 output/
 /tmp/
 examples/
-docs/*
 
-!docs/muon_analysis_architecture.md
-!docs/muon_analysis_delivery.md
-!docs/muon_dynode_analysis_implementation_plan.md
 
+
+.omo/

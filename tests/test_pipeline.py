@@ -8,7 +8,7 @@ from muon_analysis.config import build_config
 from muon_analysis.pipeline import analyze_run, analyze_runs
 
 
-def _write_runinfo(root, run_id="00179"):
+def _write_runinfo(root, run_id="00179", mapping=None):
     rid = run_id.zfill(5)
     rinfo = Path(root) / "run_R8520" / rid / "runinfo.json"
     rinfo.parent.mkdir(parents=True, exist_ok=True)
@@ -21,6 +21,8 @@ def _write_runinfo(root, run_id="00179"):
         "run_option": {"run_tag": "pmt test",
                        "run_comment": ["spe gain", "dark rate"]},
     }
+    if mapping:
+        payload["mapping"] = mapping
     rinfo.write_text(json.dumps(payload))
     return rinfo.parent
 
@@ -123,6 +125,46 @@ def test_sig_pads_to_length(conftest_run_data):
         signals=lambda ids: np.ones((1, 40)),
     )
     assert _sig(fake, 1, 100).shape == (100,)
+
+
+def test_analyze_run_cog_track(tmp_path):
+    """End-to-end: peak flow + COG reconstruction + track through the pipeline."""
+    run_data, _, _ = build_synthetic_run_data()
+    root = tmp_path / "data"
+    mapping = [
+        {"board_id": 0, "channels": [{"ch": i, "pmt": f"pmt{i}"} for i in range(4)]},
+        {"board_id": 1, "channels": [{"ch": i, "pmt": f"pmt{i}"} for i in range(4)]},
+    ]
+    _write_runinfo(root, mapping=mapping)
+    raw_dir = _write_npy_data(root, run_data)
+
+    pattern = tmp_path / "pattern.json"
+    pattern.write_text(json.dumps({
+        "pmt0": [0.0, 0.0], "pmt1": [1.0, 0.0],
+        "pmt2": [0.0, 1.0], "pmt3": [1.0, 1.0],
+    }))
+
+    cfg = _relaxed()
+    cfg["data_source"]["data_root"] = str(root)
+    cfg["data_source"]["data_dir"] = str(raw_dir)
+    cfg["cog"]["pattern_path"] = str(pattern)
+    cfg["plotting"]["dynode_lp_cutoff_hz"] = None
+    gain_db = make_gain_db([1e6, 1e6, 1e6, 1e6])
+
+    out_dir = tmp_path / "out"
+    report = analyze_run("00179", cfg, out_dir, gain_db=gain_db,
+                         use_cache=False, save_plots=True)
+    assert report.ok, report.error
+    assert report.passed_events > 0
+    assert report.track_count > 0
+
+    import pandas as pd
+    df = pd.read_csv(Path(str(out_dir) + "00179") / "events_run_00179.csv")
+    assert {"peaks_id", "cog_x", "cog_y", "anode_record_ids",
+            "dynode_record_ids"}.issubset(df.columns)
+    assert df["cog_x"].notna().any()
+    assert any("track_run_00179_peak" in p for p in report.outputs)
+    assert any("peak000_pairs_run_00179.png" in p for p in report.outputs)
 
 
 def test_analyze_runs_aggregate(tmp_path):

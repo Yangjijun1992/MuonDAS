@@ -1,9 +1,11 @@
 # Muon 分析工具 - 交付内容
 
 > 本文档记录当前已完成的交付内容，用于后续排查开发流程的完善情况。
-> 配套文档：[需求规格](muon_dynode_analysis_requirements.md)、[实施计划与任务清单](muon_dynode_analysis_implementation_plan.md)。
+> 配套文档：[需求规格](muon_dynode_analysis_requirements.md)、[实施计划与任务清单](muon_dynode_analysis_implementation_plan.md)、
+> [架构总览](muon_analysis_architecture.md)、[开发进展与后续开发](muon_development_progress.md)。
 
-**状态**：全部完成（40 项 pytest 通过，pyflakes 无告警，CLI 顺序/并行端到端可运行）。
+**状态**：核心功能全部完成（96 项 pytest 通过，pyflakes 无告警，CLI 顺序/并行端到端可运行；
+合成数据与**真实数据（run 00179）**全流程跑通）。
 
 ---
 
@@ -12,33 +14,38 @@
 ```
 MuonDAS/
 ├── config/                            # YAML 参数配置
-│   ├── analysis.yaml                  # 全部可调参数（阈值/窗口/积分策略/gain/输出）
+│   ├── analysis.yaml                  # 全部可调参数（匹配/聚类/筛选/特征/gain/绘图/COG/径迹/输出）
 │   └── data_source.yaml               # 数据根目录/runtype
 ├── src/muon_analysis/                 # 核心包（模块化）
-│   ├── config.py                      # 配置加载/校验/默认值/参数哈希
-│   ├── models.py                      # RunInfo、核心数据模型
-│   ├── matching.py                    # 打拿极-阳极时间匹配
-│   ├── filtering.py                   # 候选事例粗糙筛选
-│   ├── features.py                    # 特征量 + 积分窗口策略接口
-│   ├── gain.py                        # PMT SPE gain 数据库
+│   ├── config.py                      # 配置加载/校验/数值规范化/默认值/参数哈希
+│   ├── models.py                      # RunInfo、Peak、PeakFeatures、MuonCandidate 数据模型
+│   ├── matching.py                    # 打拿极-阳极时间匹配（移位 + merge_asof）
+│   ├── clustering.py                  # 100ns 窗口波形聚类 → peaks（多 anode + 多 dynode）
+│   ├── features.py                    # peak 级特征（dynode 低通 + ×110）+ 积分窗口策略
+│   ├── gain.py                        # PMT SPE gain 数据库（pmtdata/sqlite/csv）
 │   ├── pe_calibration.py              # 电荷 -> PE 换算
-│   ├── cache.py                       # /tmp 缓存管理
-│   ├── output.py                      # CSV/NPY 结果持久化
-│   ├── pipeline.py                    # 主流程编排 + 多进程
+│   ├── filtering.py                   # peak 级 muon 候选筛选（legacy pair 级粗筛保留）
+│   ├── cog.py                         # PMT pattern 导入（文件/runinfo pos/回退）+ COG 重建
+│   ├── track.py                       # dynode 1µs 时间切片 + 三维径迹重建
+│   ├── cache.py                       # /mnt/data/tmp/muon_analysis 缓存管理
+│   ├── output.py                      # CSV（含 peaks_id/cog_x/cog_y）/ NPY / PNG 持久化
+│   ├── pipeline.py                    # 主流程编排（peak 流程）+ tqdm + 多进程
 │   └── io/
-│   │   ├── runinfo.py                 # runinfo.json 解析/真实路径调取
+│   │   ├── runinfo.py                 # runinfo.json 解析/真实路径调取/runtype 自动探测
 │   │   ├── readers.py                 # waveform_analysis 后端读取
 │   │   ├── readers_alt.py             # npy / hdf5 后端读取
-│   │   ├── run_index.py               # run_id 解析
-│   │   └── data.py                    # RunData（按 board 分离）
+│   │   ├── run_index.py               # run_id 解析（列表/通配/外部文件）
+│   │   └── data.py                    # RunData（按 board 分离 dynode=1/anode=0）
 │   └── plotting/
-│       ├── waveforms.py               # 波形可视化（低通/叠加/时间对齐）
-│       └── distributions.py           # 统计分布图
+│       ├── waveforms.py               # 波形可视化（逐对/叠加验证 + 低通 + 时间对齐）
+│       ├── distributions.py           # 统计分布图（PE 谱/dt 谱/相关/2D 直方）
+│       └── pattern.py                 # PMT 面积图（布局方块 + 电荷着色 + COG 标记）
 ├── scripts/
 │   ├── run_analysis.py                # 命令行入口
-│   └── sample_data.py                 # 离线示例数据生成
-├── tests/                             # pytest 单元测试（40 项）
-├── docs/                              # 需求 / 计划 / 本文档
+│   ├── run_batch.py                   # 批量驱动（分组/并行/内存磁盘保护/断点续跑/tqdm）
+│   └── sample_data.py                 # 离线示例数据生成（含增益库/pattern 生成）
+├── tests/                             # pytest 单元测试（96 项）
+├── docs/                              # 需求 / 计划 / 架构 / 交付 / 进展 / 报告
 ├── examples/                          # 参考实现（raw_reader/runinfo/pipeline/ipynb）
 └── README.md
 ```
@@ -46,86 +53,82 @@ MuonDAS/
 ## 模块清单与功能
 
 ### 模块1 - 配置与命令行（config / CLI）
-- `config.py`：加载 `analysis.yaml`，覆盖优先级 **CLI > 用户配置 > 默认值**；配置校验（积分窗口模式、gain 后端）；`param_hash` 参数哈希（排除输出/缓存等易变字段）。
-- `config/analysis.yaml`：全部可调参数集中管理（匹配窗口、筛选阈值、积分窗口策略、gain 路径、输出、绘图默认值等）。
-- `scripts/run_analysis.py`：argparse，支持多 run_id、`--config/--data-root/--data-format/--runtype/--runtype-candidates/--out-dir/--plot-ids/--parallel/--gain-backend/--gain-path/--relaxed-filters/--show-cache/--clear-cache` 等。
+- `config.py`：加载 `analysis.yaml`，覆盖优先级 **CLI > 用户配置 > 默认值**；`_validate` 校验；`_normalize` 将 YAML 字符串数值（如 `'45e6'`）转 float；`param_hash` 参数哈希（排除易变字段）。
+- 配置分组：`matching` / `clustering` / `filtering` / `features` / `gain_db` / `plotting` / `cog` / `track` / `output` / `progress`。
+- `scripts/run_analysis.py`：支持多 run_id、`--run-list`（外部文件）、`--config`、`--data-root/--data-format/--runtype`、`--relaxed-filters`、`--gain-backend/--gain-path`、`--pattern`、`--out-dir`、`--no-save-waveforms/--no-save-plots`、`--plot-ids`（按 record_id）、`--plot-peaks`（按 peak 序号）、`--no-progress`、`--no-cache`、`--show-cache/--clear-cache`、`--parallel`、`--debug`。
 
 ### 模块2 - 数据读取（io）
-- `runinfo.py`：`get_runinfo(run_id, data_root, runtype, runtype_candidates)` 调取每 run 配置与真实数据路径。
-  - **runtype 作用域**：run_id 可能位于不同 runtype 目录（`run_R8520` / `run5_Ar` / `run6_Xe` / `run7_Xe` 等）。支持显式 `runtype` 限定搜索路径；未指定时**自动探测**（`discover_runtype` 扫描 `data_root` 下的 runtype 目录）。
-  - `run_info.runtype`（runinfo.json 内）为权威 runtype。
-  - **宽松校验**：默认非严格模式，`run_tag`/`datatype` 不匹配（如 TPC/muon 运行）时降级为空 datatype 并警告，不阻断加载。
-- `readers.py`：`waveform_analysis` 后端（需 `pyth12` 环境），按 `board==1`/`0` 分离 dynode/anode。
-- `readers_alt.py`：`npy` / `hdf5` 可选后端（离线/中间持久化）。
-- `run_index.py`：run_id 列表、通配符（glob）、外部配置文件解析。
-- `data.py`：`RunData` 容器 + `split_by_board`。
-- 容错：文件/runinfo 缺失等打印 WARNING 并跳过当前 run，不中断批次。
+- `get_runinfo`：runtype 显式限定 / 自动探测；`run_info.runtype` 为权威；宽松校验（run_tag/datatype 不匹配降级警告不阻断）。
+- `read_data`：`waveform_analysis_records` / `npy` / `hdf5` 三后端；`split_by_board` 分离 dynode/anode。
+- `run_index.py`：列表 / 通配符（glob）/ 外部配置文件三种 run_id 传入方式。
+- 容错：单 run 失败打印 ERROR 跳过，不中断批次。
 
 ### 模块3 - 时间匹配（matching）
-- `shift_time_records`：dynode 时间 +16ns（默认，配置化）。
-- `get_matched_indices_by_channel`：pandas `merge_asof` 按 channel 匹配（`direction='backward'`）。
-- `dt = t_dyn - t_ano`，筛选窗口 `[min_diff, max_diff]`（默认 `[0,30]ns`）。
-- 支持按通道延迟校准（`channel_delay_ns`）。
+- `shift_time_records`：dynode 全局 `+dynode_shift_ns`（默认 **6 ns**，与计划/README 统一）。
+- `get_matched_indices_by_channel`：pandas `merge_asof` 按 channel（`direction='backward'`）。
+- 窗口 `dt ∈ [0, 40] ns`；支持逐通道延迟校准 `channel_delay_ns`。
 
-### 模块4 - 候选事例粗糙筛选（filtering）
-- `asymmetry_calculation`：正/负脉冲波形不对称度噪声剔除（默认 `asym>0.7`）。
-- 波形长度筛选（默认 `event_length >= 7000`）、段面积筛选（默认 `seg_area_pe >= 20000`）。
-- 可选高度（幅度）阈值（dynode/anode 分别设定）。
-- 所有参数集中配置文件。
+### 模块4 - 波形聚类（clustering → peaks）【新增】
+- `cluster_peaks(match_df, run_data, cfg)`：按 dynode record time 以 `clustering.window_ns`（默认 100 ns）聚合成 `Peak`。
+- `Peak` 模型：`peaks_id`、时间范围、anode/dynode 记录列表（record_id/channel/time）、`match_rows`、`channels`。
+- 可缓存（`_peaks.json`）。
 
-### 模块5 - 特征量与 PE 标定（features / gain / pe_calibration）
-- **积分窗口策略接口** `IntegrationWindowResolver`：
-  - `FixedWindowResolver`（默认固定/给定区间 `[start,end)`，越界自动截断）。
-  - `PeakFinderWindowResolver`：**预留寻峰算法接入点**（待用户提供，定位波形起始点后积分）。
-  - 通过 `features.integral_window_mode`（`fixed` / `peak_finder`）切换。
-- `compute_features`：峰高(height)、电荷(charge)、上升时间、半高宽(width)、基线。
-- `gain.py`：抽象 `GainDB`，后端 `pmtdata`（对齐示例）/ `sqlite` / `csv`，返回 `version` 供溯源。
-  - `pmtdata` 后端按 `spe_gain` 列读取；gain 按**当前分析 run 的 run_id** 查询；该 run 无增益记录时**回退到每通道最新测量值**。
-  - `build_gain_db(config, run_id=...)` 支持按 run 覆盖增益 run_id。
-- `pe_calibration.py`：`pe_fact = (2/16384)*4e-9/(50*1.6e-19)/1e6`，`pe_calib = pe_fact/gain`；`compute_integral_pe` / `compute_raw_segment_pe`。
+### 模块5 - 波形可视化与验证（筛选前）【重排】
+- `plot_peak_pairs`：peak 内逐对绘制 anode/dynode。
+- `plot_peak_overlay`：两栏叠加（所有 anode / 所有 dynode）。
+- 管线默认绘制前 `num_samples` 个 peak + `--plot-peaks` 指定序号，作为**筛选前验证步骤**。
 
-### 模块6/7 - 可视化（plotting）
-- `waveforms.py`：`apply_lowpass_filter`（Butterworth 20MHz@250MHz 零相位）、`plot_pmt_comparison`（叠加对比、dynode 放大/反相）、`plot_by_record_id`（按时间对齐绘制单对）。
-- `distributions.py`：`plot_correlation`（anode vs dynode area 按通道分色）、`seg_area_pe` vs `event_length` 2D 直方、PE 谱、时间差谱等，输出 `.png`。
+### 模块6 - 事例特征分析（含 dynode 滤波/放大 与 PE）
+- `compute_peak_features`：anode 负极固定窗口积分；**dynode 先低通滤波（`dynode_lp_cutoff_hz`，默认 45 MHz）再 ×110 放大后积分（area 隐含 ×110）**；每记录 PE 换算；peak 级聚合 area/height/width/rise_time；`charge_per_pmt`。
+- 积分窗口策略接口 `IntegrationWindowResolver`（fixed 默认 / peak_finder 预留寻峰）。
+- gain：pmtdata/sqlite/csv 后端，按当前 run 查询，无条目回退每通道最新值。
 
-### 模块8 - 缓存管理与数据溯源（cache）
-- 缓存目录 `/tmp/muon_analysis/`，键为 `run_id` + `param_hash`。
-- `read_npy/write_npy`、`show_cache`、`clear_cache`。
-- 空间不足警告（不自动清除）。
+### 模块7 - muon 事例筛选（peak 级）
+- `filter_muon_candidates(peaks, peak_features, cfg)`：幅度（height_min/max）、形状（width_min/max、rise_time_max）、PE（min_area_pe_anode/dynode）判据，全部配置化，None=不设限；输出 `MuonCandidate`（含 `passed_conditions`）。
+- legacy pair 级粗筛 `filter_candidates`（asym/长度/段面积）保留供旧路径使用。
 
-### 模块9 - 结果输出（output）
-- 事例级 CSV：`run_id / event_id / PE / height / time / parameter_version / gain_db_version` 等。
-- 波形片段 `.npy`（`.npz`，参数控制开/关）。
-- 统计分布图 `.png`；运行元数据 JSON。
-- **每 run 输出目录**：`<输出基目录><run_id>`（如 `--out-dir /tmp/mm_out` → `/tmp/mm_out00183`），便于按完整 run 号识别。
+### 模块8 - 结果输出
+- 事例级 CSV（`peaks_to_dataframe`）：`run_id / event_id / peaks_id / time_ns / channels / anode_record_ids / dynode_record_ids / anode_area_pe / dynode_area_pe / peak_height / peak_width / peak_rise_time / cog_x / cog_y / parameter_version / gain_db_version`。
+- 波形片段 `.npz`（可配置开关）；统计分布 `.png`；运行元数据 JSON；输出目录自动创建。
 
-### 模块10 - 主流程编排与多进程（pipeline + CLI）
-- `analyze_runs`：逐 run 执行 runinfo → 读取 → 匹配 → 筛选 → 特征/PE → 绘图 → 输出。
-- 按 run `try/except` 容错，失败不中断批次；汇总报告。
-- 多进程 `ProcessPoolExecutor`（`--parallel`），异常回退顺序执行。
-- 匹配结果缓存命中短路（跨配置参数哈希隔离）。
+### 模块9 - 缓存管理与数据溯源
+- 缓存根目录 `/mnt/data/tmp/muon_analysis/`；键 `run_id + param_hash`；缓存**匹配表（.npy）与聚类 peaks（.json）**。
+- `--show-cache`（含条目溯源）/ `--clear-cache`；空间不足警告不自动清除。
 
-### 模块11 - 测试与文档
-- `tests/`：50 项 pytest，覆盖 config/runinfo/matching/features/gain/pe/filtering/cache/output/plotting/readers/pipeline（含缓存复用、并行、`_sig` 波形长度补零、runtype 探测）。
-- `README.md`：安装/用法/离线示例。
-- pyflakes 无告警。
+### 模块10 - PMT pattern 导入与 COG 位置重建【新增】
+- `load_pmt_layout` 三级优先级：**pattern 文件（JSON/CSV/YAML）→ runinfo mapping `channel["pos"]` → 内置 7-PMT 回退几何（`cog.use_fallback`）**（对齐 `xihu_fast_analysis/layout.py` 约定）。
+- `PmtEntry`/`PmtLayout` 数据模型：`pmt_positions_by_id`、`channels_by_board`、`entry_for_readout`。
+- `cog_reconstruct` 重心法；结果回填 CSV `cog_x`/`cog_y` 列（与 record_id 同表）。
 
-## 真实数据验证（run 00183）
+### 模块11 - muon 径迹重建【新增】
+- `slice_peak_waveforms`：dynode 波形（低通 + ×110）按 `track.slice_us`（默认 1 µs）切片。
+- `reconstruct_track`：每切片通道电荷 → pmt_id（`pmt_id_map[(1, ch)]`）→ 重心法切片中心。
+- `plot_track`：切片中心（x, y, time）连成三维径迹 PNG（采样绘制）。
 
-- run_id `00183` 位于 `runtype = run6_Xe`：`/mnt/data/TPC/run6_Xe/00183/`（内容含 `runinfo.json`、`RAW/*_raw_*.bin`）。
-- 自动探测 runtype 成功（未指定 runtype 时定位到 `run6_Xe`）；run `run_tag`/`datatype` 为自由文本（`TPC Run`），宽松校验降级为空 datatype 并继续。
-- 读取 **50,125,298** 条波形记录（约 82GB 内存）→ 时间匹配 **960,196** 对（`dt∈[0,30]ns`）→ 默认阈值筛选出 **11** 个 muon 候选。
-- 产物：`events_run_00183.csv`（含 `anode/dynode_seg_area_pe`、`event_length`、`parameter_version` 等溯源列，PE 已按通道增益换算）。
-- 通道：board0 阳极(negative)/board1 打拿极(positive)，channels 9–15；`pmtdata` 无 00183 的增益条目，回退到每通道最新 `spe_gain`。
-- 阈值默认值（`min_seg_area_pe=20000`、`event_length>=7000`）偏严，仅 11 例通过；可经 `config/analysis.yaml` 调整。
+### 模块12 - 主流程编排与多进程（pipeline + CLI）
+- 单 run 流程：`read → match(缓存) → cluster(缓存) → 验证图 → features(tqdm) → filter → COG → CSV → track/面积图 → 分布图`。
+- `RunReport` 统计 `total_events / matched_events / peak_count / passed_events / track_count`。
+- `analyze_runs`：并行（`ProcessPoolExecutor`）+ tqdm 进度条；`run_batch.py`：分组/并行/内存磁盘保护/断点续跑。
 
-## 已知限制 / 待完善（排查项）
+### 模块13 - 测试与文档
+- `tests/`：96 项 pytest，覆盖 io/matching/clustering/plotting/features/gain/pe_calibration/filtering/output/cache/cog/track + pipeline 端到端（含 COG/径迹链路）。
+- `README.md`（用法/离线示例）、`config/*.yaml` 注释、架构/进展文档。
 
-- [ ] 真实 `waveform_analysis` / `pmtdata` 后端需 `pyth12` 环境；离线以 `npy` + `sqlite` 后端验证。
-- [ ] **寻峰算法接口已预留**（`PeakFinderWindowResolver`），待用户提供寻峰算法以确定波形起始点后接入（替换固定窗口）。
-- [ ] 各筛选阈值默认值为示例参考值（`asym>0.7`、`len>=7000`、`area>=20000`），对 run 00183 偏严，需按真实物理预期标定。
-- [ ] 极性目前按惯例假定 anode=negative、dynode=positive；可后续从 runinfo `mapping.polarity` 读取以适配各 run。
-- [ ] 并行按 run 粒度实现，尚未做进程内波形级并行；单 run 全量读取内存占用高（约 82GB）。
+## 真实数据验证（run 00179，run6_Xe）
+
+- 读取真实 V1725 数据（`waveform_analysis` 后端，`pmtdata` 增益）→ **matched=214,515** → **peaks=30,645**（每 peak 恒 7 通道，符合 7-PMT 探测器）→ 候选 30,645（默认阈值全 None，未筛选）。
+- **COG**：30,645/30,645 填充；runinfo `mapping[].channels[].pos` 坐标生效（真实 mapping 结构 `ch/pmt/pos/label` 与参考布局完全一致，如 ch15=LV2389@(-26.8,17.7)）；COG 径向分布 r 均值 3.1mm（7 通道近等权 → 重心趋中，物理合理）。
+- **径迹**：30,645 条重建（dynode 1µs 切片）。
+- 产物：`events_run_00179.csv`、`waveforms_run_00179.npz`、验证图（逐对/叠加）、PMT 面积图、径迹采样图、分布图。
+
+## 已知限制 / 待完善（排查项，详见 [开发进展](muon_development_progress.md)）
+
+- [ ] **dynode_area_pe 在真实数据上为负**（均值 -190）：积分未减基线（真实 ADC 基线偏移），需基线修正（P0）。
+- [ ] **筛选阈值默认全部 None**：30645 候选全部通过，需按真实物理预期标定（P1）。
+- [ ] **交互式缩放/平移**（需求 §4 字面项）：当前仅保存静态 PNG，未实现（P1）。
+- [ ] 计划接口偏差：`features.dynode_*` 分组实际在 `plotting` 分组；缓存键未含 `gain_db_version`；`--debug` 未接线（P2）。
+- [ ] hdf5 后端无测试覆盖；特征结果未缓存（P2）。
+- [ ] 寻峰算法接口已预留（`PeakFinderWindowResolver`），待用户提供算法接入。
 
 ## 快速自检命令
 
@@ -136,19 +139,15 @@ python -m pytest tests/
 # 静态检查
 python -m pyflakes src/ scripts/ tests/
 
-# 离线端到端（示例数据）
-python scripts/sample_data.py --run-id 00179 --out /tmp/muon_demo
-python scripts/run_analysis.py 00179 \
-    --data-root /tmp/muon_demo --data-format npy --relaxed-filters \
-    --gain-backend sqlite --gain-path <你的增益库>.db
+# 离线端到端（示例数据，含 COG/径迹）
+python scripts/sample_data.py --run-id 00179 --out /tmp/muon_demo \
+    --gain-db /tmp/muon_demo/gains.db --pattern /tmp/muon_demo/pattern.json
+python scripts/run_analysis.py 00179 --data-root /tmp/muon_demo --data-format npy \
+    --relaxed-filters --gain-backend sqlite --gain-path /tmp/muon_demo/gains.db \
+    --pattern /tmp/muon_demo/pattern.json
 
-# 真实数据（自动探测 runtype，pmtdata 增益）
-python scripts/run_analysis.py 00183 \
-    --gain-backend pmtdata \
-    --out-dir /tmp/mm_out          # 输出到 /tmp/mm_out00183/
-
-# 显式指定 runtype（限定搜索路径）
-python scripts/run_analysis.py 00183 --runtype run6_Xe --out-dir /tmp/mm_out
+# 真实数据（自动探测 runtype，pmtdata 增益，runinfo pos 坐标）
+python scripts/run_analysis.py 00179 --out-dir /tmp/mm_out
 
 # 缓存管理
 python scripts/run_analysis.py --show-cache

@@ -2,7 +2,8 @@
 
 Aligned with the reference notebook logic:
   - apply a global time shift to dynode records (``shift_time_records``,
-    e.g. +16 ns) to correct channel delay;
+    configured via ``matching.dynode_shift_ns``, default 6 ns) to correct
+    channel delay;
   - match anode & dynode per-channel using pandas ``merge_asof`` with
     ``direction='backward'``;
   - keep pairs whose ``dt = t_dyn - t_ano`` lies within a window.
@@ -34,7 +35,7 @@ class MatchedEvent:
         return (self.dynode_idx, self.anode_idx, self.dt_ns, self.channel)
 
 
-def shift_time_records(records, shift_ns: float = 16.0):
+def shift_time_records(records, shift_ns: float = 6.0):
     """Add ``shift_ns`` to the ``time`` field (in place)."""
     records["time"] = records["time"] + shift_ns
     return records
@@ -113,8 +114,7 @@ def match_events(
     pandas.DataFrame with columns ``[dynode_idx, anode_idx, dt, channel]``.
     """
     matching_cfg = config.get("matching", {})
-    sample_interval_ns = float(matching_cfg.get("sample_interval_ns", 4))
-    base_shift = float(matching_cfg.get("dynode_shift_ns", sample_interval_ns * 4))
+    base_shift = float(matching_cfg.get("dynode_shift_ns", 6.0))
     min_diff = float(matching_cfg.get("min_diff_ns", 0))
     max_diff = float(matching_cfg.get("max_diff_ns", 30))
     delay_map = matching_cfg.get("channel_delay_ns", {}) or {}

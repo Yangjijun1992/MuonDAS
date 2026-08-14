@@ -34,8 +34,8 @@ def make_waveform(length=200, amplitude=100.0, polarity="positive", seed=0,
 def build_synthetic_run_data(n=60, seed=42):
     """Return (run_data, anode_records, dynode_records) with matched pairs.
 
-    Anode & dynode share the same time base; anode is shifted +16 ns so that
-    after the +16 ns dynode shift in ``matching``, dt ≈ 0 within [0,30] ns.
+    Anode & dynode share the same time base; anode is shifted +6 ns so that
+    after the +6 ns dynode shift in ``matching``, dt ≈ 0 within [0,30] ns.
     """
     rng = np.random.default_rng(seed)
     channels = np.tile(np.array([0, 1, 2, 3]), n // 4 + 1)[:n]
@@ -57,7 +57,7 @@ def build_synthetic_run_data(n=60, seed=42):
         dyn_rec["record_id"][i] = 1000 + i
         dyn_rec["event_length"][i] = length
 
-        ano_rec["time"][i] = int(base[i] + 16)
+        ano_rec["time"][i] = int(base[i] + 6)
         ano_rec["channel"][i] = channels[i]
         ano_rec["board"][i] = 0
         ano_rec["record_id"][i] = 2000 + i
