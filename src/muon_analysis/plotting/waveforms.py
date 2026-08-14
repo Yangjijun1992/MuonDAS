@@ -308,3 +308,143 @@ def plot_peak_overlay(peak, run_data, output_dir, run_id, sample_interval_ns=4.0
     fig.savefig(path, dpi=120)
     plt.close(fig)
     return [path]
+
+
+def _fetch(accessor, record_id, plot_len):
+    """Waveform slice ([:plot_len]) for a record, as float 1-D."""
+    return np.asarray(accessor.signals([record_id]).reshape(-1)[:plot_len],
+                      dtype=float)
+
+
+def _time_axis(rec, n_samples, sample_interval_ns):
+    return rec.time_ns + np.arange(n_samples) * sample_interval_ns
+
+
+def _mark_window(ax, peak, color="green"):
+    """Vertical lines at the peak clustering window (start/end time)."""
+    ax.axvline(peak.start_time_ns, color=color, linestyle="--", alpha=0.7,
+               linewidth=1.2, label=f"peak start {peak.start_time_ns:.0f}ns")
+    ax.axvline(peak.end_time_ns, color=color, linestyle=":", alpha=0.7,
+               linewidth=1.2, label=f"peak end {peak.end_time_ns:.0f}ns")
+
+
+def plot_peak_verification(peak, run_data, output_dir, run_id,
+                           sample_interval_ns=4.0, dynode_scale=110,
+                           lp_cutoff_hz=None, fs=250e6, plot_len=1500,
+                           show_window=True) -> list[Path]:
+    """Three verification figures for a peak, clustering window marked.
+
+    Figure 1 (anode):   all anode waveforms overlaid + per-channel panels.
+    Figure 2 (dynode):  all dynode waveforms overlaid (LP + inverted x scale)
+                        + per-channel panels.
+    Figure 3 (compare): anode overlay vs dynode overlay (LP + inverted x
+                        scale, unified polarity) in one panel.
+
+    Vertical lines mark the peak start/end time (100 ns clustering window).
+    Returns up to three saved PNG paths. matplotlib Agg backend.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from muon_analysis.filtering import SignalAccessor
+
+    accessor = SignalAccessor.from_run_data(run_data)
+    plot_dir = Path(output_dir)
+    plot_dir.mkdir(parents=True, exist_ok=True)
+    saved: list[Path] = []
+    prefix = f"peak{peak.peaks_id:03d}_verify"
+
+    all_channels = sorted({r.channel for r in peak.anode_records} |
+                          {r.channel for r in peak.dynode_records})
+    cmap = plt.get_cmap("tab10")
+    ch_color = {ch: cmap(i % 10) for i, ch in enumerate(all_channels)}
+
+    def fetch(rec):
+        return _fetch(accessor, rec.record_id, plot_len)
+
+    def trace(rec):
+        sig = fetch(rec)
+        if rec.is_dynode:
+            if lp_cutoff_hz is not None:
+                sig = apply_lowpass_filter(sig, cutoff_hz=lp_cutoff_hz, fs=fs)
+            sig = sig * -dynode_scale
+        return sig
+
+    def overlay_and_channels(records, title, fname):
+        if not records:
+            return
+        channels = sorted({r.channel for r in records})
+        n = 1 + len(channels)
+        fig, axes = plt.subplots(n, 1, figsize=(14, 3 * n), sharex=True)
+        ax_overlay = axes[0]
+        for rec in records:
+            sig = trace(rec)
+            ls = "--" if rec.is_dynode else "-"
+            ax_overlay.plot(_time_axis(rec, len(sig), sample_interval_ns), sig,
+                            color=ch_color[rec.channel], alpha=0.85, ls=ls,
+                            label=f"{'Dynode' if rec.is_dynode else 'Anode'} ch{rec.channel}")
+        if show_window:
+            _mark_window(ax_overlay, peak)
+        ax_overlay.axhline(0, color="black", linestyle="--", alpha=0.3)
+        ax_overlay.set_ylabel("Amplitude [ADC]")
+        ax_overlay.set_title(f"{title} overlay (peak {peak.peaks_id}, "
+                             f"colors = channels)")
+        ax_overlay.legend(loc="best", fontsize=8, ncol=2)
+        ax_overlay.grid(True, alpha=0.2)
+
+        for ax, ch in zip(axes[1:], channels):
+            for rec in records:
+                if rec.channel != ch:
+                    continue
+                sig = trace(rec)
+                ls = "--" if rec.is_dynode else "-"
+                ax.plot(_time_axis(rec, len(sig), sample_interval_ns), sig,
+                        color=ch_color[ch], alpha=0.9, ls=ls,
+                        label=f"{'Dynode' if rec.is_dynode else 'Anode'} ID {rec.record_id}")
+            ax.axhline(0, color="black", linestyle="--", alpha=0.3)
+            ax.set_ylabel("Amplitude [ADC]")
+            ax.set_title(f"ch {ch}")
+            ax.legend(loc="best", fontsize=7)
+            ax.grid(True, alpha=0.2)
+        axes[-1].set_xlabel("Time [ns]")
+        fig.tight_layout()
+        path = plot_dir / f"{prefix}_{fname}_run_{run_id}.png"
+        fig.savefig(path, dpi=120)
+        plt.close(fig)
+        saved.append(path)
+
+    # figure 1: anode (each channel its own color)
+    overlay_and_channels(peak.anode_records, "Anode", "anode")
+    # figure 2: dynode (each channel its own color, dashed = dynode)
+    overlay_and_channels(peak.dynode_records, "Dynode", "dynode")
+
+    # figure 3: unified-polarity comparison (anode + dynode overlay together)
+    if peak.anode_records and peak.dynode_records:
+        fig, ax = plt.subplots(figsize=(14, 6))
+        for rec in peak.anode_records:
+            sig = trace(rec)
+            ax.plot(_time_axis(rec, len(sig), sample_interval_ns), sig,
+                    color=ch_color[rec.channel], alpha=0.75,
+                    label=f"Anode ch{rec.channel}")
+        for rec in peak.dynode_records:
+            sig = trace(rec)
+            ax.plot(_time_axis(rec, len(sig), sample_interval_ns), sig,
+                    color=ch_color[rec.channel], alpha=0.75, ls="--",
+                    label=f"Dynode LP x{dynode_scale} ch{rec.channel}")
+        if show_window:
+            _mark_window(ax, peak)
+        ax.axhline(0, color="black", linestyle="--", alpha=0.3)
+        ax.set_xlabel("Time [ns]")
+        ax.set_ylabel("Amplitude [ADC]")
+        ax.set_title(f"Anode vs Dynode (unified polarity) peak {peak.peaks_id}, "
+                     f"colors = channels")
+        ax.legend(loc="best", fontsize=8, ncol=2)
+        ax.grid(True, alpha=0.2)
+        fig.tight_layout()
+        path = plot_dir / f"{prefix}_compare_run_{run_id}.png"
+        fig.savefig(path, dpi=120)
+        plt.close(fig)
+        saved.append(path)
+
+    return saved

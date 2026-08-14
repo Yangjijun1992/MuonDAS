@@ -35,6 +35,16 @@ matching:
 clustering:
   window_ns: 100 # record times within this window merge into one peak
 
+# --- pulse boundary finding (peak start/end, negative pulses) ---
+# Borrowed from pmt_analysis findpulse_st_ed(). Dynode (positive) waveforms
+# are inverted before searching.
+pulse_finder:
+  baseline_samples: 30 # samples used for baseline estimate
+  height_threshold: 50.0 # ADC: pulse rejected below this height
+  search_range: 5 # bounded walk each direction (samples)
+  end_baseline_tol: 50.0 # ADC: used by find_pulse_boundaries (full-extent variant)
+  end_consecutive: 3 # consecutive near-baseline samples
+
 # --- filtering ---
 filtering:
   signal_positive_polarity: # dynode

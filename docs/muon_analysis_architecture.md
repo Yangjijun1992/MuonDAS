@@ -77,9 +77,11 @@
 
 ### 2.5 波形聚类（clustering.py）【新增】
 - `cluster_peaks(match_df, run_data, config)`：将匹配对按 dynode record time 聚合成 **peak**。
-- **窗口**：`clustering.window_ns`（默认 **100 ns**），同一窗口内命中的所有通道（多 anode + 多 dynode）合入一个 peak。
+- **窗口**：`clustering.window_ns`（默认 **100 ns**），同一窗口内命中的所有通道（多 anode + 多 dynode）合入一个 peak（record time = 记录起始时间戳，仅作合并判据）。
 - **Peak 模型**（models.py）：`peaks_id`、`start/end_time_ns`、`anode_records`/`dynode_records`（`PeakRecord`: record_id/channel/time_ns/is_dynode）、`match_rows`（匹配表行索引）、`channels`。
-- 输出：按时间排序、peaks_id 连续编号的 peak 列表；可缓存（`_peaks.json`）。
+- **peak start/end（寻峰定义）**：`compute_peak_start_end`（pulsefinding.py）对 peak 内所有 anode+dynode 通道波形寻峰（**仅负脉冲**；dynode 波形先翻转），`peak.start = min(各通道 pulse_start)`、`peak.end = max(各通道 pulse_end)`（替换原 record-time min/max 定义）。
+- **寻峰算法**：借鉴 `pmt_analysis.findpulse_st_ed`（pulsefinding.py）：基线扣除 → argmin → 有界 ±`search_range` 左右行走；阈值在 `config['pulse_finder']`（baseline_samples/height_threshold/search_range）。
+- 输出：按时间排序、peaks_id 连续编号的 peak 列表；可缓存（`_peaks.json`，缓存加载后仍重算 start/end）。
 
 ### 2.6 候选筛选（filtering.py）
 - **peak 级筛选（当前主流程）**：`filter_muon_candidates(peaks, peak_features, config)`，判据全部来自 `config["filtering"]`（None=不设限）：
@@ -207,7 +209,8 @@ python scripts/run_analysis.py --clear-cache     # 清缓存
 | matching | `dynode_shift_ns` | 6 | dynode 时间移位量(ns)，与计划/README 统一 |
 | matching | `match_window_ns` / `min/max_diff_ns` | [0,40] | dt 匹配窗口 |
 | matching | `sample_interval_ns` | 4 | 采样间隔(ns) |
-| clustering | `window_ns` | 100 | 波形聚类窗口（peak 合并） |
+| clustering | `window_ns` | 100 | 波形聚类窗口（peak 合并，record time 判据） |
+| pulse_finder | `baseline_samples` / `height_threshold` / `search_range` | 30/50/5 | 寻峰参数（负脉冲，dynode 先翻转；借鉴 findpulse_st_ed） |
 | filtering | `height_min` / `height_max` | null | peak 级幅度上下限 |
 | filtering | `width_min` / `width_max` | null | peak 级宽度上下限 |
 | filtering | `rise_time_max` | null | peak 级上升时间上限 |

@@ -133,14 +133,21 @@ MuonDAS/
   - 每个 `Peak` 含**多个 anode 通道波形**与**多个 dynode 通道波形**（同窗内命中的所有通道），各自 `record_id`/`channel`/`time`。
   - 每个 `Peak` 分配 `peaks_id`。
 - `Peak` 数据模型：`peaks_id`、时间范围（start/end）、anode 记录列表（record_id/ch）与 dynode 记录列表。
+- **peak 时间范围（start/end）定义（修订）**：
+  - 对 peak 内所有 anode 与 dynode 通道波形分别**寻峰**，得各通道脉冲边界 `pulse_start`/`pulse_end`；
+  - `peak.start` = 所有通道 `pulse_start` 的最小值，`peak.end` = 所有通道 `pulse_end` 的最大值；
+  - 寻峰算法为**独立可插拔模块**（`pulse_finder` 接口），算法本体由用户后续提供并接入。
 
 **任务清单**
 
-- [ ] 设计 `Peak` 数据模型（含 peaks_id、所占通道集合、波形记录索引、时间窗）。
-- [ ] 实现按时间窗（默认 100 ns）对匹配记录聚类成 peak 的算法。
-- [ ] peak 聚类窗口参数写入配置（`clustering.window_ns`）。
-- [ ] 输出 peak 列表（供可视化、特征、筛选）。
-- [ ] 单元测试：构造多通道时间邻近事件验证聚类正确性。
+- [x] 设计 `Peak` 数据模型（含 peaks_id、所占通道集合、波形记录索引、时间窗）。
+- [x] 实现按时间窗（默认 100 ns）对匹配记录聚类成 peak 的算法（record time 合并判据）。
+- [x] **定义寻峰接口 `pulse_finder`**：输入单通道波形，输出 `(pulse_start, pulse_end)`（样本索引或时间）；anode/dynode 通用（**仅负脉冲**，dynode 波形由调用方先翻转）；默认实现借鉴 `pmt_analysis.findpulse_st_ed`（有界 ±search_range 寻峰）。
+- [x] **peak start/end 重算**：`compute_peak_start_end` 对 peak 内所有 anode+dynode 通道波形调用寻峰（dynode 翻转）→ 各通道 `pulse_start/end` → `peak.start = min(...)`、`peak.end = max(...)`（已替换原"record time min/max"定义；真实 run 00183 验证：窗口与脉冲对齐，1195 个 7 通道 peak 窗口宽中位数 44ns）。
+- [ ] **寻峰算法接入**：默认实现已落地（借鉴 findpulse_st_ed）；用户自定义寻峰算法可后续替换 `pulse_finder` 实现（`config['pulse_finder']` 阈值可调）。
+- [x] peak 聚类窗口参数写入配置（`clustering.window_ns`）。
+- [x] 输出 peak 列表（供可视化、特征、筛选）。
+- [x] 单元测试：构造多通道时间邻近事件验证聚类正确性；寻峰边界聚合测试（构造已知脉冲位置波形验证 peak.start/end）。
 
 ---
 
@@ -176,6 +183,7 @@ MuonDAS/
   - **dynode 处理**：先低通滤波（`apply_lowpass_filter`），再 110× 放大，最终 dynode **area ×110 scale**。
 - `compute_integral_pe` / 积分窗口策略（固定窗口，预留寻峰）；`pe_fact/gain` 按通道换算 PE。
 - `GainDB`（pmtdata/sqlite/csv，**沿用现有读取方式，不新增后端**）按通道查增益。
+- **寻峰关联**：特征积分窗口的起始点定位（`PeakFinderWindowResolver` 预留接口）与 peak start/end 计算（模块四 `pulse_finder`）共用同一寻峰算法/接口，由用户提供后统一接入。
 
 **任务清单**
 
@@ -350,6 +358,7 @@ config/CLI (1)
 - [ ] **筛选阈值**：基于 peak 特征（area/height/width/rise_time/PE）的具体判据数值。
 - [ ] **环境依赖**：`waveform_analysis`、`pmtdata` 安装（`pyth12` 环境）。
 - [ ] 聚类与可视化验证的输出规模/文件命名约定。
+- [ ] **寻峰算法**：默认实现已落地（借鉴 `findpulse_st_ed`，仅负脉冲、dynode 先翻转）；如用户提供自定义寻峰算法，可替换 `pulse_finder` 实现并调优 `config['pulse_finder']` 阈值（height_threshold/search_range/baseline_samples）。
 
 **已决议事项（2026-08-13）**
 
@@ -357,3 +366,7 @@ config/CLI (1)
 - PMT gain 数据库格式沿用现有读取方式（pmtdata/sqlite/csv），不新增 JSON 后端。
 - COG 输出方式：回填至事例 CSV 的 `cog_x`/`cog_y` 列，与 `record_id` 对应。
 - run_id 支持外部配置文件（`--run-list`）；CLI 新增 `--plot-peaks`；进度条采用 tqdm；测试覆盖补入 gain/pe_calibration。
+
+**已决议事项（2026-08-14）**
+
+- **peak start/end 重定义**：不再使用"record time min/max"；改为对 peak 内所有 anode+dynode 通道波形分别寻峰，`peak.start = min(各通道 pulse_start)`、`peak.end = max(各通道 pulse_end)`；寻峰算法为可插拔接口（`pulse_finder`），算法本体由用户后续提供，当前为阻塞项（见 §15）。

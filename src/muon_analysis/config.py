@@ -45,6 +45,15 @@ _DEFAULTS: Dict[str, Any] = {
     "clustering": {
         "window_ns": 100,
     },
+    "pulse_finder": {
+        # Negative-pulse boundary finder (borrowed from pmt_analysis
+        # findpulse_st_ed).  Dynode waveforms are inverted before searching.
+        "baseline_samples": 30,      # samples used for baseline estimate
+        "height_threshold": 50.0,    # ADC: pulse rejected below this height
+        "search_range": 5,           # bounded walk each direction (samples)
+        "end_baseline_tol": 50.0,    # ADC: used by find_pulse_boundaries
+        "end_consecutive": 3,        # consecutive near-baseline samples
+    },
     "filtering": {
         "signal_positive_polarity": {"asym_min": 0.7, "height_min": None, "height_max": None},
         "signal_negative_polarity": {"asym_min": 0.7, "height_min": None, "height_max": None},

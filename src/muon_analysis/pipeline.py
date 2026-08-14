@@ -26,6 +26,7 @@ from muon_analysis.gain import build_gain_db
 from muon_analysis.io.readers import read_data
 from muon_analysis.io.runinfo import get_runinfo, RunInfoError
 from muon_analysis.matching import match_events
+from muon_analysis.pulsefinding import compute_peak_start_end
 
 
 @dataclass
@@ -331,14 +332,19 @@ def analyze_run(
 
     # --- clustering into peaks (cacheable) ---
     peaks = None
+    cached = False
     if use_cache:
         peaks = _peaks_from_cache(ri.run_id, config)
+        cached = peaks is not None
     if peaks is None:
         peaks = cluster_peaks(match_df, run_data, config)
-        if use_cache:
-            cache.write_json(ri.run_id, config,
-                             [_peak_to_cache(p) for p in peaks],
-                             ext="_peaks.json")
+    # peak start/end from per-channel pulse boundaries (negative pulses;
+    # dynode waveforms are inverted internally).
+    compute_peak_start_end(peaks, run_data, config)
+    if use_cache and not cached:
+        cache.write_json(ri.run_id, config,
+                         [_peak_to_cache(p) for p in peaks],
+                         ext="_peaks.json")
     report.peak_count = len(peaks)
     print(f"[run_id={ri.run_id}] matched={report.matched_events} "
           f"peaks={report.peak_count}")

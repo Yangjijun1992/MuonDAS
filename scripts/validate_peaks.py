@@ -33,6 +33,7 @@ from muon_analysis.matching import match_events
 from muon_analysis.clustering import cluster_peaks
 from muon_analysis.features import compute_peak_features
 from muon_analysis.gain import build_gain_db
+from muon_analysis.pulsefinding import compute_peak_start_end
 from muon_analysis.io.runinfo import get_runinfo
 from muon_analysis.io.readers import read_data
 
@@ -96,6 +97,7 @@ def main(argv=None) -> int:
     print(f"== [{run_id}] stage 3: cluster ==")
     t0 = time.time()
     peaks = cluster_peaks(match_df, run_data, config)
+    compute_peak_start_end(peaks, run_data, config)
     stats["n_peaks"] = len(peaks)
     n_ch = np.array([p.n_channels for p in peaks])
     stats["channels_per_peak"] = {

@@ -6,8 +6,42 @@ from muon_analysis.models import Peak, PeakRecord
 from muon_analysis.plotting.waveforms import (
     plot_peak_overlay,
     plot_peak_pairs,
+    plot_peak_verification,
 )
 from conftest import build_synthetic_run_data
+
+
+def _peak():
+    recs = []
+    for ch in (0, 1):
+        recs.append(PeakRecord(record_id=2000 + ch, channel=ch,
+                               time_ns=100.0, is_dynode=False))
+        recs.append(PeakRecord(record_id=1000 + ch, channel=ch,
+                               time_ns=100.0, is_dynode=True))
+    return Peak(peaks_id=7, start_time_ns=100.0, end_time_ns=200.0,
+                anode_records=[r for r in recs if not r.is_dynode],
+                dynode_records=[r for r in recs if r.is_dynode],
+                channels=[0, 1])
+
+
+def test_plot_peak_verification(tmp_path):
+    run_data, _, _ = build_synthetic_run_data()
+    saved = plot_peak_verification(_peak(), run_data, tmp_path, "00179",
+                                   plot_len=100)
+    assert len(saved) == 3
+    for p in saved:
+        assert p.exists()
+    names = [p.name for p in saved]
+    assert any("verify_anode" in n for n in names)
+    assert any("verify_dynode" in n for n in names)
+    assert any("verify_compare" in n for n in names)
+
+
+def test_plot_peak_verification_empty_records(tmp_path):
+    run_data, _, _ = build_synthetic_run_data()
+    from muon_analysis.models import Peak
+    empty = Peak(peaks_id=8, start_time_ns=0.0, end_time_ns=1.0)
+    assert plot_peak_verification(empty, run_data, tmp_path, "00179") == []
 
 
 def _small_peak():
