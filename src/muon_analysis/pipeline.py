@@ -70,7 +70,9 @@ def _summarize_run_data(run_data) -> int:
 
 def _peak_to_cache(peak) -> Dict[str, Any]:
     rec = lambda r: {"record_id": r.record_id, "channel": r.channel,
-                     "time_ns": r.time_ns, "is_dynode": r.is_dynode}
+                     "time_ns": r.time_ns, "is_dynode": r.is_dynode,
+                     "pulse_start_sample": r.pulse_start_sample,
+                     "pulse_end_sample": r.pulse_end_sample}
     return {
         "peaks_id": peak.peaks_id,
         "start_time_ns": peak.start_time_ns,

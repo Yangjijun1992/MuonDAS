@@ -60,12 +60,17 @@ def findpulse_st_ed(
             min_value = wf[i]
             min_index = i
 
+    # skip a clipped (saturated) flat plateau at the minimum, then walk to the
+    # true pulse start/end; without this the monotonic walk stalls inside the
+    # plateau and both boundaries land on the clipped region
     start_index = min_index
+    while start_index > start_range and wf[start_index] == wf[min_index]:
+        start_index -= 1
     while start_index > start_range and wf[start_index] < wf[start_index - 1]:
         start_index -= 1
 
     end_index = min_index
-    if end_index + 1 < end_range and wf[min_index] == wf[end_index + 1]:
+    while end_index + 1 < end_range and wf[end_index + 1] == wf[min_index]:
         end_index += 1
     while end_index + 1 < end_range and wf[end_index + 1] > wf[end_index]:
         end_index += 1
@@ -76,16 +81,29 @@ def findpulse_st_ed(
 def find_pulse_boundaries(
     waveform: np.ndarray,
     baseline_samples: int = 30,
-    height_threshold: float = 50.0,
-    end_baseline_tol: float = 50.0,
+    height_threshold: float = 10.0,
+    min_recovery_frac: float = 0.3,
+    end_baseline_tol: float = 20.0,
     end_consecutive: int = 3,
 ) -> Optional[Tuple[int, int]]:
     """Full main-pulse ``(start, end)`` for a negative-going waveform.
 
-    Baseline-subtract -> argmin -> height check -> walk left to the pulse
-    start -> walk right until ``end_consecutive`` consecutive samples return
-    within ``end_baseline_tol`` ADC of the baseline.  Returns None when the
-    pulse height is below ``height_threshold``.
+    Baseline-subtract -> argmin -> height check -> walk to the pulse
+    boundaries:
+
+      - the **clipped (saturated) flat plateau** at the minimum is skipped
+        first, so the boundaries do not stall inside it;
+      - LEFT: walk while the signal is still descending (pulse start edge);
+      - RIGHT: the end must **return to the baseline** and stay there — the
+        end sample plus the following ``end_consecutive`` samples must all lie
+        within ``end_baseline_tol`` ADC of the baseline (a transient
+        oscillation dip is not accepted as the end); if no stable baseline
+        return exists within the record, the end falls back to the record end;
+      - a pulse is accepted only when the recovery rise is a meaningful
+        fraction (``min_recovery_frac``) of the pulse height, which rejects
+        spurious minima (e.g. an un-inverted positive pulse).
+
+    Returns ``(start, end)`` sample indices or None when no pulse is found.
     """
     processed, _ = preprocess_waveform(waveform, baseline_samples)
     min_idx = int(np.argmin(processed))
@@ -94,20 +112,34 @@ def find_pulse_boundaries(
         return None
 
     start_idx = min_idx
+    while start_idx > 0 and processed[start_idx] == processed[min_idx]:
+        start_idx -= 1
     while start_idx > 0 and processed[start_idx] <= processed[start_idx - 1]:
         start_idx -= 1
 
     end_idx = min_idx
-    count = 0
-    while end_idx < len(processed) - 1:
+    n = len(processed)
+    while end_idx + 1 < n and processed[end_idx + 1] == processed[min_idx]:
         end_idx += 1
-        if abs(processed[end_idx]) < float(end_baseline_tol):
+    # end must return to baseline AND stay there: the end sample plus the
+    # following ``end_consecutive`` samples must all be within tol of the
+    # baseline, so a transient oscillation dip is not mistaken for the end.
+    required = 1 + int(end_consecutive)
+    count = 0
+    found = None
+    for i in range(end_idx, n):
+        if abs(processed[i]) < float(end_baseline_tol):
             count += 1
-            if count >= int(end_consecutive):
+            if count >= required:
+                found = i - required + 1
                 break
         else:
             count = 0
+    end_idx = found if found is not None else n - 1
 
+    rise = float(processed[end_idx] - processed[min_idx])
+    if rise < float(min_recovery_frac) * height:
+        return None
     return start_idx, end_idx
 
 
@@ -116,39 +148,44 @@ def pulse_finder(
 ) -> Optional[Tuple[int, int]]:
     """Pluggable pulse-boundary finder (negative-going pulse required).
 
-    Borrows ``findpulse_st_ed``: baseline-subtract -> argmin as reference ->
-    bounded walk (``search_range``) to the pulse-core start/end.  Dynode
-    waveforms (positive) must be inverted by the caller.  Returns
-    ``(pulse_start, pulse_end)`` sample indices, or None when no pulse is
-    found.  Thresholds come from ``config['pulse_finder']`` (see config.py).
+    Borrows the ``findpulse_st_ed`` / main-pulse walking from the reference
+    ``pmt_analysis`` repo, extended to skip clipped (saturated) plateaus and
+    to end the pulse at its first recovery peak.  Dynode waveforms (positive)
+    must be inverted by the caller.  Returns ``(pulse_start, pulse_end)``
+    sample indices, or None when no pulse is found.  Thresholds come from
+    ``config['pulse_finder']`` (see config.py).
     """
     cfg = (config or {}).get("pulse_finder") or {}
-    baseline_samples = int(cfg.get("baseline_samples", 30))
-    height_threshold = float(cfg.get("height_threshold", 50.0))
-    search_range = int(cfg.get("search_range", 5))
-
-    processed, _ = preprocess_waveform(waveform, baseline_samples)
-    min_idx = int(np.argmin(processed))
-    if abs(processed[min_idx]) < height_threshold:
-        return None
-    start, _, end = findpulse_st_ed(processed, 0.0, min_idx,
-                                    search_range=search_range)
-    return start, end
+    return find_pulse_boundaries(
+        waveform,
+        baseline_samples=cfg.get("baseline_samples", 30),
+        height_threshold=cfg.get("height_threshold", 10.0),
+        min_recovery_frac=cfg.get("min_recovery_frac", 0.3),
+        end_baseline_tol=cfg.get("end_baseline_tol", 20.0),
+        end_consecutive=cfg.get("end_consecutive", 3),
+    )
 
 
 def compute_peak_start_end(peaks, run_data, config) -> None:
     """Recompute peak start/end from per-channel pulse boundaries (in place).
 
-    For each peak, every anode record (negative pulse) and every dynode record
-    (**inverted first**, positive -> negative) is fed to :func:`pulse_finder`;
-    sample boundaries are converted to absolute time via
-    ``record.time_ns + sample * sample_interval_ns``.  ``peak.start`` = min
-    over all channels' pulse starts, ``peak.end`` = max over all channels'
-    pulse ends.  Records with no pulse (below threshold) are skipped.
+    Clustering (100 ns record-time window) is unchanged; this only refines the
+    peak start/end.  For each peak, **every** anode record (negative pulse) and
+    **every** dynode record (**inverted first**, positive -> negative) is fed
+    to :func:`pulse_finder`; each record's own boundaries are stored on
+    ``PeakRecord.pulse_start_sample`` / ``pulse_end_sample``.
+
+    ``peak.start`` = min over all records' pulse starts, ``peak.end`` = max
+    over all records' pulse ends.  Records whose end fell back to the record
+    end (no stable baseline return found) do **not** contribute to the
+    aggregate window, so a ringing channel without a proper end cannot widen
+    the peak window.
     """
     from muon_analysis.filtering import SignalAccessor
 
     interval = float(config.get("matching", {}).get("sample_interval_ns", 4.0))
+    end_consecutive = int(config.get("pulse_finder", {}).get(
+        "end_consecutive", 3))
     accessor = SignalAccessor.from_run_data(run_data)
 
     for peak in peaks:
@@ -159,15 +196,19 @@ def compute_peak_start_end(peaks, run_data, config) -> None:
                             dtype=float)
             bounds = pulse_finder(wf, config)
             if bounds is not None:
-                starts.append(rec.time_ns + bounds[0] * interval)
-                ends.append(rec.time_ns + bounds[1] * interval)
+                rec.pulse_start_sample, rec.pulse_end_sample = bounds
+                if bounds[1] < len(wf) - end_consecutive:
+                    starts.append(rec.time_ns + bounds[0] * interval)
+                    ends.append(rec.time_ns + bounds[1] * interval)
         for rec in peak.dynode_records:
             wf = np.asarray(accessor.signals([rec.record_id]).reshape(-1),
                             dtype=float)
             bounds = pulse_finder(-wf, config)
             if bounds is not None:
-                starts.append(rec.time_ns + bounds[0] * interval)
-                ends.append(rec.time_ns + bounds[1] * interval)
+                rec.pulse_start_sample, rec.pulse_end_sample = bounds
+                if bounds[1] < len(wf) - end_consecutive:
+                    starts.append(rec.time_ns + bounds[0] * interval)
+                    ends.append(rec.time_ns + bounds[1] * interval)
         if starts and ends:
             peak.start_time_ns = float(min(starts))
             peak.end_time_ns = float(max(ends))

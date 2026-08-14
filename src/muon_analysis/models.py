@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -14,12 +14,22 @@ class PeakRecord:
     ``record_id`` is the raw record identifier from the records table (also
     the value used by the ``SignalAccessor``); ``time_ns`` is the record's
     start time; ``is_dynode`` distinguishes dynode (True) from anode (False).
+
+    ``pulse_start_sample`` / ``pulse_end_sample`` hold this record's own
+    pulse boundaries (sample indices, from :func:`pulse_finder`); None when
+    no pulse was found for the channel.
     """
 
     record_id: int
     channel: int
     time_ns: float
     is_dynode: bool
+    pulse_start_sample: Optional[int] = None
+    pulse_end_sample: Optional[int] = None
+
+    @property
+    def has_pulse(self) -> bool:
+        return self.pulse_start_sample is not None and self.pulse_end_sample is not None
 
 
 @dataclass
@@ -92,6 +102,7 @@ class PeakFeatures:
     peak_height: float = 0.0
     peak_width: float = 0.0
     peak_rise_time: float = 0.0
+    peak_width_ns: float = 0.0   # peak window width = end_time_ns - start_time_ns
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -105,6 +116,7 @@ class PeakFeatures:
             "peak_height": self.peak_height,
             "peak_width": self.peak_width,
             "peak_rise_time": self.peak_rise_time,
+            "peak_width_ns": self.peak_width_ns,
             "charge_per_pmt": dict(self.charge_per_pmt),
         }
 

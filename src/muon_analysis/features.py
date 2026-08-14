@@ -323,4 +323,5 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         peak_height=_max_ignore_nan(heights),
         peak_width=_max_ignore_nan(widths),
         peak_rise_time=_max_ignore_nan(rise_times),
+        peak_width_ns=float(peak.end_time_ns - peak.start_time_ns),
     )

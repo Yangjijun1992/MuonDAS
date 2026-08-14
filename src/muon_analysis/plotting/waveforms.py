@@ -402,6 +402,16 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
                 ax.plot(_time_axis(rec, len(sig), sample_interval_ns), sig,
                         color=ch_color[ch], alpha=0.9, ls=ls,
                         label=f"{'Dynode' if rec.is_dynode else 'Anode'} ID {rec.record_id}")
+            if show_window:
+                for rec in records:
+                    if rec.channel != ch or not rec.has_pulse:
+                        continue
+                    st_t = rec.time_ns + rec.pulse_start_sample * sample_interval_ns
+                    ed_t = rec.time_ns + rec.pulse_end_sample * sample_interval_ns
+                    ax.axvline(st_t, color="orange", linestyle="--", lw=1.0,
+                               alpha=0.8, label=f"pulse st {st_t:.0f}ns")
+                    ax.axvline(ed_t, color="orange", linestyle=":", lw=1.0,
+                               alpha=0.8, label=f"pulse ed {ed_t:.0f}ns")
             ax.axhline(0, color="black", linestyle="--", alpha=0.3)
             ax.set_ylabel("Amplitude [ADC]")
             ax.set_title(f"ch {ch}")

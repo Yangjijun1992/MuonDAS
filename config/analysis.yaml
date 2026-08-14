@@ -40,10 +40,10 @@ clustering:
 # are inverted before searching.
 pulse_finder:
   baseline_samples: 30 # samples used for baseline estimate
-  height_threshold: 50.0 # ADC: pulse rejected below this height
-  search_range: 5 # bounded walk each direction (samples)
-  end_baseline_tol: 50.0 # ADC: used by find_pulse_boundaries (full-extent variant)
-  end_consecutive: 3 # consecutive near-baseline samples
+  height_threshold: 10.0 # ADC: pulse rejected below this height (dynode median ~60)
+  min_recovery_frac: 0.3 # min recovery rise (fraction of pulse height) to accept
+  end_baseline_tol: 20.0 # ADC: end must return within this of baseline
+  end_consecutive: 3 # samples AFTER the end that must stay within tol (confirm stable return)
 
 # --- filtering ---
 filtering:

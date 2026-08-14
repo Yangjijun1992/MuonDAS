@@ -88,6 +88,7 @@ def peaks_to_dataframe(
             "peak_height": feats["peak_height"],
             "peak_width": feats["peak_width"],
             "peak_rise_time": feats["peak_rise_time"],
+            "peak_width_ns": feats["peak_width_ns"],
         }
         if cog_coords and cand.peaks_id in cog_coords:
             row["cog_x"], row["cog_y"] = cog_coords[cand.peaks_id]

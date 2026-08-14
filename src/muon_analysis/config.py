@@ -47,12 +47,13 @@ _DEFAULTS: Dict[str, Any] = {
     },
     "pulse_finder": {
         # Negative-pulse boundary finder (borrowed from pmt_analysis
-        # findpulse_st_ed).  Dynode waveforms are inverted before searching.
+        # findpulse_st_ed, extended for clipped plateaus).  Dynode waveforms
+        # are inverted before searching.
         "baseline_samples": 30,      # samples used for baseline estimate
-        "height_threshold": 50.0,    # ADC: pulse rejected below this height
-        "search_range": 5,           # bounded walk each direction (samples)
-        "end_baseline_tol": 50.0,    # ADC: used by find_pulse_boundaries
-        "end_consecutive": 3,        # consecutive near-baseline samples
+        "height_threshold": 10.0,    # ADC: pulse rejected below this height
+        "min_recovery_frac": 0.3,    # min recovery rise (frac of height) to accept
+        "end_baseline_tol": 20.0,    # ADC: end must be within this of baseline
+        "end_consecutive": 3,        # samples AFTER the end that must stay within tol
     },
     "filtering": {
         "signal_positive_polarity": {"asym_min": 0.7, "height_min": None, "height_max": None},

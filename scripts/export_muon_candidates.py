@@ -95,7 +95,7 @@ def main(argv=None) -> int:
     layout = load_pmt_layout(config, ri)
     positions = layout.pmt_positions_by_id if layout else None
 
-    # --- per-record waveforms ---
+    # --- per-record waveforms (+ per-channel pulse boundaries) ---
     accessor = SignalAccessor.from_run_data(run_data)
     rows = []
     for pk in tqdm(sel, desc="waveforms"):
@@ -103,13 +103,16 @@ def main(argv=None) -> int:
             wf = np.asarray(accessor.signals([rec.record_id]).reshape(-1),
                             dtype=np.int16)
             rows.append((pk.peaks_id, int(rec.is_dynode), rec.channel,
-                         rec.record_id, rec.time_ns, wf))
+                         rec.record_id, rec.time_ns, wf,
+                         rec.pulse_start_sample, rec.pulse_end_sample))
     wf_peaks = np.array([r[0] for r in rows], dtype=np.int64)
     wf_board = np.array([r[1] for r in rows], dtype=np.int8)
     wf_ch = np.array([r[2] for r in rows], dtype=np.int16)
     wf_rec = np.array([r[3] for r in rows], dtype=np.int64)
     wf_time = np.array([r[4] for r in rows], dtype=np.float64)
     wf_waves = np.empty(len(rows), dtype=object)
+    wf_pst = np.array([-1 if r[6] is None else r[6] for r in rows], dtype=np.int32)
+    wf_ped = np.array([-1 if r[7] is None else r[7] for r in rows], dtype=np.int32)
     for i, r in enumerate(rows):
         wf_waves[i] = r[5]
 
@@ -135,6 +138,7 @@ def main(argv=None) -> int:
         npz_path,
         peaks_id=wf_peaks, board=wf_board, channel=wf_ch, record_id=wf_rec,
         time_ns=wf_time, waveforms=wf_waves,
+        pulse_start=wf_pst, pulse_end=wf_ped,
     )
 
     manifest = {

@@ -49,6 +49,18 @@ def test_find_pulse_boundaries_known_pulse():
     assert abs(wf[ed]) < 60
 
 
+def test_findpulse_st_ed_skips_clipped_plateau():
+    # saturated pulse: flatten 20 samples at the minimum (emulates ADC clipping)
+    wf = _neg_pulse(start=40, amplitude=500)
+    min_idx = int(np.argmin(wf))
+    wf[min_idx - 8:min_idx + 12] = wf[min_idx]
+    st, mi, ed = findpulse_st_ed(wf, 0.0, min_idx, search_range=25)
+    assert mi == min_idx
+    assert st < min_idx - 8   # start lands before the clipped plateau
+    assert ed > min_idx + 12  # end lands past the plateau (recovery side)
+    assert wf[ed] > wf[min_idx]
+
+
 def test_pulse_finder_negative_only():
     cfg = build_config()
     neg = _neg_pulse(start=40, amplitude=500)
@@ -101,7 +113,7 @@ def _run_data_with_pulses(interval=4.0):
 
 
 def test_compute_peak_start_end_inverts_dynode():
-    from muon_analysis.pulsefinding import findpulse_st_ed, preprocess_waveform
+    from muon_analysis.pulsefinding import find_pulse_boundaries
 
     run_data = _run_data_with_pulses()
     peak = Peak(
@@ -113,13 +125,18 @@ def test_compute_peak_start_end_inverts_dynode():
         channels=[1],
     )
     cfg = build_config()
-    search_range = int(cfg["pulse_finder"]["search_range"])
 
     def core(wf):
-        proc, _ = preprocess_waveform(wf, cfg["pulse_finder"]["baseline_samples"])
-        mi = int(np.argmin(proc))
-        st, _, ed = findpulse_st_ed(proc, 0.0, mi, search_range=search_range)
-        return st, ed
+        b = find_pulse_boundaries(
+            wf,
+            baseline_samples=cfg["pulse_finder"]["baseline_samples"],
+            height_threshold=cfg["pulse_finder"]["height_threshold"],
+            min_recovery_frac=cfg["pulse_finder"]["min_recovery_frac"],
+            end_baseline_tol=cfg["pulse_finder"]["end_baseline_tol"],
+            end_consecutive=cfg["pulse_finder"]["end_consecutive"],
+        )
+        assert b is not None
+        return b
 
     anode_st, anode_ed = core(_neg_pulse(start=40, amplitude=500))
     # stored dynode waveform is positive; after the function inverts it, the
@@ -134,8 +151,21 @@ def test_compute_peak_start_end_inverts_dynode():
     # both pulse minima lie inside the window
     assert peak.start_time_ns <= 1004.0 + 52 * 4.0 <= peak.end_time_ns
     assert peak.start_time_ns <= 1000.0 + 72 * 4.0 <= peak.end_time_ns
-    # window stays bounded near the pulses (far below the 800 ns waveform)
-    assert peak.end_time_ns - peak.start_time_ns <= 200.0
+    # window stays bounded well below the 800 ns waveform
+    assert peak.end_time_ns - peak.start_time_ns <= 750.0
+
+
+def test_find_pulse_boundaries_skips_clipped_plateau():
+    # saturated pulse: flat plateau at the minimum (emulates ADC clipping)
+    wf = _neg_pulse(start=40, amplitude=500)
+    min_idx = int(np.argmin(wf))
+    wf[min_idx - 8:min_idx + 12] = wf[min_idx]
+    bounds = find_pulse_boundaries(wf, height_threshold=50)
+    assert bounds is not None
+    st, ed = bounds
+    assert st < min_idx - 8  # start lands before the clipped plateau
+    assert ed > min_idx + 12  # end lands past the plateau (recovery side)
+    assert wf[ed] > wf[min_idx]  # end is well above the clipped level
 
 
 def test_compute_peak_start_end_no_pulse_keeps_window():
