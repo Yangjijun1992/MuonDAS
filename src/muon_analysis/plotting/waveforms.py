@@ -332,7 +332,7 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
                            sample_interval_ns=4.0, dynode_scale=110,
                            lp_cutoff_hz=None, fs=250e6, plot_len=1500,
                            adaptive=True, margin_ns=60.0,
-                           show_window=True) -> list[Path]:
+                           end_consecutive=3, show_window=True) -> list[Path]:
     """Three verification figures for a peak, clustering window marked.
 
     Figure 1 (anode):   all anode waveforms overlaid + per-channel panels.
@@ -342,11 +342,13 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
                         scale, unified polarity) in one panel.
 
     Vertical lines mark the peak start/end time and each channel's own pulse
-    window.  When ``adaptive`` (default) the time axis is auto-zoomed to
-    ``[min(pulse_start) - margin, max(pulse_end) + margin]`` over all records
-    and the full waveforms are plotted, so the pulse detail and the start/end
-    lines stay visible regardless of the (much longer) record length;
-    otherwise the first ``plot_len`` samples are shown.
+    window.  When ``adaptive`` (default) each figure's time axis is zoomed to
+    its own channels' pulse region (``[min pulse_start - margin,
+    max valid pulse_end + margin]``, capped by the raw record lengths; a
+    record-end fallback end does not stretch the window).  The compare figure
+    uses the dynode-side window (dynode records are the shortest, so the
+    pulse-aligned comparison stays legible even when anode records are much
+    longer).  Otherwise the first ``plot_len`` samples are shown.
     Returns up to three saved PNG paths. matplotlib Agg backend.
     """
     import matplotlib
@@ -371,19 +373,28 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
                          dtype=float)
         return sig if adaptive else sig[:plot_len]
 
-    window = None
-    if adaptive:
-        xmins, xmaxs = [], []
-        for rec in peak.anode_records + peak.dynode_records:
+    def side_window(records):
+        """Adaptive window over one side's records, capped by their own raw
+        record lengths; record-end fallback ends do not stretch it."""
+        xs: list[float] = []
+        xe: list[float] = []
+        starts: list[float] = []
+        min_len = None
+        for rec in records:
             L = len(accessor.signals([rec.record_id]).reshape(-1))
-            if rec.has_pulse:
-                xmins.append(rec.time_ns + rec.pulse_start_sample * sample_interval_ns)
-                xmaxs.append(rec.time_ns + rec.pulse_end_sample * sample_interval_ns)
-            else:
-                xmins.append(rec.time_ns)
-                xmaxs.append(rec.time_ns + L * sample_interval_ns)
-        if xmins:
-            window = (min(xmins) - margin_ns, max(xmaxs) + margin_ns)
+            starts.append(rec.time_ns)
+            min_len = L if min_len is None else min(min_len, L)
+            if rec.has_pulse and rec.pulse_end_sample < L - end_consecutive:
+                xs.append(rec.time_ns + rec.pulse_start_sample * sample_interval_ns)
+                xe.append(rec.time_ns + rec.pulse_end_sample * sample_interval_ns)
+        if not xs:
+            return None
+        if not xe:
+            xe.append(min(starts) + min_len * sample_interval_ns)
+        return min(xs) - margin_ns, max(xe) + margin_ns
+
+    anode_window = side_window(peak.anode_records)
+    dynode_window = side_window(peak.dynode_records)
 
     def trace(rec):
         sig = fetch(rec)
@@ -393,7 +404,7 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
             sig = sig * -dynode_scale
         return sig
 
-    def overlay_and_channels(records, title, fname):
+    def overlay_and_channels(records, title, fname, window):
         if not records:
             return
         channels = sorted({r.channel for r in records})
@@ -449,10 +460,11 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
         plt.close(fig)
         saved.append(path)
 
-    # figure 1: anode (each channel its own color)
-    overlay_and_channels(peak.anode_records, "Anode", "anode")
-    # figure 2: dynode (each channel its own color, dashed = dynode)
-    overlay_and_channels(peak.dynode_records, "Dynode", "dynode")
+    # figure 1: anode (each channel its own color, window from anode records)
+    overlay_and_channels(peak.anode_records, "Anode", "anode", anode_window)
+    # figure 2: dynode (each channel its own color, dashed = dynode,
+    # window from dynode records so the short dynode pulses stay legible)
+    overlay_and_channels(peak.dynode_records, "Dynode", "dynode", dynode_window)
 
     # figure 3: unified-polarity comparison (anode + dynode overlay together)
     if peak.anode_records and peak.dynode_records:
@@ -476,8 +488,11 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
                      f"colors = channels")
         ax.legend(loc="best", fontsize=8, ncol=2)
         ax.grid(True, alpha=0.2)
-        if window:
-            ax.set_xlim(*window)
+        # compare uses the dynode window (shortest records) so the
+        # pulse-aligned anode/dynode comparison stays legible
+        compare_window = dynode_window or anode_window
+        if compare_window:
+            ax.set_xlim(*compare_window)
         fig.tight_layout()
         path = plot_dir / f"{prefix}_compare_run_{run_id}.png"
         fig.savefig(path, dpi=120)
