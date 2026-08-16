@@ -17,12 +17,26 @@ import numpy as np
 
 
 def preprocess_waveform(
-    waveform: np.ndarray, baseline_samples: int = 30
+    waveform: np.ndarray,
+    baseline_samples: int = 30,
+    mode: str = "global_median",
 ) -> Tuple[np.ndarray, float]:
-    """Subtract the baseline (mean of the first ``baseline_samples``)."""
-    n = min(int(baseline_samples), len(waveform))
+    """Subtract a robust baseline; return ``(processed, baseline)``.
+
+    ``mode``:
+      - ``"global_median"`` (default): median of the whole waveform.  Robust
+        when the pulse starts early in the record (the reference first-N mean
+        is corrupted when the first ``baseline_samples`` contain the pulse
+        edge, which shifts the whole post-pulse tail away from zero).
+      - ``"first_mean"``: reference behaviour, mean of the first
+        ``baseline_samples``.
+    """
     wf = np.asarray(waveform, dtype=float)
-    baseline = float(np.mean(wf[:n]))
+    if mode == "first_mean":
+        n = min(int(baseline_samples), len(wf))
+        baseline = float(np.mean(wf[:n]))
+    else:
+        baseline = float(np.median(wf))
     return wf - baseline, baseline
 
 
@@ -81,6 +95,7 @@ def findpulse_st_ed(
 def find_pulse_boundaries(
     waveform: np.ndarray,
     baseline_samples: int = 30,
+    baseline_mode: str = "global_median",
     height_threshold: float = 10.0,
     min_recovery_frac: float = 0.3,
     end_baseline_tol: float = 20.0,
@@ -91,6 +106,8 @@ def find_pulse_boundaries(
     Baseline-subtract -> argmin -> height check -> walk to the pulse
     boundaries:
 
+      - a **robust baseline** (``baseline_mode``) is used so the pulse edge
+        inside the first samples does not shift the tail away from zero;
       - the **clipped (saturated) flat plateau** at the minimum is skipped
         first, so the boundaries do not stall inside it;
       - LEFT: walk while the signal is still descending (pulse start edge);
@@ -105,7 +122,7 @@ def find_pulse_boundaries(
 
     Returns ``(start, end)`` sample indices or None when no pulse is found.
     """
-    processed, _ = preprocess_waveform(waveform, baseline_samples)
+    processed, _ = preprocess_waveform(waveform, baseline_samples, baseline_mode)
     min_idx = int(np.argmin(processed))
     height = abs(float(processed[min_idx]))
     if height < float(height_threshold):
@@ -159,6 +176,7 @@ def pulse_finder(
     return find_pulse_boundaries(
         waveform,
         baseline_samples=cfg.get("baseline_samples", 30),
+        baseline_mode=cfg.get("baseline_mode", "global_median"),
         height_threshold=cfg.get("height_threshold", 10.0),
         min_recovery_frac=cfg.get("min_recovery_frac", 0.3),
         end_baseline_tol=cfg.get("end_baseline_tol", 20.0),
@@ -170,9 +188,11 @@ def compute_peak_start_end(peaks, run_data, config) -> None:
     """Recompute peak start/end from per-channel pulse boundaries (in place).
 
     Clustering (100 ns record-time window) is unchanged; this only refines the
-    peak start/end.  For each peak, **every** anode record (negative pulse) and
-    **every** dynode record (**inverted first**, positive -> negative) is fed
-    to :func:`pulse_finder`; each record's own boundaries are stored on
+    peak start/end.  For each peak, **every** anode record (negative pulse,
+    raw waveform) and **every** dynode record (low-pass filtered per
+    ``plotting.dynode_lp_cutoff_hz`` — matching the verification plots — then
+    inverted, positive -> negative) is fed to :func:`pulse_finder`; each
+    record's own boundaries are stored on
     ``PeakRecord.pulse_start_sample`` / ``pulse_end_sample``.
 
     ``peak.start`` = min over all records' pulse starts, ``peak.end`` = max
@@ -182,10 +202,16 @@ def compute_peak_start_end(peaks, run_data, config) -> None:
     the peak window.
     """
     from muon_analysis.filtering import SignalAccessor
+    from muon_analysis.plotting.waveforms import apply_lowpass_filter
 
     interval = float(config.get("matching", {}).get("sample_interval_ns", 4.0))
     end_consecutive = int(config.get("pulse_finder", {}).get(
         "end_consecutive", 3))
+    plot_cfg = config.get("plotting", {})
+    lp_cutoff = plot_cfg.get("dynode_lp_cutoff_hz")
+    if lp_cutoff is not None:
+        lp_cutoff = float(lp_cutoff)
+    fs = float(plot_cfg.get("fs", 250e6))
     accessor = SignalAccessor.from_run_data(run_data)
 
     for peak in peaks:
@@ -203,6 +229,8 @@ def compute_peak_start_end(peaks, run_data, config) -> None:
         for rec in peak.dynode_records:
             wf = np.asarray(accessor.signals([rec.record_id]).reshape(-1),
                             dtype=float)
+            if lp_cutoff is not None:
+                wf = apply_lowpass_filter(wf, cutoff_hz=lp_cutoff, fs=fs)
             bounds = pulse_finder(-wf, config)
             if bounds is not None:
                 rec.pulse_start_sample, rec.pulse_end_sample = bounds

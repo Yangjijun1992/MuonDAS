@@ -113,6 +113,7 @@ def _run_data_with_pulses(interval=4.0):
 
 
 def test_compute_peak_start_end_inverts_dynode():
+    from muon_analysis.plotting.waveforms import apply_lowpass_filter
     from muon_analysis.pulsefinding import find_pulse_boundaries
 
     run_data = _run_data_with_pulses()
@@ -125,23 +126,29 @@ def test_compute_peak_start_end_inverts_dynode():
         channels=[1],
     )
     cfg = build_config()
+    pf_cfg = cfg["pulse_finder"]
+    lp_cutoff = cfg["plotting"]["dynode_lp_cutoff_hz"]
+    fs = cfg["plotting"]["fs"]
 
     def core(wf):
         b = find_pulse_boundaries(
             wf,
-            baseline_samples=cfg["pulse_finder"]["baseline_samples"],
-            height_threshold=cfg["pulse_finder"]["height_threshold"],
-            min_recovery_frac=cfg["pulse_finder"]["min_recovery_frac"],
-            end_baseline_tol=cfg["pulse_finder"]["end_baseline_tol"],
-            end_consecutive=cfg["pulse_finder"]["end_consecutive"],
+            baseline_samples=pf_cfg["baseline_samples"],
+            baseline_mode=pf_cfg["baseline_mode"],
+            height_threshold=pf_cfg["height_threshold"],
+            min_recovery_frac=pf_cfg["min_recovery_frac"],
+            end_baseline_tol=pf_cfg["end_baseline_tol"],
+            end_consecutive=pf_cfg["end_consecutive"],
         )
         assert b is not None
         return b
 
     anode_st, anode_ed = core(_neg_pulse(start=40, amplitude=500))
-    # stored dynode waveform is positive; after the function inverts it, the
-    # finder sees exactly this negative form:
-    dyn_st, dyn_ed = core(_neg_pulse(start=60, amplitude=300))
+    # stored dynode waveform is positive; the function low-pass filters it
+    # then inverts, and LP is linear, so the finder sees LP(negative form):
+    dyn_neg = _neg_pulse(start=60, amplitude=300)
+    dyn_st, dyn_ed = core(apply_lowpass_filter(dyn_neg, cutoff_hz=lp_cutoff,
+                                               fs=fs))
     expected_start = min(1004.0 + anode_st * 4.0, 1000.0 + dyn_st * 4.0)
     expected_end = max(1004.0 + anode_ed * 4.0, 1000.0 + dyn_ed * 4.0)
 

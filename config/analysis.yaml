@@ -39,7 +39,8 @@ clustering:
 # Borrowed from pmt_analysis findpulse_st_ed(). Dynode (positive) waveforms
 # are inverted before searching.
 pulse_finder:
-  baseline_samples: 30 # samples used for baseline estimate
+  baseline_samples: 30 # samples used by the first_mean baseline mode
+  baseline_mode: "global_median" # global_median (robust) | first_mean (reference)
   height_threshold: 10.0 # ADC: pulse rejected below this height (dynode median ~60)
   min_recovery_frac: 0.3 # min recovery rise (fraction of pulse height) to accept
   end_baseline_tol: 20.0 # ADC: end must return within this of baseline

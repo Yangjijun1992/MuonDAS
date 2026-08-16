@@ -49,7 +49,8 @@ _DEFAULTS: Dict[str, Any] = {
         # Negative-pulse boundary finder (borrowed from pmt_analysis
         # findpulse_st_ed, extended for clipped plateaus).  Dynode waveforms
         # are inverted before searching.
-        "baseline_samples": 30,      # samples used for baseline estimate
+        "baseline_samples": 30,      # samples for the first_mean baseline mode
+        "baseline_mode": "global_median",  # global_median | first_mean (robust vs early pulse)
         "height_threshold": 10.0,    # ADC: pulse rejected below this height
         "min_recovery_frac": 0.3,    # min recovery rise (frac of height) to accept
         "end_baseline_tol": 20.0,    # ADC: end must be within this of baseline

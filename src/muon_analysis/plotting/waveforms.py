@@ -331,6 +331,7 @@ def _mark_window(ax, peak, color="green"):
 def plot_peak_verification(peak, run_data, output_dir, run_id,
                            sample_interval_ns=4.0, dynode_scale=110,
                            lp_cutoff_hz=None, fs=250e6, plot_len=1500,
+                           adaptive=True, margin_ns=60.0,
                            show_window=True) -> list[Path]:
     """Three verification figures for a peak, clustering window marked.
 
@@ -340,7 +341,12 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
     Figure 3 (compare): anode overlay vs dynode overlay (LP + inverted x
                         scale, unified polarity) in one panel.
 
-    Vertical lines mark the peak start/end time (100 ns clustering window).
+    Vertical lines mark the peak start/end time and each channel's own pulse
+    window.  When ``adaptive`` (default) the time axis is auto-zoomed to
+    ``[min(pulse_start) - margin, max(pulse_end) + margin]`` over all records
+    and the full waveforms are plotted, so the pulse detail and the start/end
+    lines stay visible regardless of the (much longer) record length;
+    otherwise the first ``plot_len`` samples are shown.
     Returns up to three saved PNG paths. matplotlib Agg backend.
     """
     import matplotlib
@@ -361,7 +367,23 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
     ch_color = {ch: cmap(i % 10) for i, ch in enumerate(all_channels)}
 
     def fetch(rec):
-        return _fetch(accessor, rec.record_id, plot_len)
+        sig = np.asarray(accessor.signals([rec.record_id]).reshape(-1),
+                         dtype=float)
+        return sig if adaptive else sig[:plot_len]
+
+    window = None
+    if adaptive:
+        xmins, xmaxs = [], []
+        for rec in peak.anode_records + peak.dynode_records:
+            L = len(accessor.signals([rec.record_id]).reshape(-1))
+            if rec.has_pulse:
+                xmins.append(rec.time_ns + rec.pulse_start_sample * sample_interval_ns)
+                xmaxs.append(rec.time_ns + rec.pulse_end_sample * sample_interval_ns)
+            else:
+                xmins.append(rec.time_ns)
+                xmaxs.append(rec.time_ns + L * sample_interval_ns)
+        if xmins:
+            window = (min(xmins) - margin_ns, max(xmaxs) + margin_ns)
 
     def trace(rec):
         sig = fetch(rec)
@@ -418,6 +440,9 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
             ax.legend(loc="best", fontsize=7)
             ax.grid(True, alpha=0.2)
         axes[-1].set_xlabel("Time [ns]")
+        if window:
+            for ax in axes:
+                ax.set_xlim(*window)
         fig.tight_layout()
         path = plot_dir / f"{prefix}_{fname}_run_{run_id}.png"
         fig.savefig(path, dpi=120)
@@ -451,6 +476,8 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
                      f"colors = channels")
         ax.legend(loc="best", fontsize=8, ncol=2)
         ax.grid(True, alpha=0.2)
+        if window:
+            ax.set_xlim(*window)
         fig.tight_layout()
         path = plot_dir / f"{prefix}_compare_run_{run_id}.png"
         fig.savefig(path, dpi=120)
