@@ -332,7 +332,8 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
                            sample_interval_ns=4.0, dynode_scale=110,
                            lp_cutoff_hz=None, fs=250e6, plot_len=1500,
                            adaptive=True, margin_ns=60.0,
-                           end_consecutive=3, show_window=True) -> list[Path]:
+                           end_consecutive=3, show_window=True,
+                           mark_rise=True) -> list[Path]:
     """Three verification figures for a peak, clustering window marked.
 
     Figure 1 (anode):   all anode waveforms overlaid + per-channel panels.
@@ -342,13 +343,16 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
                         scale, unified polarity) in one panel.
 
     Vertical lines mark the peak start/end time and each channel's own pulse
-    window.  When ``adaptive`` (default) each figure's time axis is zoomed to
-    its own channels' pulse region (``[min pulse_start - margin,
-    max valid pulse_end + margin]``, capped by the raw record lengths; a
-    record-end fallback end does not stretch the window).  The compare figure
-    uses the dynode-side window (dynode records are the shortest, so the
-    pulse-aligned comparison stays legible even when anode records are much
-    longer).  Otherwise the first ``plot_len`` samples are shown.
+    window (orange).  When ``mark_rise`` (default) the anode rise edge is
+    marked too: 10% crossing (magenta) and 90% crossing (cyan) dashed lines,
+    so the rise-time width can be checked at a glance.  When ``adaptive``
+    (default) each figure's time axis is zoomed to its own channels' pulse
+    region (``[min pulse_start - margin, max valid pulse_end + margin]``,
+    capped by the raw record lengths; a record-end fallback end does not
+    stretch the window).  The compare figure uses the dynode-side window
+    (dynode records are the shortest, so the pulse-aligned comparison stays
+    legible even when anode records are much longer).  Otherwise the first
+    ``plot_len`` samples are shown.
     Returns up to three saved PNG paths. matplotlib Agg backend.
     """
     import matplotlib
@@ -356,6 +360,7 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
     import matplotlib.pyplot as plt
 
     from muon_analysis.filtering import SignalAccessor
+    from muon_analysis.features import pulse_peak_index
 
     accessor = SignalAccessor.from_run_data(run_data)
     plot_dir = Path(output_dir)
@@ -404,6 +409,22 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
             sig = sig * -dynode_scale
         return sig
 
+    def mark_rise(ax, rec, with_label):
+        if not mark_rise or rec.pulse_start_sample is None:
+            return  # rise span = pulse start -> pulse extremum
+        sig = accessor.signals([rec.record_id]).reshape(-1)
+        pk = pulse_peak_index(
+            sig, signal_polarity="positive" if rec.is_dynode else "negative")
+        st_t = rec.time_ns + rec.pulse_start_sample * sample_interval_ns
+        pk_t = rec.time_ns + pk * sample_interval_ns
+        kw = dict(linestyle="--", lw=1.0, alpha=0.8)
+        if with_label:
+            ax.axvline(st_t, color="magenta", label=f"rise st {st_t:.0f}ns", **kw)
+            ax.axvline(pk_t, color="cyan", label=f"rise peak {pk_t:.0f}ns", **kw)
+        else:
+            ax.axvline(st_t, color="magenta", **kw)
+            ax.axvline(pk_t, color="cyan", **kw)
+
     def overlay_and_channels(records, title, fname, window):
         if not records:
             return
@@ -417,6 +438,7 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
             ax_overlay.plot(_time_axis(rec, len(sig), sample_interval_ns), sig,
                             color=ch_color[rec.channel], alpha=0.85, ls=ls,
                             label=f"{'Dynode' if rec.is_dynode else 'Anode'} ch{rec.channel}")
+            mark_rise(ax_overlay, rec, with_label=True)
         if show_window:
             _mark_window(ax_overlay, peak)
         ax_overlay.axhline(0, color="black", linestyle="--", alpha=0.3)
@@ -435,6 +457,7 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
                 ax.plot(_time_axis(rec, len(sig), sample_interval_ns), sig,
                         color=ch_color[ch], alpha=0.9, ls=ls,
                         label=f"{'Dynode' if rec.is_dynode else 'Anode'} ID {rec.record_id}")
+                mark_rise(ax, rec, with_label=False)
             if show_window:
                 for rec in records:
                     if rec.channel != ch or not rec.has_pulse:
@@ -500,3 +523,80 @@ def plot_peak_verification(peak, run_data, output_dir, run_id,
         saved.append(path)
 
     return saved
+
+
+def plot_peak_rise_check(peak, run_data, output_dir, run_id, side="anode",
+                         sample_interval_ns=4.0, margin_ns=30.0) -> list[Path]:
+    """All waveforms of one side (``side`` = "anode" or "dynode") of a peak,
+    zoomed to the ``[pulse_start, peak]`` region per channel (the rise-edge
+    region), for visual checking.
+
+    One panel per channel; the pulse start (orange) and the pulse extremum
+    (green) are marked.  The peak is the most negative sample for the anode
+    and the most positive for the dynode.  Returns saved PNG paths (empty if
+    the side has no records).
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from muon_analysis.features import pulse_peak_index
+    from muon_analysis.filtering import SignalAccessor
+
+    records = peak.anode_records if side == "anode" else peak.dynode_records
+    if not records:
+        return []
+    is_dynode = side == "dynode"
+    color = "crimson" if is_dynode else "royalblue"
+    label = "Dynode" if is_dynode else "Anode"
+    polarity = "positive" if is_dynode else "negative"
+
+    accessor = SignalAccessor.from_run_data(run_data)
+    plot_dir = Path(output_dir)
+    plot_dir.mkdir(parents=True, exist_ok=True)
+    path = plot_dir / f"peak{peak.peaks_id:03d}_{side}_rise_run_{run_id}.png"
+
+    channels = sorted({r.channel for r in records})
+    fig, axes = plt.subplots(len(channels), 1,
+                             figsize=(14, 3 * len(channels)), sharex=False)
+    if len(channels) == 1:
+        axes = [axes]
+    for ax, ch in zip(axes, channels):
+        for rec in records:
+            if rec.channel != ch:
+                continue
+            wf = np.asarray(accessor.signals([rec.record_id]).reshape(-1),
+                            dtype=float)
+            baseline = float(np.mean(wf[:10]))
+            peak_idx = pulse_peak_index(wf, signal_polarity=polarity)
+            st = rec.pulse_start_sample if rec.has_pulse else peak_idx - 10
+            lo = max(0, st) - int(margin_ns / sample_interval_ns)
+            hi = min(len(wf), peak_idx + int(margin_ns / sample_interval_ns))
+            t = rec.time_ns + np.arange(len(wf)) * sample_interval_ns
+            ax.plot(t[lo:hi], wf[lo:hi], color=color,
+                    label=f"{label} ID {rec.record_id}")
+            ax.axvline(rec.time_ns + st * sample_interval_ns, color="orange",
+                       linestyle="--", lw=1.0, alpha=0.8,
+                       label=f"pulse start {rec.time_ns+st*sample_interval_ns:.0f}ns")
+            ax.axvline(rec.time_ns + peak_idx * sample_interval_ns, color="green",
+                       linestyle=":", lw=1.2, alpha=0.9,
+                       label=f"peak {rec.time_ns+peak_idx*sample_interval_ns:.0f}ns")
+            ax.axhline(baseline, color="gray", linestyle="--", alpha=0.4)
+        ax.set_xlabel("Time [ns]")
+        ax.set_ylabel("Amplitude [ADC]")
+        ax.set_title(f"ch {ch} ({label}, pulse_start .. peak)")
+        ax.legend(loc="best", fontsize=8)
+        ax.grid(True, alpha=0.2)
+    fig.tight_layout()
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+    return [path]
+
+
+def plot_peak_anode_rise_check(peak, run_data, output_dir, run_id,
+                               sample_interval_ns=4.0,
+                               margin_ns=30.0) -> list[Path]:
+    """Backward-compatible alias of :func:`plot_peak_rise_check` (side=anode)."""
+    return plot_peak_rise_check(peak, run_data, output_dir, run_id,
+                                side="anode", sample_interval_ns=sample_interval_ns,
+                                margin_ns=margin_ns)

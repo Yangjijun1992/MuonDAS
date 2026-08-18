@@ -85,10 +85,13 @@ def peaks_to_dataframe(
             "dynode_record_ids": _ids_to_csv_str(feats["dynode_record_ids"]),
             "anode_area_pe": feats["anode_area_pe"],
             "dynode_area_pe": feats["dynode_area_pe"],
+            "area_ano": feats["area_ano"],
+            "area_dyn": feats["area_dyn"],
             "peak_height": feats["peak_height"],
             "peak_width": feats["peak_width"],
             "peak_rise_time": feats["peak_rise_time"],
             "peak_width_ns": feats["peak_width_ns"],
+            "width_90area": feats["width_90area"],
         }
         if cog_coords and cand.peaks_id in cog_coords:
             row["cog_x"], row["cog_y"] = cog_coords[cand.peaks_id]

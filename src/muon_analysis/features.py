@@ -111,6 +111,7 @@ class Features:
     rise_time: float
     width: float
     baseline: float
+    width_90area: float = 0.0
 
     def as_dict(self) -> Dict[str, float]:
         return {
@@ -119,25 +120,77 @@ class Features:
             "rise_time": self.rise_time,
             "width": self.width,
             "baseline": self.baseline,
+            "width_90area": self.width_90area,
         }
 
 
-def _crossing(waveform: np.ndarray, frac: float, peak_index: int, baseline: float,
-              peak_amp: float, direction: int) -> Optional[float]:
-    """Find index where amplitude crosses ``frac`` of peak on path to peak."""
-    target = baseline + direction * frac * abs(peak_amp - baseline)
-    indices = np.arange(len(waveform))
-    if direction > 0:
-        seg = indices[: peak_index + 1]
-    else:
-        seg = indices[peak_index:]
-    if len(seg) < 2:
-        return None
-    vals = waveform[seg]
-    cross = np.argwhere((vals - target) * direction >= 0)
-    if len(cross) == 0:
-        return None
-    return int(seg[cross[0][0]])
+def width_to_fraction_area(
+    waveform: np.ndarray,
+    baseline: float,
+    start: int,
+    end: int,
+    frac: float = 0.9,
+) -> float:
+    """Width (in samples) from ``start`` until ``frac`` of the pulse area is
+    accumulated.
+
+    ``width_90area`` algorithm (single waveform):
+      1. ``processed = waveform - baseline``;
+      2. ``total = sum(|processed[start:end]|)``  (pulse region area);
+      3. walk ``k`` from ``start`` accumulating ``cum = sum(|processed[start:k]|)``;
+      4. ``width = (first k with cum >= frac * total) - start``.
+    Returns NaN when the region is empty or has zero area.
+    """
+    if end <= start:
+        return float("nan")
+    proc = np.asarray(waveform, dtype=float) - baseline
+    seg = np.abs(proc[start:end])
+    total = float(np.sum(seg))
+    if total <= 0:
+        return float("nan")
+    cum = np.cumsum(seg)
+    idx = int(np.searchsorted(cum, frac * total))
+    return float(idx)
+
+
+def _record_width_90area(sig, baseline, rec, n, frac=0.9) -> float:
+    """width_90area of one record: accumulate from the pulse start over the
+    pulse region [start, end] (end falls back to the record length)."""
+    start = rec.pulse_start_sample if rec.pulse_start_sample is not None else 0
+    end = rec.pulse_end_sample if rec.pulse_end_sample is not None else n
+    return width_to_fraction_area(sig, baseline, start, end, frac=frac)
+
+
+def pulse_peak_index(
+    waveform: np.ndarray,
+    signal_polarity: str = "positive",
+    baseline_samples: int = 10,
+) -> int:
+    """Sample index of the pulse extremum: argmax for positive pulses
+    (dynode), argmin for negative pulses (anode)."""
+    wf = np.asarray(waveform, dtype=float)
+    baseline = compute_baseline(wf, baseline_samples)
+    centred = wf - baseline
+    if signal_polarity == "positive":
+        return int(np.argmax(centred))
+    return int(np.argmin(centred))
+
+
+def rise_crossing_indices(
+    waveform: np.ndarray,
+    signal_polarity: str = "positive",
+    baseline_samples: int = 10,
+    rise_low: float = 0.1,
+    rise_high: float = 0.9,
+    start: int = 0,
+) -> Tuple[Optional[int], Optional[int]]:
+    """Deprecated 10%-90% rise-edge crossings (kept for interface parity).
+
+    The rise time is now defined as ``peak_index - pulse_start``; see
+    :func:`pulse_peak_index` and :func:`compute_features`.
+    """
+    return None, None
+
 
 def _fwhm_samples(waveform: np.ndarray, peak_index: int, baseline: float,
                   peak_amp: float, direction: int) -> Optional[float]:
@@ -155,8 +208,15 @@ def compute_features(
     rise_low: float = 0.1,
     rise_high: float = 0.9,
     window: Optional[Tuple[int, int]] = None,
+    rise_start: Optional[int] = None,
 ) -> tuple:
     """Compute height, charge, rise_time, width, baseline for a waveform.
+
+    ``rise_time`` is the range from the pulse start to the pulse-height
+    point (peak): ``peak_index - rise_start``, in samples.  The peak is the
+    most positive sample for positive pulses (dynode) and the most negative
+    for negative pulses (anode).  When ``rise_start`` is None the rise is
+    measured from the waveform start (sample 0).
 
     Returns a tuple ``(features: Features, peak_index: int)``.
     """
@@ -175,12 +235,8 @@ def compute_features(
 
     height = abs(peak_amp - baseline)
 
-    low_idx = _crossing(wf, rise_low, peak_index, baseline, peak_amp, direction)
-    high_idx = _crossing(wf, rise_high, peak_index, baseline, peak_amp, direction)
-    if low_idx is not None and high_idx is not None and high_idx > low_idx:
-        rise_time = float(high_idx - low_idx)
-    else:
-        rise_time = float("nan")
+    rise_start_idx = int(rise_start) if rise_start is not None else 0
+    rise_time = float(peak_index - rise_start_idx)
 
     width = _fwhm_samples(wf, peak_index, baseline, peak_amp, direction)
     if width is None:
@@ -250,7 +306,9 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
             rise_low=rise_low,
             rise_high=rise_high,
             window=(integ_start, integ_end),
+            rise_start=rec.pulse_start_sample,
         )
+        feats.width_90area = _record_width_90area(sig, feats.baseline, rec, len(sig))
         anode_features[rec.record_id] = feats
         anode_pe[rec.record_id] = charge_to_pe(
             feats.charge, gain_db.get_gain(rec.channel)
@@ -270,7 +328,9 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
             rise_low=rise_low,
             rise_high=rise_high,
             window=(integ_start, integ_end),
+            rise_start=rec.pulse_start_sample,
         )
+        feats.width_90area = _record_width_90area(sig, feats.baseline, rec, len(sig))
         dynode_features[rec.record_id] = feats
         dynode_pe[rec.record_id] = charge_to_pe(
             feats.charge, gain_db.get_gain(rec.channel)
@@ -278,6 +338,8 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
 
     anode_area_pe = float(sum(anode_pe.values()))
     dynode_area_pe = float(sum(dynode_pe.values()))
+    area_ano = float(sum(f.charge for f in anode_features.values()))
+    area_dyn = float(sum(f.charge for f in dynode_features.values()))
 
     heights = [f.height for f in anode_features.values()] \
         + [f.height for f in dynode_features.values()]
@@ -285,6 +347,8 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         + [f.width for f in dynode_features.values()]
     rise_times = [f.rise_time for f in anode_features.values()] \
         + [f.rise_time for f in dynode_features.values()]
+    width_90s = [f.width_90area for f in anode_features.values()] \
+        + [f.width_90area for f in dynode_features.values()]
 
     if peak.dynode_records:
         time_ns = min(r.time_ns for r in peak.dynode_records)
@@ -320,8 +384,11 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         charge_per_pmt=charge_per_pmt,
         anode_area_pe=anode_area_pe,
         dynode_area_pe=dynode_area_pe,
+        area_ano=area_ano,
+        area_dyn=area_dyn,
         peak_height=_max_ignore_nan(heights),
         peak_width=_max_ignore_nan(widths),
         peak_rise_time=_max_ignore_nan(rise_times),
         peak_width_ns=float(peak.end_time_ns - peak.start_time_ns),
+        width_90area=_max_ignore_nan(width_90s),
     )

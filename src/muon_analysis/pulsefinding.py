@@ -161,18 +161,24 @@ def find_pulse_boundaries(
 
 
 def pulse_finder(
-    waveform: np.ndarray, config: Optional[Dict[str, Any]] = None
+    waveform: np.ndarray,
+    config: Optional[Dict[str, Any]] = None,
+    end_consecutive: Optional[int] = None,
 ) -> Optional[Tuple[int, int]]:
     """Pluggable pulse-boundary finder (negative-going pulse required).
 
     Borrows the ``findpulse_st_ed`` / main-pulse walking from the reference
     ``pmt_analysis`` repo, extended to skip clipped (saturated) plateaus and
-    to end the pulse at its first recovery peak.  Dynode waveforms (positive)
+    to end the pulse at its baseline return.  Dynode waveforms (positive)
     must be inverted by the caller.  Returns ``(pulse_start, pulse_end)``
-    sample indices, or None when no pulse is found.  Thresholds come from
-    ``config['pulse_finder']`` (see config.py).
+    sample indices, or None when no pulse is found.  ``end_consecutive``
+    overrides the config value: the number of near-baseline samples after the
+    end that must stay within tolerance (0 = end at the first baseline return;
+    the anode uses 0, the dynode uses the configured confirmation).  Thresholds
+    come from ``config['pulse_finder']`` (see config.py).
     """
     cfg = (config or {}).get("pulse_finder") or {}
+    ec = cfg.get("end_consecutive", 3) if end_consecutive is None else end_consecutive
     return find_pulse_boundaries(
         waveform,
         baseline_samples=cfg.get("baseline_samples", 30),
@@ -180,7 +186,7 @@ def pulse_finder(
         height_threshold=cfg.get("height_threshold", 10.0),
         min_recovery_frac=cfg.get("min_recovery_frac", 0.3),
         end_baseline_tol=cfg.get("end_baseline_tol", 20.0),
-        end_consecutive=cfg.get("end_consecutive", 3),
+        end_consecutive=ec,
     )
 
 
@@ -220,7 +226,9 @@ def compute_peak_start_end(peaks, run_data, config) -> None:
         for rec in peak.anode_records:
             wf = np.asarray(accessor.signals([rec.record_id]).reshape(-1),
                             dtype=float)
-            bounds = pulse_finder(wf, config)
+            # anode end: from the peak walking right to the FIRST baseline
+            # return (no stability confirmation)
+            bounds = pulse_finder(wf, config, end_consecutive=0)
             if bounds is not None:
                 rec.pulse_start_sample, rec.pulse_end_sample = bounds
                 if bounds[1] < len(wf) - end_consecutive:
@@ -231,6 +239,7 @@ def compute_peak_start_end(peaks, run_data, config) -> None:
                             dtype=float)
             if lp_cutoff is not None:
                 wf = apply_lowpass_filter(wf, cutoff_hz=lp_cutoff, fs=fs)
+            # dynode end: baseline return confirmed by end_consecutive samples
             bounds = pulse_finder(-wf, config)
             if bounds is not None:
                 rec.pulse_start_sample, rec.pulse_end_sample = bounds

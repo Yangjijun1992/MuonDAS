@@ -99,10 +99,13 @@ class PeakFeatures:
     charge_per_pmt: Dict[str, float] = field(default_factory=dict) # pmt_id -> charge weight
     anode_area_pe: float = 0.0
     dynode_area_pe: float = 0.0
+    area_ano: float = 0.0      # total charge from all anode channels (uncalibrated)
+    area_dyn: float = 0.0      # total charge from all dynode channels (x dynode_scale)
     peak_height: float = 0.0
     peak_width: float = 0.0
     peak_rise_time: float = 0.0
     peak_width_ns: float = 0.0   # peak window width = end_time_ns - start_time_ns
+    width_90area: float = 0.0    # max over channels: width from start containing 90% area
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -113,10 +116,13 @@ class PeakFeatures:
             "dynode_record_ids": list(self.dynode_record_ids),
             "anode_area_pe": self.anode_area_pe,
             "dynode_area_pe": self.dynode_area_pe,
+            "area_ano": self.area_ano,
+            "area_dyn": self.area_dyn,
             "peak_height": self.peak_height,
             "peak_width": self.peak_width,
             "peak_rise_time": self.peak_rise_time,
             "peak_width_ns": self.peak_width_ns,
+            "width_90area": self.width_90area,
             "charge_per_pmt": dict(self.charge_per_pmt),
         }
 

@@ -130,3 +130,114 @@ def plot_distributions(
         ))
 
     return saved
+
+
+def plot_peak_parameter_histograms(
+    df: pd.DataFrame,
+    output_dir: str | Path,
+    run_id: str,
+) -> List[Path]:
+    """1D histograms of all numeric peak-level parameters plus key 2D
+    histograms (anode area vs width, height vs width, rise time vs area),
+    for muon-candidate selection.  Returns saved PNG paths."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    saved: List[Path] = []
+
+    skip = {"run_id", "event_id", "peaks_id", "channels", "anode_record_ids",
+            "dynode_record_ids", "charge_per_pmt", "parameter_version",
+            "gain_db_version", "time_ns", "start_time_ns", "end_time_ns"}
+    hist_cols = [c for c in df.columns
+                 if c not in skip and pd.api.types.is_numeric_dtype(df[c])]
+
+    # sample-based quantities are displayed in ns (x sample_interval_ns = 4)
+    SAMPLE_TO_NS = {"peak_width": 4.0, "peak_rise_time": 4.0, "width_90area": 4.0}
+
+    for col in hist_cols:
+        values = df[col].dropna()
+        if values.empty:
+            continue
+        factor = SAMPLE_TO_NS.get(col, 1.0)
+        label = f"{col} [ns]" if factor != 1.0 else col
+        p = out / f"hist_{col}_run_{run_id}.png"
+        plt.figure(figsize=(9, 6))
+        plt.hist(values * factor, bins=100, histtype="step")
+        plt.xlabel(label)
+        plt.ylabel("Counts")
+        plt.title(f"{label} (n={len(values)})")
+        plt.tight_layout()
+        plt.savefig(p, dpi=120)
+        plt.close()
+        saved.append(p)
+
+    pairs = [
+        # (xcol, ycol, y_scale, xlabel, ylabel)
+        ("anode_area_pe", "peak_width", 4.0, "Anode Area [PE]", "Peak Width [ns]"),
+        ("peak_height", "peak_width", 4.0, "Peak Height [ADC]", "Peak Width [ns]"),
+        ("anode_area_pe", "peak_rise_time", 4.0, "Anode Area [PE]", "Peak Rise Time [ns]"),
+        ("anode_area_pe", "width_90area", 4.0, "Anode Area [PE]", "Width 90% Area [ns]"),
+    ]
+    for xcol, ycol, yscale, xlab, ylab in pairs:
+        if not {xcol, ycol}.issubset(df.columns):
+            continue
+        p = plot_2d_hist(
+            df[xcol].to_numpy(), df[ycol].to_numpy() * yscale,
+            out, run_id, xlab, ylab, bins=120, name=f"2d_{ycol}_vs_{xcol}",
+        )
+        saved.append(p)
+
+    return saved
+
+
+def plot_rise_time_histograms(
+    npz_path: str | Path,
+    output_dir: str | Path,
+    run_id: str,
+) -> List[Path]:
+    """Per-record rise_time (pulse_start -> pulse extremum, in samples)
+    histograms for **all** anode and dynode records in the exported waveforms
+    npz.  Returns saved PNG paths."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    z = np.load(npz_path, allow_pickle=True)
+    waves = z["waveforms"]      # cache: repeated z[...] re-unpacks the object array
+    starts = z["pulse_start"]
+    boards = z["board"]
+    rise_a: List[float] = []
+    rise_d: List[float] = []
+    for i in range(len(waves)):
+        st = int(starts[i])
+        if st < 0:
+            continue
+        w = waves[i]
+        if int(boards[i]) == 0:
+            rise_a.append(float(int(np.argmin(w)) - st))
+        else:
+            rise_d.append(float(int(np.argmax(w)) - st))
+
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    saved: List[Path] = []
+    for label, values, fname in (
+        ("Anode", rise_a, "rise_anode"),
+        ("Dynode", rise_d, "rise_dynode"),
+    ):
+        if not values:
+            continue
+        p = out / f"{fname}_hist_run_{run_id}.png"
+        plt.figure(figsize=(9, 6))
+        plt.hist(values, bins=100, histtype="step")
+        plt.xlabel("Rise time [samples] (pulse_start -> peak)")
+        plt.ylabel("Counts")
+        plt.title(f"{label} rise time (n={len(values)})")
+        plt.tight_layout()
+        plt.savefig(p, dpi=120)
+        plt.close()
+        saved.append(p)
+    return saved
