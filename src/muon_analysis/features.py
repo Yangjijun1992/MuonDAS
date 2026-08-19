@@ -112,6 +112,7 @@ class Features:
     width: float
     baseline: float
     width_90area: float = 0.0
+    width_50area: float = 0.0
 
     def as_dict(self) -> Dict[str, float]:
         return {
@@ -121,6 +122,7 @@ class Features:
             "width": self.width,
             "baseline": self.baseline,
             "width_90area": self.width_90area,
+            "width_50area": self.width_50area,
         }
 
 
@@ -153,9 +155,10 @@ def width_to_fraction_area(
     return float(idx)
 
 
-def _record_width_90area(sig, baseline, rec, n, frac=0.9) -> float:
-    """width_90area of one record: accumulate from the pulse start over the
-    pulse region [start, end] (end falls back to the record length)."""
+def _record_width_fraction(sig, baseline, rec, n, frac=0.9) -> float:
+    """width_Xarea of one record: accumulate from the pulse start over the
+    pulse region [start, end] (end falls back to the record length) until
+    ``frac`` of the area is reached."""
     start = rec.pulse_start_sample if rec.pulse_start_sample is not None else 0
     end = rec.pulse_end_sample if rec.pulse_end_sample is not None else n
     return width_to_fraction_area(sig, baseline, start, end, frac=frac)
@@ -308,7 +311,8 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
             window=(integ_start, integ_end),
             rise_start=rec.pulse_start_sample,
         )
-        feats.width_90area = _record_width_90area(sig, feats.baseline, rec, len(sig))
+        feats.width_90area = _record_width_fraction(sig, feats.baseline, rec, len(sig), 0.9)
+        feats.width_50area = _record_width_fraction(sig, feats.baseline, rec, len(sig), 0.5)
         anode_features[rec.record_id] = feats
         anode_pe[rec.record_id] = charge_to_pe(
             feats.charge, gain_db.get_gain(rec.channel)
@@ -330,7 +334,8 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
             window=(integ_start, integ_end),
             rise_start=rec.pulse_start_sample,
         )
-        feats.width_90area = _record_width_90area(sig, feats.baseline, rec, len(sig))
+        feats.width_90area = _record_width_fraction(sig, feats.baseline, rec, len(sig), 0.9)
+        feats.width_50area = _record_width_fraction(sig, feats.baseline, rec, len(sig), 0.5)
         dynode_features[rec.record_id] = feats
         dynode_pe[rec.record_id] = charge_to_pe(
             feats.charge, gain_db.get_gain(rec.channel)
@@ -349,6 +354,8 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         + [f.rise_time for f in dynode_features.values()]
     width_90s = [f.width_90area for f in anode_features.values()] \
         + [f.width_90area for f in dynode_features.values()]
+    width_50s = [f.width_50area for f in anode_features.values()] \
+        + [f.width_50area for f in dynode_features.values()]
 
     if peak.dynode_records:
         time_ns = min(r.time_ns for r in peak.dynode_records)
@@ -391,4 +398,5 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         peak_rise_time=_max_ignore_nan(rise_times),
         peak_width_ns=float(peak.end_time_ns - peak.start_time_ns),
         width_90area=_max_ignore_nan(width_90s),
+        width_50area=_max_ignore_nan(width_50s),
     )

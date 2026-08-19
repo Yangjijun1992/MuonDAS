@@ -101,7 +101,7 @@ plotting:
   dynode_scale: 110
   # Low-pass cutoff (Hz) applied to the dynode waveform in compare_run plots.
   # None => no dynode low-pass filter (raw dynode, matching notebook default).
-  dynode_lp_cutoff_hz: 4.5e7 # 45 MHz (valid YAML float; parsed as string by PyYAML if written as 45e6)
+  dynode_lp_cutoff_hz: 3e7 # 30 MHz (valid YAML float; parsed as string by PyYAML if written as 45e6)
   plot_len: 100
   cutoff_hz: 20e6
   fs: 250e6

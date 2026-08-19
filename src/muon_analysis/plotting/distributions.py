@@ -155,7 +155,8 @@ def plot_peak_parameter_histograms(
                  if c not in skip and pd.api.types.is_numeric_dtype(df[c])]
 
     # sample-based quantities are displayed in ns (x sample_interval_ns = 4)
-    SAMPLE_TO_NS = {"peak_width": 4.0, "peak_rise_time": 4.0, "width_90area": 4.0}
+    SAMPLE_TO_NS = {"peak_width": 4.0, "peak_rise_time": 4.0,
+                    "width_90area": 4.0, "width_50area": 4.0}
 
     for col in hist_cols:
         values = df[col].dropna()
@@ -180,6 +181,7 @@ def plot_peak_parameter_histograms(
         ("peak_height", "peak_width", 4.0, "Peak Height [ADC]", "Peak Width [ns]"),
         ("anode_area_pe", "peak_rise_time", 4.0, "Anode Area [PE]", "Peak Rise Time [ns]"),
         ("anode_area_pe", "width_90area", 4.0, "Anode Area [PE]", "Width 90% Area [ns]"),
+        ("anode_area_pe", "width_50area", 4.0, "Anode Area [PE]", "Width 50% Area [ns]"),
     ]
     for xcol, ycol, yscale, xlab, ylab in pairs:
         if not {xcol, ycol}.issubset(df.columns):

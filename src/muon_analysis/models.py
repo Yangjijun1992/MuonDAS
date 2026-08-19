@@ -106,6 +106,7 @@ class PeakFeatures:
     peak_rise_time: float = 0.0
     peak_width_ns: float = 0.0   # peak window width = end_time_ns - start_time_ns
     width_90area: float = 0.0    # max over channels: width from start containing 90% area
+    width_50area: float = 0.0    # max over channels: width from start containing 50% area
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -123,6 +124,7 @@ class PeakFeatures:
             "peak_rise_time": self.peak_rise_time,
             "peak_width_ns": self.peak_width_ns,
             "width_90area": self.width_90area,
+            "width_50area": self.width_50area,
             "charge_per_pmt": dict(self.charge_per_pmt),
         }
 
