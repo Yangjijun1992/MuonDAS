@@ -187,11 +187,14 @@ MuonDAS/
 
 **任务清单**
 
-- [ ] 特征量计算（面积、峰高、上升沿 10-90%、半高宽/宽度）。
-- [ ] dynode 低通滤波 `apply_lowpass_filter`。
-- [ ] dynode 放大 110×（幅度与 area 均 ×scale）。
-- [ ] 固定窗口积分策略 + 预留寻峰接口；PE 换算。
-- [ ] 生成特征统计分布图（PE 谱、时间差谱）验证聚类/筛选合理性，保存 `.png`。
+- [x] 特征量计算（面积、峰高、上升沿 10-90%、半高宽/宽度）。
+- [x] **rise_time 定义（修订）**：`peak_index − pulse_start`（start→峰值点，样本）；anode 负脉冲取最负点、dynode 取最正点，两侧均计算。
+- [x] **面积占比宽度参数**：`width_90area`/`width_50area`（从 start 起累积 90%/50% 面积处的宽度，样本）。
+- [x] **peak 级总电荷**：`area_ano`/`area_dyn`（anode/dynode 全通道电荷和，dynode 含 ×110）。
+- [x] dynode 低通滤波 `apply_lowpass_filter`（30 MHz，验证图/寻峰/特征三链路一致）。
+- [x] dynode 放大 110×（幅度与 area 均 ×scale）。
+- [x] 固定窗口积分策略 + 预留寻峰接口；PE 换算。
+- [x] 生成特征统计分布图（PE 谱、时间差谱、width_90area/width_50area 直方图与 2D 图）验证聚类/筛选合理性，保存 `.png`。
 
 ---
 
@@ -355,7 +358,7 @@ config/CLI (1)
 
 - [ ] **COG/径迹**：pmt pattern 数据结构与成熟脚本接口；径迹重建图例与坐标约定。
 - [ ] **dynode 处理参数**：低通截止频率、放大倍数（默认 110）、area×110 scale 的确认；1 µs 切片宽度确认。
-- [ ] **筛选阈值**：基于 peak 特征（area/height/width/rise_time/PE）的具体判据数值。
+- [ ] **筛选阈值**：基于 peak 特征（area/height/width/rise_time/PE/width_90area/width_50area）的具体判据数值。**初步确定（2026-08-17）**：`width_90area > 1000ns` 且 `rise_time > 80ns`；待物理学家确认后固化到 `config['filtering']`。
 - [ ] **环境依赖**：`waveform_analysis`、`pmtdata` 安装（`pyth12` 环境）。
 - [ ] 聚类与可视化验证的输出规模/文件命名约定。
 - [ ] **寻峰算法**：默认实现已落地（借鉴 `findpulse_st_ed`，仅负脉冲、dynode 先翻转）；如用户提供自定义寻峰算法，可替换 `pulse_finder` 实现并调优 `config['pulse_finder']` 阈值（height_threshold/search_range/baseline_samples）。
@@ -370,3 +373,11 @@ config/CLI (1)
 **已决议事项（2026-08-14）**
 
 - **peak start/end 重定义**：不再使用"record time min/max"；改为对 peak 内所有 anode+dynode 通道波形分别寻峰，`peak.start = min(各通道 pulse_start)`、`peak.end = max(各通道 pulse_end)`；寻峰算法为可插拔接口（`pulse_finder`），算法本体由用户后续提供，当前为阻塞项（见 §15）。
+
+**已决议事项（2026-08-17）**
+
+- **rise_time 定义**：`peak_index − pulse_start`（start→峰值点）；anode/dynode 两侧均计算（不再用 10%-90% 交叉）。
+- **end 判据分侧**：anode 从峰值向右**首次回基线**即 end（`end_consecutive=0`）；dynode 需 end 后连续 3 点保持 ≤20 ADC（稳定确认）。
+- **dynode 滤波后寻峰**：dynode start/end/特征均在 `plotting.dynode_lp_cutoff_hz`（现 30 MHz）低通之后计算；anode 用原始波形。
+- **新 peak 参数**：`width_90area`、`width_50area`（面积占比宽度）、`area_ano`/`area_dyn`（总电荷）。
+- **筛选判据初步确定**：`width_90area > 1000 ns` 且 `rise_time > 80 ns`（run 00183 筛出 2/1195），待物理确认固化。

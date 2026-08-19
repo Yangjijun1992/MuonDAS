@@ -87,16 +87,20 @@
 - **peak 级筛选（当前主流程）**：`filter_muon_candidates(peaks, peak_features, config)`，判据全部来自 `config["filtering"]`（None=不设限）：
   - 幅度：`height_min`/`height_max`（对 `peak_height`）；
   - 形状：`width_min`/`width_max`、`rise_time_max`；
-  - PE：`min_area_pe_anode`/`min_area_pe_dynode`。
+  - PE：`min_area_pe_anode`/`min_area_pe_dynode`；
+  - **已初步确定的物理判据（2026-08-17）**：`width_90area > 1000 ns` 且 `rise_time > 80 ns`（run 00183 筛出 2/1195）。
   - 输出 `MuonCandidate`（含 `passed_conditions` 逐判据记录）。
 - **pair 级粗筛（legacy，保留）**：`filter_candidates`（asym 噪声剔除、`min_event_length`、`min_seg_area_pe`、高度阈值）供按匹配对分析的旧路径使用。
 
 ### 2.7 特征量 / PE 标定（features.py、gain.py、pe_calibration.py）
 - **peak 级特征**：`compute_peak_features(peak, run_data, gain_db, config)`：
   - anode 记录：固定窗口积分（`integral_window_mode=fixed`，默认 [20,100)），负极脉冲；
-  - **dynode 记录**：先低通滤波（`plotting.dynode_lp_cutoff_hz`，None=不过滤）再 **×`dynode_scale`（110）**，然后积分——由于先放大波形，**area 也隐含 ×110**（满足需求）；
+  - **dynode 记录**：先低通滤波（`plotting.dynode_lp_cutoff_hz`，现 30 MHz，None=不过滤）再 **×`dynode_scale`（110）**，然后积分——由于先放大波形，**area 也隐含 ×110**（满足需求）；**dynode 的寻峰（start/end）同样在滤波之后**（anode 用原始波形）；
   - 每记录 PE：`charge_to_pe(charge, gain)`（`pe_fact=(2/16384)*4e-9/(50*1.6e-19)/1e6`，`pe_calib=pe_fact/gain`）；
-  - 聚合：`anode_area_pe`/`dynode_area_pe`（求和）、`peak_height`/`peak_width`/`peak_rise_time`（取通道最大）；
+  - **rise_time**：`peak_index − pulse_start`（start→峰值点，样本；anode 取最负点、dynode 取最正点，两侧均计算）；
+  - **面积占比宽度**：`width_90area`/`width_50area`（从 start 起累积 90%/50% 面积处的宽度，样本）；
+  - **总电荷**：`area_ano`/`area_dyn`（anode/dynode 全通道电荷和，dynode 含 ×110）；
+  - 聚合：`anode_area_pe`/`dynode_area_pe`（求和）、`peak_height`/`peak_width`/`peak_rise_time`/`width_90area`/`width_50area`（取通道最大）；
   - `charge_per_pmt`：按 `cog.charge_source`（anode|dynode）汇总各通道电荷，经 `runinfo.pmt_id_map[(board, ch)]` 映射为 pmt_id（供 COG 使用）。
 - **积分窗口策略**：`IntegrationWindowResolver` 抽象，默认 `FixedWindowResolver`；预留 `PeakFinderWindowResolver`（待寻峰算法）。
 - **gain**：`build_gain_db(config, run_id)` 按当前 run 查询；pmtdata 读 `spe_gain` 列，该 run 无条目时回退每通道最新值；sqlite/csv 后端按通道查。
@@ -130,7 +134,7 @@
 ### 2.11 输出（output.py）
 - 每 run 目录 `<out-dir><run_id>/`（run_id 补零，便于识别）。
 - **事例级 CSV**（`peaks_to_dataframe` → `events_run_<id>.csv`），每行一个 muon 候选（peak）：
-  `run_id, event_id, peaks_id, time_ns, channels, anode_record_ids, dynode_record_ids, anode_area_pe, dynode_area_pe, peak_height, peak_width, peak_rise_time, cog_x, cog_y, parameter_version, gain_db_version`。
+  `run_id, event_id, peaks_id, time_ns, channels, anode_record_ids, dynode_record_ids, anode_area_pe, dynode_area_pe, area_ano, area_dyn, peak_height, peak_width, peak_rise_time, peak_width_ns, width_90area, width_50area, cog_x, cog_y, parameter_version, gain_db_version`。
 - `waveforms_*.npz`（每候选 anode/dynode 波形片段，可配置开关）、各 PNG、`run_<id>_metadata.json`。
 
 ### 2.12 缓存（cache.py）
@@ -183,7 +187,7 @@
 | 匹配数为 0 / 过少 | §2.4 匹配 | 检查 `dynode_shift_ns`（默认 6）、`match_window_ns`（[0,40]）、`channel_delay_ns`；示例数据阳极需 +6 对齐 |
 | peak 数异常 / 通道合并不合理 | §2.5 聚类 | 调 `clustering.window_ns`（100）；查看筛选前验证图（逐对/叠加）判断窗口是否过大/过小 |
 | muon 候选为 0 / 过多 | §2.6 筛选 | 调 `height_min/max`、`width_min/max`、`rise_time_max`、`min_area_pe_anode/dynode`；确认 gain 使 PE 正确 |
-| dynode 特征偏大/偏小 | §2.7 特征 | 核对 `dynode_scale`（110）、`dynode_lp_cutoff_hz`（45 MHz，YAML 数值需为合法 float 写法如 `4.5e7`）；低通会压低峰值约 10% |
+| dynode 特征偏大/偏小 | §2.7 特征 | 核对 `dynode_scale`（110）、`dynode_lp_cutoff_hz`（30 MHz，YAML 数值需为合法 float 写法如 `3e7`）；低通会压低峰值约 10% |
 | PE 值离谱 | §2.7 gain/PE | 确认 gain 后端与 run 是否匹配；`spe_gain` 列；`pe_fact` |
 | COG 为空（NaN）/ 位置不对 | §2.9 COG | 位置来源：pattern 文件（`cog.pattern_path`/`--pattern`）→ runinfo `mapping[].channels[].pos` → `cog.use_fallback` 回退几何；runinfo 需含 `mapping`（board/ch→pmt_id）；`charge_per_pmt` 非空；坐标单位约定（mm） |
 | PMT 面积图异常 | §2.8 pattern 图 | 确认 layout 已加载（文件/runinfo/回退）；`charge_per_pmt` 的 pmt_id 与 layout 的 pmt_id 一致 |
@@ -220,7 +224,7 @@ python scripts/run_analysis.py --clear-cache     # 清缓存
 | features | `integral_start/end` | 20/100 | 固定积分窗口 |
 | gain_db | `backend` | pmtdata | pmtdata/sqlite/csv |
 | plotting | `dynode_scale` | 110 | dynode 放大倍数（幅度与 area 均 ×110） |
-| plotting | `dynode_lp_cutoff_hz` | 4.5e7 | dynode 低通截止(Hz)；None=不过滤 |
+| plotting | `dynode_lp_cutoff_hz` | 3e7 | dynode 低通截止(Hz, 30 MHz)；None=不过滤 |
 | cog | `pattern_path` | "" | PMT pattern 文件路径；空则尝试 runinfo pos / 回退 |
 | cog | `pattern_format` | auto | auto/json/csv/yaml |
 | cog | `charge_source` | anode | 送入重心的电荷侧（anode/dynode） |
