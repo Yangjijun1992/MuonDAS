@@ -600,3 +600,70 @@ def plot_peak_anode_rise_check(peak, run_data, output_dir, run_id,
     return plot_peak_rise_check(peak, run_data, output_dir, run_id,
                                 side="anode", sample_interval_ns=sample_interval_ns,
                                 margin_ns=margin_ns)
+
+
+def plot_peak_waveform_from(peak, run_data, output_dir, run_id, side="anode",
+                            start_offset_ns=200.0, sample_interval_ns=4.0,
+                            dynode_scale=110, lp_cutoff_hz=None, fs=250e6,
+                            margin_ns=60.0) -> list[Path]:
+    """Plot one side's waveforms of a peak, showing only the region **after**
+    ``peak.start_time_ns + start_offset_ns`` (e.g. skip the leading edge).
+
+    One panel per channel; the x-axis starts at the cut time and extends to
+    the longest record end plus ``margin_ns``.  Dynode waveforms are low-pass
+    filtered (``lp_cutoff_hz``) and inverted x ``dynode_scale`` when given;
+    anode waveforms are raw.  Returns saved PNG paths (empty if the side has
+    no records).
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from muon_analysis.filtering import SignalAccessor
+
+    records = peak.anode_records if side == "anode" else peak.dynode_records
+    if not records:
+        return []
+    is_dynode = side == "dynode"
+    color = "crimson" if is_dynode else "royalblue"
+    label = "Dynode" if is_dynode else "Anode"
+
+    accessor = SignalAccessor.from_run_data(run_data)
+    plot_dir = Path(output_dir)
+    plot_dir.mkdir(parents=True, exist_ok=True)
+    t_cut = peak.start_time_ns + float(start_offset_ns)
+    path = plot_dir / f"peak{peak.peaks_id:03d}_{side}_from{int(start_offset_ns)}ns_run_{run_id}.png"
+
+    channels = sorted({r.channel for r in records})
+    fig, axes = plt.subplots(len(channels), 1,
+                             figsize=(14, 3 * len(channels)), sharex=True)
+    if len(channels) == 1:
+        axes = [axes]
+    xmax = max(rec.time_ns + len(accessor.signals([rec.record_id]).reshape(-1))
+               * sample_interval_ns for rec in records)
+
+    for ax, ch in zip(axes, channels):
+        for rec in records:
+            if rec.channel != ch:
+                continue
+            sig = np.asarray(accessor.signals([rec.record_id]).reshape(-1),
+                             dtype=float)
+            if is_dynode:
+                if lp_cutoff_hz is not None:
+                    sig = apply_lowpass_filter(sig, cutoff_hz=lp_cutoff_hz, fs=fs)
+                sig = sig * -dynode_scale
+            t = rec.time_ns + np.arange(len(sig)) * sample_interval_ns
+            keep = t >= t_cut
+            ax.plot(t[keep], sig[keep], color=color, alpha=0.85,
+                    label=f"{label} ID {rec.record_id}")
+        ax.axhline(0, color="black", linestyle="--", alpha=0.3)
+        ax.set_xlabel("Time [ns]")
+        ax.set_ylabel("Amplitude [ADC]")
+        ax.set_title(f"ch {ch} (t >= start+{int(start_offset_ns)}ns)")
+        ax.legend(loc="best", fontsize=8)
+        ax.grid(True, alpha=0.2)
+        ax.set_xlim(t_cut, xmax + margin_ns)
+    fig.tight_layout()
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+    return [path]
