@@ -81,15 +81,14 @@ peak 186131 anode 验证图（7 通道叠加 + 逐一，含 start/end/rise 标�
 
 ### 4.1 长尾型代表（peak 186131，width≈7.9µs，w90=6.6µs）
 
-![186131 anode/dynode 对比](figures/peak186131_verify_compare_run_00183.png)
-
-anode（蓝）与 dynode（红，×110 反相）极性统一对比：主脉冲对齐，削顶后长拖尾。
+186131 的 anode/dynode 叠加波形见 §3.2：主脉冲对齐，削顶后长拖尾。
 
 ### 4.2 高电荷型代表（peak 477824，anode_PE≈22.8k，width≈1.25µs）
 
-![477824 anode](figures/peak477824_verify_anode_run_00183.png)
+![477824 逐通道 anode/dynode 对](figures/peak477824_pairs_run_00183.png)
 
-大幅值高电荷事例：7 通道强脉冲，能量集中（w90 仅 235 样本），与长尾型形成对比。
+peak 477824 逐通道 anode（蓝）与 dynode（红，×110 反相）波形对：大幅值高电荷事例，
+7 通道强脉冲、能量集中（w90 仅 235 样本），与长尾型形成对比。
 
 ### 4.3 COG 位置重建示例（peak 392386）
 
