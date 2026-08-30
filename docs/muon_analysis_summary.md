@@ -52,14 +52,14 @@ src/muon_analysis/
 原始 dynode−anode 时间差（dt）中位数 ≈ **4 ns**（run 00183），对 **anode 施加 +4 ns** 后
 dt 中心回到 0，实现高精度时间对齐：
 
-![匹配前后 dt 分布](/home/yjj/MuonDAS/docs/figures/matching_dt_before_after.png)
+![匹配前后 dt 分布](figures/matching_dt_before_after.png)
 
 - 左：移位前原始 `dynode_time − anode_time` 分布（中位数 ≈4ns，未对齐）
 - 右：**anode +4 ns** 对齐后 dt 分布（中心 ≈0，红色虚线=中位数）
 
 ### 3.2 匹配后验证：anode/dynode 波形对
 
-![peak 186131 anode](docs/figures/peak186131_verify_anode_run_00183.png)
+![peak 186131 anode](figures/peak186131_verify_anode_run_00183.png)
 
 peak 186131 anode 验证图（7 通道叠加 + 逐一，含 start/end/rise 标记线）：
 削顶（饱和）脉冲 + 长时间恢复拖尾——长尾型 muon 候选的代表。
