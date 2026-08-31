@@ -27,7 +27,7 @@
    │  ④ matching.py       时间匹配(移位 + merge_asof) ← 可缓存                    │
    │  ⑤ clustering.py     100ns 窗口聚类 → peaks(多 anode + 多 dynode) ← 可缓存   │
    │  ⑥ plotting/*        筛选前验证图(逐对+叠加) + 统计分布图                     │
-   │  ⑦ features.py       peak 级特征(dynode 低通+×110) + 积分窗口策略            │
+   │  ⑦ features.py       peak 级特征(dynode ×110) + 积分窗口策略                    │
    │     gain.py           PMT SPE gain(pmtdata/sqlite/csv)                      │
    │     pe_calibration.py 电荷→PE(pe_fact/gain)                                  │
    │  ⑧ filtering.py      peak 级 muon 候选筛选(幅度/形状/PE 阈值)               │
@@ -95,7 +95,7 @@
 ### 2.7 特征量 / PE 标定（features.py、gain.py、pe_calibration.py）
 - **peak 级特征**：`compute_peak_features(peak, run_data, gain_db, config)`：
   - anode 记录：固定窗口积分（`integral_window_mode=fixed`，默认 [20,100)），负极脉冲；
-  - **dynode 记录**：先低通滤波（`plotting.dynode_lp_cutoff_hz`，现 30 MHz，None=不过滤）再 **×`dynode_scale`（110）**，然后积分——由于先放大波形，**area 也隐含 ×110**（满足需求）；**dynode 的寻峰（start/end）同样在滤波之后**（anode 用原始波形）；
+  - **dynode 记录**：直接 **×`dynode_scale`（110）** 后积分——由于先放大波形，**area 也隐含 ×110**（满足需求）。**软件低通滤波已取消**（`dynode_lp_cutoff_hz=None`，新数据硬件已内置 25 MHz 低通电路）；**dynode 的寻峰（start/end）与特征均基于原始波形**（anode 亦用原始波形）；
   - 每记录 PE：`charge_to_pe(charge, gain)`（`pe_fact=(2/16384)*4e-9/(50*1.6e-19)/1e6`，`pe_calib=pe_fact/gain`）；
   - **rise_time**：`peak_index − pulse_start`（start→峰值点，样本；anode 取最负点、dynode 取最正点，两侧均计算）；
   - **面积占比宽度**：`width_90area`/`width_50area`（从 start 起累积 90%/50% 面积处的宽度，样本）；
@@ -187,7 +187,7 @@
 | 匹配数为 0 / 过少 | §2.4 匹配 | 检查 `dynode_shift_ns`（默认 6）、`match_window_ns`（[0,40]）、`channel_delay_ns`；示例数据阳极需 +6 对齐 |
 | peak 数异常 / 通道合并不合理 | §2.5 聚类 | 调 `clustering.window_ns`（100）；查看筛选前验证图（逐对/叠加）判断窗口是否过大/过小 |
 | muon 候选为 0 / 过多 | §2.6 筛选 | 调 `height_min/max`、`width_min/max`、`rise_time_max`、`min_area_pe_anode/dynode`；确认 gain 使 PE 正确 |
-| dynode 特征偏大/偏小 | §2.7 特征 | 核对 `dynode_scale`（110）、`dynode_lp_cutoff_hz`（30 MHz，YAML 数值需为合法 float 写法如 `3e7`）；低通会压低峰值约 10% |
+| dynode 特征偏大/偏小 | §2.7 特征 | 核对 `dynode_scale`（110）；软件低通已取消（硬件 25 MHz 内置）；噪声大时核对硬件滤波/触发阈值 |
 | PE 值离谱 | §2.7 gain/PE | 确认 gain 后端与 run 是否匹配；`spe_gain` 列；`pe_fact` |
 | COG 为空（NaN）/ 位置不对 | §2.9 COG | 位置来源：pattern 文件（`cog.pattern_path`/`--pattern`）→ runinfo `mapping[].channels[].pos` → `cog.use_fallback` 回退几何；runinfo 需含 `mapping`（board/ch→pmt_id）；`charge_per_pmt` 非空；坐标单位约定（mm） |
 | PMT 面积图异常 | §2.8 pattern 图 | 确认 layout 已加载（文件/runinfo/回退）；`charge_per_pmt` 的 pmt_id 与 layout 的 pmt_id 一致 |
@@ -224,7 +224,7 @@ python scripts/run_analysis.py --clear-cache     # 清缓存
 | features | `integral_start/end` | 20/100 | 固定积分窗口 |
 | gain_db | `backend` | pmtdata | pmtdata/sqlite/csv |
 | plotting | `dynode_scale` | 110 | dynode 放大倍数（幅度与 area 均 ×110） |
-| plotting | `dynode_lp_cutoff_hz` | 3e7 | dynode 低通截止(Hz, 30 MHz)；None=不过滤 |
+| plotting | `dynode_lp_cutoff_hz` | null | 软件低通截止(Hz)；**null=算法层不滤波**（硬件 25 MHz 已内置） |
 | cog | `pattern_path` | "" | PMT pattern 文件路径；空则尝试 runinfo pos / 回退 |
 | cog | `pattern_format` | auto | auto/json/csv/yaml |
 | cog | `charge_source` | anode | 送入重心的电荷侧（anode/dynode） |

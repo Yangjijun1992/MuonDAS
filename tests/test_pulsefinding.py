@@ -144,11 +144,13 @@ def test_compute_peak_start_end_inverts_dynode():
         return b
 
     anode_st, anode_ed = core(_neg_pulse(start=40, amplitude=500))
-    # stored dynode waveform is positive; the function low-pass filters it
-    # then inverts, and LP is linear, so the finder sees LP(negative form):
+    # stored dynode waveform is positive; the function inverts it for the
+    # finder.  With the software LP disabled (dynode_lp_cutoff_hz=None, the
+    # hardware 25MHz filter covers it), the finder sees the raw negative form:
     dyn_neg = _neg_pulse(start=60, amplitude=300)
-    dyn_st, dyn_ed = core(apply_lowpass_filter(dyn_neg, cutoff_hz=lp_cutoff,
-                                               fs=fs))
+    if lp_cutoff is not None:
+        dyn_neg = apply_lowpass_filter(dyn_neg, cutoff_hz=lp_cutoff, fs=fs)
+    dyn_st, dyn_ed = core(dyn_neg)
     expected_start = min(1004.0 + anode_st * 4.0, 1000.0 + dyn_st * 4.0)
     expected_end = max(1004.0 + anode_ed * 4.0, 1000.0 + dyn_ed * 4.0)
 

@@ -1,0 +1,17 @@
+run_id,runtype,trigger_mode,run_tag,run_comment,acq_time,start_time
+00390,run7_Xe,self,No Field,"No Field, test threshold",600.0,2026-08-27T22:36:34
+00391,run7_Xe,self,No Field,"No Field, test threshold",10.0,2026-08-27T23:08:58
+00392,run7_Xe,self,No Field,"No Field, test threshold",10.0,2026-08-27T23:09:26
+00393,run7_Xe,self,No Field,"No Field, test threshold",10.0,2026-08-27T23:09:55
+00394,run7_Xe,self,No Field,"No Field, test threshold",10.0,2026-08-27T23:10:22
+00395,run7_Xe,self,No Field,"No Field, test threshold",10.0,2026-08-27T23:10:45
+00396,run7_Xe,self,No Field,"No Field, test threshold",10.0,2026-08-27T23:11:12
+00397,run7_Xe,self,No Field,"No Field, test threshold",10.0,2026-08-27T23:11:41
+00398,run7_Xe,self,No Field,"No Field, test threshold",10.0,2026-08-27T23:12:10
+00399,run7_Xe,self,No Field,"No Field, ano 50adc, dyn 15adc",3600.0,2026-08-27T23:13:34
+00400,run7_Xe,self,No Field,"No Field, ano 50adc, dyn 15adc",3600.0,2026-08-28T10:03:54
+00401,run7_Xe,self,No Field,"No Field, ano 50adc, dyn 15adc",3600.0,2026-08-28T10:05:46
+00402,run7_Xe,self,No Field,"No Field, ano 50adc, dyn 15adc",3600.0,2026-08-28T11:06:05
+00403,run7_Xe,self,No Field,"No Field, ano 50adc, dyn 15adc",3600.0,2026-08-28T12:06:23
+00404,run7_Xe,self,No Field,"No Field, ano 50adc, dyn 15adc",3600.0,2026-08-28T13:06:42
+00405,run7_Xe,self,No Field,"No Field, ano 50adc, dyn 15adc",3600.0,2026-08-28T14:07:01

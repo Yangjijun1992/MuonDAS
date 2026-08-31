@@ -37,7 +37,7 @@ read → match(6ns,[0,40]) → cluster(100ns) → 验证图(逐对/叠加) → f
 | 3 matching | 移位/merge_asof/窗口[0,40]/延迟校准 | ✅ |
 | 4 clustering | Peak 模型/100ns 算法/配置/输出/测试 | ✅ |
 | 5 验证绘图 | 逐对/叠加/批量+指定/筛选前 | ✅ |
-| 6 features | 特征量/dynode LP(30MHz)+×110/PE/分布图 | ✅（新增 width_90area/width_50area/area_ano/area_dyn/rise_time=start→peak） |
+| 6 features | 特征量/dynode ×110/PE/分布图 | ✅（新增 width_90area/width_50area/area_ano/area_dyn/rise_time=start→peak） |
 | 7 filtering | peak 级判据/配置化/输出/测试 | ✅（判据初步确定：width_90area>1000ns 且 rise_time>80ns，P1 待物理确认） |
 | 8 output | CSV(peaks_id/record_id/cog + 全部特征列)/npy/统计图 | ✅ |
 | 9 cache | 新路径/哈希/读写/CLI/警告/测试 | ⚠️ 特征未缓存、键不含 gain 版本（P2） |
@@ -47,7 +47,7 @@ read → match(6ns,[0,40]) → cluster(100ns) → 验证图(逐对/叠加) → f
 | 13 测试文档 | pytest 覆盖/README/示例数据 | ✅ |
 
 **Blockers（§15）解决状态**：COG/pattern 数据结构 ✅（参考 xihu layout）；环境依赖 ✅（真实数据跑通）；
-输出规模/命名 ✅（采样控制）；dynode 参数 ⚠️（30MHz 滤波、global median 基线已用，待物理确认）；
+输出规模/命名 ✅（采样控制）；dynode 参数 ⚠️（软件低通取消/硬件 25MHz、global median 基线已用，待物理确认）；
 筛选阈值 ⚠️（**初步确定 2026-08-17**：width_90area>1000ns 且 rise_time>80ns，待物理确认固化）。
 
 ## 3. 真实数据验证结果（run 00179，run6_Xe）
@@ -96,7 +96,7 @@ read → match(6ns,[0,40]) → cluster(100ns) → 验证图(逐对/叠加) → f
 | 匹配移位/窗口 | dynode_shift_ns=6, dt∈[0,40] | 统一决策（2026-08-13） |
 | 聚类窗口 | clustering.window_ns=100 | 需求 §3 |
 | dynode 放大 | ×110（幅度与 area 均隐含 ×110） | 需求 §5 |
-| dynode 低通 | 3e7 Hz（30MHz，YAML 需合法 float 写法） | 参考默认 |
+| dynode 低通 | null（算法层不滤波）| 硬件 25 MHz 内置 |
 | 径迹切片 | track.slice_us=1.0 µs, fs=250e6 | 需求 §9 |
 | PMT 位置来源 | 文件 → runinfo pos → 回退（use_fallback） | 参考 layout.py |
 | COG 电荷侧 | cog.charge_source=anode | 决策 |

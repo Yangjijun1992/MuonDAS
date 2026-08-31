@@ -164,6 +164,49 @@ def _record_width_fraction(sig, baseline, rec, n, frac=0.9) -> float:
     return width_to_fraction_area(sig, baseline, start, end, frac=frac)
 
 
+def compute_peak_summed_waveforms(peak, run_data, config, ref=50,
+                                  dynode_scale=110.0) -> tuple:
+    """Aligned summed waveforms over all channels of a peak.
+
+    ``anode_sum``/``dynode_sum`` are produced by aligning every record's
+    waveform at its own pulse start (``pulse_start_sample``) to a common
+    reference index ``ref`` (samples before the pulse, keeping the pre-pulse
+    baseline) and summing pointwise across channels — the summed height at
+    each sample is the total amplitude over all channels.
+
+    Records without a resolved pulse start are skipped.  The dynode sum is
+    scaled by ``dynode_scale`` (×110, matching the feature convention).
+    Returns ``(anode_sum, dynode_sum)``; a side with no usable records
+    yields ``None``.
+    """
+    from muon_analysis.filtering import SignalAccessor
+
+    accessor = SignalAccessor.from_run_data(run_data)
+
+    def side_sum(records):
+        if not records:
+            return None
+        items = [(r, r.pulse_start_sample,
+                  len(accessor.signals([r.record_id]).reshape(-1)))
+                 for r in records]
+        items = [(r, st, L) for r, st, L in items if st is not None]
+        if not items:
+            return None
+        total_len = int(ref) + max(L - st for _, st, L in items)
+        out = np.zeros(total_len, dtype=float)
+        for r, st, L in items:
+            wf = np.asarray(accessor.signals([r.record_id]).reshape(-1),
+                            dtype=float)
+            lo = int(ref) - st
+            out[lo: lo + L] += wf
+        return out
+
+    anode_sum = side_sum(peak.anode_records)
+    dyn_raw = side_sum(peak.dynode_records)
+    dynode_sum = dyn_raw * float(dynode_scale) if dyn_raw is not None else None
+    return anode_sum, dynode_sum
+
+
 def pulse_peak_index(
     waveform: np.ndarray,
     signal_polarity: str = "positive",
@@ -357,6 +400,8 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
     width_50s = [f.width_50area for f in anode_features.values()] \
         + [f.width_50area for f in dynode_features.values()]
 
+    peak_sum_a, peak_sum_d = compute_peak_summed_waveforms(peak, run_data, config)
+
     if peak.dynode_records:
         time_ns = min(r.time_ns for r in peak.dynode_records)
     elif peak.anode_records:
@@ -382,6 +427,8 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         peaks_id=peak.peaks_id,
         time_ns=time_ns,
         channels=list(peak.channels),
+        anode_sum=peak_sum_a,
+        dynode_sum=peak_sum_d,
         anode_record_ids=[r.record_id for r in peak.anode_records],
         dynode_record_ids=[r.record_id for r in peak.dynode_records],
         anode_features=anode_features,

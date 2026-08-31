@@ -134,11 +134,20 @@ def main(argv=None) -> int:
     pd.DataFrame(records).to_csv(csv_path, index=False)
 
     npz_path = out_dir / f"{run_id}_waveforms.npz"
+    # peak-level aligned summed waveforms (anode_sum / dynode_sum, per peak)
+    sum_ano = np.empty(len(sel), dtype=object)
+    sum_dyn = np.empty(len(sel), dtype=object)
+    for i, pk in enumerate(sel):
+        f = feats[pk.peaks_id]
+        sum_ano[i] = f.anode_sum
+        sum_dyn[i] = f.dynode_sum
     np.savez(
         npz_path,
         peaks_id=wf_peaks, board=wf_board, channel=wf_ch, record_id=wf_rec,
         time_ns=wf_time, waveforms=wf_waves,
         pulse_start=wf_pst, pulse_end=wf_ped,
+        sum_peaks_id=np.array([pk.peaks_id for pk in sel], dtype=np.int64),
+        anode_sum=sum_ano, dynode_sum=sum_dyn,
     )
 
     manifest = {

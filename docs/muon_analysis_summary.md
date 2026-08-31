@@ -35,7 +35,7 @@ src/muon_analysis/
   matching.py     时间匹配(移位+merge_asof)
   clustering.py   100ns 聚类 → Peak(多 anode+dynode)
   pulsefinding.py 寻峰(start/end) + peak 窗口聚合
-  features.py     peak 特征(dynode 30MHz LP + ×110) + width_90area/50area
+  features.py     peak 特征(dynode ×110) + width_90area/50area
   gain.py/pe_calibration.py   SPE gain 查询 + 电荷→PE
   filtering.py    peak 级 muon 候选筛选
   cog.py          PMT pattern(文件/runinfo pos/回退) + COG 重心
@@ -66,7 +66,7 @@ peak 186131 anode 验证图（7 通道叠加 + 逐一，含 start/end/rise 标�
 
 ![peak 186131 dynode](figures/peak186131_verify_dynode_run_00183.png)
 
-对应 dynode 波形（30 MHz 低通 + 反相 ×110）：脉冲主体清晰，7 通道时间对齐良好。
+对应 dynode 波形（原始，反相 ×110；软件低通已取消，硬件 25 MHz 内置）：脉冲主体清晰，7 通道时间对齐良好。
 
 ### 3.3 脉冲细节窗口（start+60ns 之后）
 
@@ -95,7 +95,7 @@ peak 477824 逐通道 anode（蓝）与 dynode（红，×110 反相）波形对�
 ![477824 anode/dynode 电荷对比](figures/peak477824_charge_compare.png)
 
 7 通道 anode/dynode 电荷（PE）柱状对比（数字标注 = anode/dynode 比值，dynode 为
-30 MHz 低通滤波后面积 ×110）：各通道电荷量级相当（比值 0.4–1.3），dynode 侧经滤波放大后
+×110 放大后的面积）：各通道电荷量级相当（比值 0.4–1.3），dynode 侧经放大后
 与 anode 基本一致。
 
 #### 全 run peak 级 anode/dynode 比值统计（24 runs，21,871 个 7ch 候选）
@@ -103,7 +103,7 @@ peak 477824 逐通道 anode（蓝）与 dynode（红，×110 反相）波形对�
 ![anode/dynode 比值直方图](figures/ratio_anode_dynode_hist.png)
 
 `anode_area_pe / dynode_area_pe` 分布：**median ≈ 2.05**（q25 1.93，q75 2.16）——peak 级
-anode 电荷约为 dynode（30 MHz 低通 + ×110 后）的 2 倍，跨 24 个 run 高度稳定。
+anode 电荷约为 dynode（×110 放大后）的 2 倍，跨 24 个 run 高度稳定。
 
 ### 4.3 COG 位置重建示例（peak 392386）
 

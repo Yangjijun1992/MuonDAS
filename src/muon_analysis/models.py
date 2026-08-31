@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import numpy as np
+
 
 @dataclass
 class PeakRecord:
@@ -107,6 +109,9 @@ class PeakFeatures:
     peak_width_ns: float = 0.0   # peak window width = end_time_ns - start_time_ns
     width_90area: float = 0.0    # max over channels: width from start containing 90% area
     width_50area: float = 0.0    # max over channels: width from start containing 50% area
+    # aligned (by pulse start) summed waveforms over all channels, in npz only
+    anode_sum: Optional[np.ndarray] = field(default=None, repr=False)
+    dynode_sum: Optional[np.ndarray] = field(default=None, repr=False)
 
     def as_dict(self) -> Dict[str, Any]:
         return {

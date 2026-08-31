@@ -21,7 +21,7 @@ MuonDAS/
 │   ├── models.py                      # RunInfo、Peak、PeakFeatures、MuonCandidate 数据模型
 │   ├── matching.py                    # 打拿极-阳极时间匹配（移位 + merge_asof）
 │   ├── clustering.py                  # 100ns 窗口波形聚类 → peaks（多 anode + 多 dynode）
-│   ├── features.py                    # peak 级特征（dynode 低通 + ×110）+ 积分窗口策略
+│   ├── features.py                    # peak 级特征（dynode ×110）+ 积分窗口策略
 │   ├── gain.py                        # PMT SPE gain 数据库（pmtdata/sqlite/csv）
 │   ├── pe_calibration.py              # 电荷 -> PE 换算
 │   ├── filtering.py                   # peak 级 muon 候选筛选（legacy pair 级粗筛保留）
@@ -37,7 +37,7 @@ MuonDAS/
 │   │   ├── run_index.py               # run_id 解析（列表/通配/外部文件）
 │   │   └── data.py                    # RunData（按 board 分离 dynode=1/anode=0）
 │   └── plotting/
-│       ├── waveforms.py               # 波形可视化（逐对/叠加验证 + 低通 + 时间对齐）
+│       ├── waveforms.py               # 波形可视化（逐对/叠加验证 + 时间对齐）
 │       ├── distributions.py           # 统计分布图（PE 谱/dt 谱/相关/2D 直方）
 │       └── pattern.py                 # PMT 面积图（布局方块 + 电荷着色 + COG 标记）
 ├── scripts/
@@ -79,7 +79,7 @@ MuonDAS/
 - 管线默认绘制前 `num_samples` 个 peak + `--plot-peaks` 指定序号，作为**筛选前验证步骤**。
 
 ### 模块6 - 事例特征分析（含 dynode 滤波/放大 与 PE）
-- `compute_peak_features`：anode 负极固定窗口积分；**dynode 先低通滤波（`dynode_lp_cutoff_hz`，默认 45 MHz）再 ×110 放大后积分（area 隐含 ×110）**；每记录 PE 换算；peak 级聚合 area/height/width/rise_time；`charge_per_pmt`。
+- `compute_peak_features`：anode 负极固定窗口积分；**dynode 直接 ×110 放大后积分（area 隐含 ×110）；软件低通已取消（硬件 25 MHz 内置）**；每记录 PE 换算；peak 级聚合 area/height/width/rise_time；`charge_per_pmt`。
 - 积分窗口策略接口 `IntegrationWindowResolver`（fixed 默认 / peak_finder 预留寻峰）。
 - gain：pmtdata/sqlite/csv 后端，按当前 run 查询，无条目回退每通道最新值。
 
@@ -101,7 +101,7 @@ MuonDAS/
 - `cog_reconstruct` 重心法；结果回填 CSV `cog_x`/`cog_y` 列（与 record_id 同表）。
 
 ### 模块11 - muon 径迹重建【新增】
-- `slice_peak_waveforms`：dynode 波形（低通 + ×110）按 `track.slice_us`（默认 1 µs）切片。
+- `slice_peak_waveforms`：dynode 波形（×110）按 `track.slice_us`（默认 1 µs）切片。
 - `reconstruct_track`：每切片通道电荷 → pmt_id（`pmt_id_map[(1, ch)]`）→ 重心法切片中心。
 - `plot_track`：切片中心（x, y, time）连成三维径迹 PNG（采样绘制）。
 

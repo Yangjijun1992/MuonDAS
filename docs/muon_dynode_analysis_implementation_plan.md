@@ -191,7 +191,7 @@ MuonDAS/
 - [x] **rise_time 定义（修订）**：`peak_index − pulse_start`（start→峰值点，样本）；anode 负脉冲取最负点、dynode 取最正点，两侧均计算。
 - [x] **面积占比宽度参数**：`width_90area`/`width_50area`（从 start 起累积 90%/50% 面积处的宽度，样本）。
 - [x] **peak 级总电荷**：`area_ano`/`area_dyn`（anode/dynode 全通道电荷和，dynode 含 ×110）。
-- [x] dynode 低通滤波 `apply_lowpass_filter`（30 MHz，验证图/寻峰/特征三链路一致）。
+- [x] dynode 软件低通滤波（已取消：新数据硬件内置 25 MHz 低通，算法层不滤波）。
 - [x] dynode 放大 110×（幅度与 area 均 ×scale）。
 - [x] 固定窗口积分策略 + 预留寻峰接口；PE 换算。
 - [x] 生成特征统计分布图（PE 谱、时间差谱、width_90area/width_50area 直方图与 2D 图）验证聚类/筛选合理性，保存 `.png`。
@@ -378,6 +378,6 @@ config/CLI (1)
 
 - **rise_time 定义**：`peak_index − pulse_start`（start→峰值点）；anode/dynode 两侧均计算（不再用 10%-90% 交叉）。
 - **end 判据分侧**：anode 从峰值向右**首次回基线**即 end（`end_consecutive=0`）；dynode 需 end 后连续 3 点保持 ≤20 ADC（稳定确认）。
-- **dynode 滤波后寻峰**：dynode start/end/特征均在 `plotting.dynode_lp_cutoff_hz`（现 30 MHz）低通之后计算；anode 用原始波形。
+- **dynode 软件低通取消**：新数据硬件内置 25 MHz 低通电路；算法层 `dynode_lp_cutoff_hz=None` 不滤波，dynode start/end/特征均基于原始波形（×110 放大后面积）。
 - **新 peak 参数**：`width_90area`、`width_50area`（面积占比宽度）、`area_ano`/`area_dyn`（总电荷）。
 - **筛选判据初步确定**：`width_90area > 1000 ns` 且 `rise_time > 80 ns`（run 00183 筛出 2/1195），待物理确认固化。

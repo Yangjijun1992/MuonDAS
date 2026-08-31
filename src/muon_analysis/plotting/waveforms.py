@@ -667,3 +667,47 @@ def plot_peak_waveform_from(peak, run_data, output_dir, run_id, side="anode",
     fig.savefig(path, dpi=120)
     plt.close(fig)
     return [path]
+
+
+def plot_peak_sum_waveform(peak, anode_sum, dynode_sum, output_dir, run_id,
+                           sample_interval_ns=4.0, ref=50,
+                           dynode_invert=False) -> list[Path]:
+    """Plot the aligned summed waveforms (anode_sum, dynode_sum) of a peak.
+
+    x axis is relative to the alignment reference (``ref`` samples before the
+    pulse start), in ns.  ``dynode_invert`` flips the dynode sum to negative
+    (for unified polarity with the negative anode).  Returns saved PNG path
+    (empty if no sums).
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    if anode_sum is None and dynode_sum is None:
+        return []
+    plot_dir = Path(output_dir)
+    plot_dir.mkdir(parents=True, exist_ok=True)
+    suffix = "_inv" if dynode_invert else ""
+    path = plot_dir / f"peak{peak.peaks_id:03d}_sum{suffix}_run_{run_id}.png"
+
+    fig, ax = plt.subplots(figsize=(14, 6))
+    for arr, color, label in ((anode_sum, "royalblue", "Anode sum (aligned)"),
+                              (dynode_sum, "crimson",
+                               "Dynode sum (aligned, x110, flipped)")):
+        if arr is None:
+            continue
+        if label.startswith("Dynode") and dynode_invert:
+            arr = -arr
+        x = (np.arange(len(arr)) - ref) * sample_interval_ns
+        ax.plot(x, arr, color=color, alpha=0.85, label=label)
+    ax.axhline(0, color="black", linestyle="--", alpha=0.3)
+    ax.set_xlabel("Time from pulse-start alignment [ns]")
+    ax.set_ylabel("Amplitude [ADC] (sum over channels)")
+    ax.set_title(f"peak {peak.peaks_id} aligned summed waveforms "
+                 f"({peak.n_channels} ch)")
+    ax.legend(loc="best")
+    ax.grid(True, alpha=0.2)
+    fig.tight_layout()
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+    return [path]
