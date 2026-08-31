@@ -98,6 +98,13 @@ peak 477824 逐通道 anode（蓝）与 dynode（红，×110 反相）波形对�
 30 MHz 低通滤波后面积 ×110）：各通道电荷量级相当（比值 0.4–1.3），dynode 侧经滤波放大后
 与 anode 基本一致。
 
+#### 全 run peak 级 anode/dynode 比值统计（24 runs，21,871 个 7ch 候选）
+
+![anode/dynode 比值直方图](figures/ratio_anode_dynode_hist.png)
+
+`anode_area_pe / dynode_area_pe` 分布：**median ≈ 2.05**（q25 1.93，q75 2.16）——peak 级
+anode 电荷约为 dynode（30 MHz 低通 + ×110 后）的 2 倍，跨 24 个 run 高度稳定。
+
 ### 4.3 COG 位置重建示例（peak 392386）
 
 ![COG pattern](figures/cog_pattern_392386.png)
