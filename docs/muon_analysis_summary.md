@@ -90,6 +90,14 @@ peak 186131 anode 验证图（7 通道叠加 + 逐一，含 start/end/rise 标�
 peak 477824 逐通道 anode（蓝）与 dynode（红，×110 反相）波形对：大幅值高电荷事例，
 7 通道强脉冲、能量集中（w90 仅 235 样本），与长尾型形成对比。
 
+#### 逐通道 anode/dynode 电荷对比（477824，经筛选高能事例）
+
+![477824 anode/dynode 电荷对比](figures/peak477824_charge_compare.png)
+
+7 通道 anode/dynode 电荷（PE）柱状对比（数字标注 = anode/dynode 比值，dynode 为
+30 MHz 低通滤波后面积 ×110）：各通道电荷量级相当（比值 0.4–1.3），dynode 侧经滤波放大后
+与 anode 基本一致。
+
 ### 4.3 COG 位置重建示例（peak 392386）
 
 ![COG pattern](figures/cog_pattern_392386.png)
