@@ -167,7 +167,7 @@ def _record_width_fraction(sig, baseline, rec, n, frac=0.9) -> float:
 
 
 def compute_peak_summed_waveforms(peak, run_data, config, ref=SUMMED_REF,
-                                  dynode_scale=110.0) -> tuple:
+                                  dynode_scale=None) -> tuple:
     """Aligned summed waveforms over all channels of a peak.
 
     ``anode_sum``/``dynode_sum`` are produced by aligning every record's
@@ -176,20 +176,23 @@ def compute_peak_summed_waveforms(peak, run_data, config, ref=SUMMED_REF,
     baseline) and summing pointwise across channels — the summed height at
     each sample is the total amplitude over all channels.
 
-    The effective reference ``ref_eff = max(ref, max(pulse_start))`` avoids
-    negative placement when a pulse starts later than ``ref``; it is returned
-    as the third element so the caller/plot can anchor the x axis correctly.
+    The dynode channels are each amplified by ``dynode_scale`` **before**
+    summing (per-channel scaling, then aligned sum); when ``dynode_scale`` is
+    None it is read from ``config['plotting']['dynode_scale']``.  The raw
+    (x1) dynode sum is kept for the un-scaled area.
 
-    Records without a resolved pulse start are skipped.  The dynode sum is
-    scaled by ``dynode_scale`` (×110, matching the feature convention).
-    Returns ``(anode_sum, dynode_sum, ref_eff)``; a side with no usable
-    records yields ``None``.
+    Records without a resolved pulse start are skipped.  Returns
+    ``(anode_sum, dynode_sum, ref_eff, dynode_sum_raw)``; a side with no
+    usable records yields ``None``.
     """
+    if dynode_scale is None:
+        dynode_scale = float((config or {}).get("plotting", {}).get(
+            "dynode_scale", 110.0))
     from muon_analysis.filtering import SignalAccessor
 
     accessor = SignalAccessor.from_run_data(run_data)
 
-    def side_sum(records):
+    def side_sum(records, scale=1.0):
         if not records:
             return None
         items = [(r, r.pulse_start_sample,
@@ -203,14 +206,16 @@ def compute_peak_summed_waveforms(peak, run_data, config, ref=SUMMED_REF,
         out = np.zeros(total_len, dtype=float)
         for r, st, L in items:
             wf = np.asarray(accessor.signals([r.record_id]).reshape(-1),
-                            dtype=float)
+                            dtype=float) * float(scale)
             lo = ref_eff - st
             out[lo: lo + L] += wf
         return out
 
     anode_sum = side_sum(peak.anode_records)
+    # dynode sum: each channel amplified by dynode_scale BEFORE summing;
+    # the raw (x1) sum is kept separately for the un-scaled area.
     dyn_raw = side_sum(peak.dynode_records)
-    dynode_sum = dyn_raw * float(dynode_scale) if dyn_raw is not None else None
+    dynode_sum = side_sum(peak.dynode_records, scale=dynode_scale)
     ref_used = int(ref)
     for records in (peak.anode_records, peak.dynode_records):
         for r in records:
@@ -401,8 +406,10 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
     area_ano = 0.0
     area_dyn = 0.0
 
+    dyn_scale = float(config.get("plotting", {}).get("dynode_scale", 110.0))
     peak_sum_a, peak_sum_d, peak_sum_ref, peak_sum_draw = \
-        compute_peak_summed_waveforms(peak, run_data, config)
+        compute_peak_summed_waveforms(peak, run_data, config,
+                                      dynode_scale=dyn_scale)
 
     # --- peak-level parameters from the summed waveforms ---
     # integration interval = [anode_sum start, dynode_sum end] from the sum
@@ -470,16 +477,16 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
 
     sf_a = sum_feats(peak_sum_a, "negative")
     sf_d = sum_feats(peak_sum_d, "positive")
+    interval_ns = float(config.get("matching", {}).get("sample_interval_ns", 4.0))
     height = 0.0
     width = 0.0
     rise_time = 0.0
     if sf_a is not None:
         height = max(height, sf_a.height)
-        width = sf_a.width
-        rise_time = sf_a.rise_time
+        width = sf_a.width * interval_ns
+        rise_time = sf_a.rise_time * interval_ns
     if sf_d is not None:
         height = max(height, sf_d.height)
-    interval_ns = float(config.get("matching", {}).get("sample_interval_ns", 4.0))
     width_ns = float(max(0, a_ed - a_st)) * interval_ns if a_ed > a_st else 0.0
 
     width_90area = 0.0
@@ -487,8 +494,8 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
     if peak_sum_a is not None and a_ed > a_st:
         w = np.asarray(peak_sum_a, dtype=float)
         bl = float(np.mean(w[:baseline_samples]))
-        width_90area = width_to_fraction_area(w, bl, a_st, a_ed, 0.9)
-        width_50area = width_to_fraction_area(w, bl, a_st, a_ed, 0.5)
+        width_90area = width_to_fraction_area(w, bl, a_st, a_ed, 0.9) * interval_ns
+        width_50area = width_to_fraction_area(w, bl, a_st, a_ed, 0.5) * interval_ns
 
     if peak.dynode_records:
         time_ns = min(r.time_ns for r in peak.dynode_records)

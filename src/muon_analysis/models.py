@@ -105,11 +105,11 @@ class PeakFeatures:
     area_dyn: float = 0.0      # total charge from all dynode channels (x dynode_scale)
     # shape params computed on the summed waveforms (anode reference)
     height: float = 0.0        # summed-waveform height
-    width: float = 0.0         # summed-waveform FWHM [samples]
-    rise_time: float = 0.0     # summed-waveform rise (start->peak) [samples]
+    width: float = 0.0         # summed-waveform FWHM [ns]
+    rise_time: float = 0.0     # summed-waveform rise (start->peak) [ns]
     width_ns: float = 0.0      # summed-waveform pulse duration (end-start) [ns]
-    width_90area: float = 0.0  # max over channels: width from start containing 90% area
-    width_50area: float = 0.0  # max over channels: width from start containing 50% area
+    width_90area: float = 0.0  # max over channels: width from start containing 90% area [ns]
+    width_50area: float = 0.0  # max over channels: width from start containing 50% area [ns]
     # aligned (by pulse start) summed waveforms over all channels, in npz only
     anode_sum: Optional[np.ndarray] = field(default=None, repr=False)
     dynode_sum: Optional[np.ndarray] = field(default=None, repr=False)

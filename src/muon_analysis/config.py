@@ -91,7 +91,7 @@ _DEFAULTS: Dict[str, Any] = {
     },
     "plotting": {
         "backend": "Agg",
-        "dynode_scale": 110,
+        "dynode_scale": 230,   # anode:dynode ratio ~230 (sum compare scale)
         "dynode_lp_cutoff_hz": None,   # None=no low-pass on compare dynode; e.g. 45e6
         "plot_len": 100,
         "cutoff_hz": 20e6,

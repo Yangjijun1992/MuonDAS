@@ -690,7 +690,7 @@ def plot_peak_sum_waveform(peak, anode_sum, dynode_sum, output_dir, run_id,
     plot_dir = Path(output_dir)
     plot_dir.mkdir(parents=True, exist_ok=True)
     suffix = "_inv" if dynode_invert else ""
-    path = plot_dir / f"peak{peak.peaks_id:03d}_sum{suffix}_run_{run_id}.png"
+    path = plot_dir / f"peak{peak.peaks_id:03d}_sum_compare{suffix}_run_{run_id}.png"
 
     fig, ax = plt.subplots(figsize=(14, 6))
     for arr, color, label in ((anode_sum, "royalblue", "Anode sum (aligned)"),
