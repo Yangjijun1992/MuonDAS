@@ -73,35 +73,40 @@ python scripts/run_analysis.py 00179 \
 > 详细版（含架构图、各阶段算法约定、模块-代码对照、排查路径、配置表）：
 > **[docs/muon_analysis_architecture.md](docs/muon_analysis_architecture.md)**
 
-数据流（单 run）：`runinfo → read → match → cluster(peaks) → plot(验证) → features/PE → filter → cog → track → output`
+数据流（单 run）：`runinfo → read → match → cluster(peaks) → plot(验证) → features/PE → sum(anode_sum/dynode_sum) → filter → cog → track → output`
 
 ```
 输入 run_id清单 ─► config(CLI>用户>默认+参数哈希)
                  ─► io/runinfo   runinfo.json 发现/解析(runtype 自动探测)
                  ─► io/readers   waveform_analysis | npy | hdf5
                  ─► io/data      RunData: 按 board 分离 dynode(1)/anode(0)
-                 ─► matching     时间匹配: dynode +6ns → 按channel merge_asof → dt∈[0,40]
+                 ─► matching     时间匹配: dynode +16ns(No-Field) → 按channel merge_asof → dt∈[0,40]
                  ─► clustering   100ns 窗口聚合为 peaks (多 anode + 多 dynode)
                  ─► plotting     筛选前验证图(逐对 + 叠加) + 统计分布图
-                 ─► features/gain/pe  peak级特征(area/height/rise/width) + 电荷→PE; dynode 低通+110x
-                 ─► filtering    peak 级 muon 候选筛选(幅度/形状/PE 阈值)
+                 ─► features/gain/pe  peak级特征(area/height/rise/width) + 电荷→PE
+                 ─► sum          anode_sum/dynode_sum: 各通道按 pulse_start 对齐逐点求和
+                 ─► filtering    peak 级 muon 候选筛选(基于 sum 波形参数: height/width/rise_time/width_ns/面积)
                  ─► cog/track    PMT pattern + COG 重心 + 1µs 切片三维径迹
-                 ─► output       <out-dir><run_id>/{CSV(含peaks_id/cog_x/cog_y), .npz, .png, metadata}
+                 ─► output       <out-dir><run_id>/{CSV(含 peaks_id/cog_x/cog_y/height/width_ns...), .npz(含 anode_sum/dynode_sum), .png, metadata}
                  ─► cache        /mnt/data/tmp/muon_analysis (run_id+参数哈希, 匹配/聚类缓存)
 ```
 
 各阶段处理细节（模块-代码对照、算法约定、时间关系、常见问题排查）见上述文档，
 其中关键算法约定：
 
-1. **时间匹配**：dynode 全局迁移 `+6 ns`（`dynode_shift_ns`，可配置），按 channel 用
-   `merge_asof(backward)` 最近匹配，保留 `dt = t_dyn_shifted − t_ano ∈ [0,40] ns`
-   （与 `docs/muon_dynode_analysis_implementation_plan.md` 默认参数统一）。
-2. **候选筛选**：波形不对称度（`asym`）噪声剔除、波形长度/段面积筛选（大脉冲）、
+1. **时间匹配**：dynode 全局迁移 `+dynode_shift_ns`（可配置；00183/No-Field 实测原始
+   dynode−anode dt 中位数 ≈4ns/16ns → 移位后 dt∈[0,40]），按 channel 用
+   `merge_asof(backward)` 最近匹配。
+2. **波形 sum**：peak 内所有 anode（dynode）通道波形按其各自 `pulse_start` **对齐后逐点
+   求和** → `anode_sum`/`dynode_sum`（dynode ×110）；peak 级参数
+   （height/width/rise_time/width_ns/width_90area/width_50area/面积/PE）均由 sum 波形计算。
+3. **候选筛选**：波形不对称度（`asym`）噪声剔除、波形长度/段面积筛选（大脉冲）、
    可选高度阈值。
-3. **特征量 / PE**：按配置积分窗口策略（默认固定窗口，预留寻峰算法接口）计算面积，
+4. **特征量 / PE**：按配置积分窗口策略（默认固定窗口，预留寻峰算法接口）计算面积，
    据 PMT SPE gain 换算为 PE。
-4. **输出**：每个 run 独立目录 `<out-dir><run_id>/`（run_id 补零），含
-   事例级 CSV（带 `parameter_version` / `gain_db_version` 溯源列）、`.npy` 波形片段、统计分布 `.png`。
+5. **输出**：每个 run 独立目录 `<out-dir><run_id>/`（run_id 补零），含
+   事例级 CSV（带 `parameter_version` / `gain_db_version` 溯源列）、`.npy`/`.npz`
+   波形片段（含 anode_sum/dynode_sum）、统计分布 `.png`。
 
 ## 配置要点
 
