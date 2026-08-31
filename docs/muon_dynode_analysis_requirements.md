@@ -47,15 +47,17 @@
   - 脉冲高度（height）
   - 上升时间（上升沿）
   - 宽度等
+- **peak 级参数统一由 sum 波形计算**：
+  - **sum 波形**：将 peak 内所有 anode（dynode）通道波形按其各自 `pulse_start` **对齐**后**逐点求和**（`anode_sum`/`dynode_sum`；dynode ×110，保留峰前基线 `sum_ref`）。
+  - `height`（= max(anode_sum, dynode_sum) 高度）、`width`（anode_sum FWHM）、`rise_time`（anode_sum 的 start→peak，样本）、`width_ns`（= (anode_sum_end − anode_sum_start)×4ns）均由 sum 波形计算。
+  - `width_90area`/`width_50area`：在 anode_sum 上从脉冲起点累积 90%/50% 面积处的宽度（样本）。
+  - `area_ano`/`area_dyn`：anode_sum/dynode_sum 在 **[anode_sum start, dynode_sum end]** 区间上的原始（×1，未 ×110）面积。
+  - `anode_area_pe`/`dynode_area_pe`：同上区间面积 × mean-gain 的 PE 换算。
+  - `anode_sum_area`/`dynode_sum_area`：sum 波形**全波形**积分 × mean-gain 的 PE。
 - **rise_time 定义**：从脉冲起点（`pulse_start`）到脉冲峰值点的区间（`peak_index − pulse_start`，样本）；anode 峰值=最负点、dynode 峰值=最正点，两侧均计算。
-- **面积占比宽度参数**：
-  - `width_90area`：从脉冲起点起累积电荷（|area|）达到总面积 **90%** 处的宽度；
-  - `width_50area`：达到总面积 **50%** 处的宽度；
-  - peak 级 = 所有通道（anode+dynode）该值的最大值。
-- **peak 级总电荷参数**：`area_ano`（所有 anode 通道总电荷）、`area_dyn`（所有 dynode 通道总电荷，含 ×110）。
 - 对于每个 peak 内的 **dynode 波形部分**，分析前需经过：
-  - **低通滤波**（smoothing，`plotting.dynode_lp_cutoff_hz`，现 30 MHz）。
-  - **110 倍的高度放大**（scaling）。
+  - **低通滤波**（硬件 25 MHz 已内置；软件低通取消，`dynode_lp_cutoff_hz=None`）。
+  - **110 倍的高度放大**（scaling，`dynode_scale`）。
   - 最终每个 dynode 的 **area 都需要 110 倍的 scale**（即 area 也按 ×110 放大后再用于统计/输出）。
   - **寻峰（start/end）与特征计算均在滤波之后**（dynode 侧）。
 - 调用 **PMT SPE gain 数据库**（根据探测器通道查询增益），将积分电荷换算为光电子数 (PE)。

@@ -189,11 +189,12 @@ MuonDAS/
 
 - [x] 特征量计算（面积、峰高、上升沿 10-90%、半高宽/宽度）。
 - [x] **rise_time 定义（修订）**：`peak_index − pulse_start`（start→峰值点，样本）；anode 负脉冲取最负点、dynode 取最正点，两侧均计算。
-- [x] **面积占比宽度参数**：`width_90area`/`width_50area`（从 start 起累积 90%/50% 面积处的宽度，样本）。
-- [x] **peak 级总电荷**：`area_ano`/`area_dyn`（anode/dynode 全通道电荷和，dynode 含 ×110）。
+- [x] **peak 级参数统一由 sum 波形计算（修订 2026-08-31）**：`anode_sum`/`dynode_sum`（各通道按 pulse_start 对齐逐点求和）→ `height`（sum 高度）、`width`/`rise_time`（anode_sum）、`width_ns`（sum 脉冲时长）、`width_90area`/`width_50area`（anode_sum 面积占比）均由 sum 波形计算；命名去掉 `peak_`/`sum_` 前缀（`peak_height→height` 等）。
+- [x] **面积参数重定义**：`area_ano`/`area_dyn` = anode_sum/dynode_sum 在 **[anode_sum start, dynode_sum end]** 区间的原始（×1）面积；`anode_area_pe`/`dynode_area_pe` = 同区间 × mean-gain 的 PE；`anode_sum_area`/`dynode_sum_area` = sum 全波形 × mean-gain 的 PE。
+- [x] **peak 级总电荷**：`area_ano`/`area_dyn`（sum 波形区间面积，dynode 原始 ×1）。
 - [x] dynode 软件低通滤波（已取消：新数据硬件内置 25 MHz 低通，算法层不滤波）。
 - [x] dynode 放大 110×（幅度与 area 均 ×scale）。
-- [x] 固定窗口积分策略 + 预留寻峰接口；PE 换算。
+- [x] 固定窗口积分策略 + 预留寻峰接口；PE 换算（mean-gain）。
 - [x] 生成特征统计分布图（PE 谱、时间差谱、width_90area/width_50area 直方图与 2D 图）验证聚类/筛选合理性，保存 `.png`。
 
 ---
@@ -381,3 +382,8 @@ config/CLI (1)
 - **dynode 软件低通取消**：新数据硬件内置 25 MHz 低通电路；算法层 `dynode_lp_cutoff_hz=None` 不滤波，dynode start/end/特征均基于原始波形（×110 放大后面积）。
 - **新 peak 参数**：`width_90area`、`width_50area`（面积占比宽度）、`area_ano`/`area_dyn`（总电荷）。
 - **筛选判据初步确定**：`width_90area > 1000 ns` 且 `rise_time > 80 ns`（run 00183 筛出 2/1195），待物理确认固化。
+
+**已决议事项（2026-08-31）**
+
+- **peak 级参数统一由 sum 波形计算**：`anode_sum`/`dynode_sum`（pulse_start 对齐逐点求和）为计算基准；命名统一（`peak_height→height`、`peak_width→width`、`peak_rise_time→rise_time`、`peak_width_ns→width_ns`），删除 `*_sum_height/width/rise_time` 等重复字段（保留 `*_sum_area` PE）。
+- **面积积分区间**：`[anode_sum start, dynode_sum end]`（sum 寻峰边界）；`area_ano`/`area_dyn` 为原始 ×1 面积，`anode_area_pe`/`dynode_area_pe` 用 **mean-gain** 换算 PE，`anode_sum_area`/`dynode_sum_area` 为 sum 全波形 PE。
