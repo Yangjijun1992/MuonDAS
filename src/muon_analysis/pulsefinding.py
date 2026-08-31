@@ -249,3 +249,22 @@ def compute_peak_start_end(peaks, run_data, config) -> None:
         if starts and ends:
             peak.start_time_ns = float(min(starts))
             peak.end_time_ns = float(max(ends))
+
+
+def find_sum_pulse_bounds(anode_sum, dynode_sum, config) -> Dict[str, Tuple[int, int]]:
+    """Pulse boundaries (start, end samples) of the aligned summed waveforms.
+
+    The anode sum is a negative pulse (fed directly); the dynode sum is
+    positive and is inverted first.  Returns ``{side: (start, end)}`` for the
+    sides that have a resolvable pulse, empty dict otherwise.
+    """
+    out: Dict[str, Tuple[int, int]] = {}
+    if anode_sum is not None:
+        b = pulse_finder(np.asarray(anode_sum, dtype=float), config)
+        if b is not None:
+            out["anode"] = b
+    if dynode_sum is not None:
+        b = pulse_finder(-np.asarray(dynode_sum, dtype=float), config)
+        if b is not None:
+            out["dynode"] = b
+    return out

@@ -3,7 +3,7 @@
 
 For each run: read -> match -> cluster -> keep n_channels>=7 peaks ->
 pulse start/end -> peak features -> selection cuts
-(peak_height>10000, anode_area_pe>5000 PE, peak_width_ns>5000) ->
+(height>10000, anode_area_pe>5000 PE, width_ns>5000) ->
 store peak-level CSV.  A merged CSV plus parameter-distribution plots are
 written at the end.
 
@@ -40,9 +40,9 @@ OUT_ROOT = Path("/mnt/data/tmp/muon_analysis/muon_select_batch")
 
 # Selection cuts
 MIN_CHANNELS = 7
-PEAK_H_MIN = 10000.0      # peak_height [ADC]
+PEAK_H_MIN = 10000.0      # height [ADC]
 ANODE_PE_MIN = 5000.0     # anode_area_pe [PE]
-WIDTH_NS_MIN = 5000.0     # peak_width_ns [ns]
+WIDTH_NS_MIN = 5000.0     # width_ns [ns]
 
 
 def process_run(run_id: str, config, out_root: Path):
@@ -72,9 +72,9 @@ def process_run(run_id: str, config, out_root: Path):
     rows = []
     for pk in peaks:
         pf = compute_peak_features(pk, run_data, gain_db, config)
-        if not (pf.peak_height > PEAK_H_MIN
+        if not (pf.height > PEAK_H_MIN
                 and pf.anode_area_pe > ANODE_PE_MIN
-                and pf.peak_width_ns > WIDTH_NS_MIN):
+                and pf.width_ns > WIDTH_NS_MIN):
             continue
         row = pf.as_dict()
         row.update({

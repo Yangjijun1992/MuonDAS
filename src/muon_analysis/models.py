@@ -103,15 +103,20 @@ class PeakFeatures:
     dynode_area_pe: float = 0.0
     area_ano: float = 0.0      # total charge from all anode channels (uncalibrated)
     area_dyn: float = 0.0      # total charge from all dynode channels (x dynode_scale)
-    peak_height: float = 0.0
-    peak_width: float = 0.0
-    peak_rise_time: float = 0.0
-    peak_width_ns: float = 0.0   # peak window width = end_time_ns - start_time_ns
-    width_90area: float = 0.0    # max over channels: width from start containing 90% area
-    width_50area: float = 0.0    # max over channels: width from start containing 50% area
+    # shape params computed on the summed waveforms (anode reference)
+    height: float = 0.0        # summed-waveform height
+    width: float = 0.0         # summed-waveform FWHM [samples]
+    rise_time: float = 0.0     # summed-waveform rise (start->peak) [samples]
+    width_ns: float = 0.0      # summed-waveform pulse duration (end-start) [ns]
+    width_90area: float = 0.0  # max over channels: width from start containing 90% area
+    width_50area: float = 0.0  # max over channels: width from start containing 50% area
     # aligned (by pulse start) summed waveforms over all channels, in npz only
     anode_sum: Optional[np.ndarray] = field(default=None, repr=False)
     dynode_sum: Optional[np.ndarray] = field(default=None, repr=False)
+    sum_ref: int = 50  # alignment reference (samples) used for the sums
+    # side-specific area of the summed waveforms (full waveform, scaled to PE)
+    anode_sum_area: float = 0.0
+    dynode_sum_area: float = 0.0
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -124,12 +129,14 @@ class PeakFeatures:
             "dynode_area_pe": self.dynode_area_pe,
             "area_ano": self.area_ano,
             "area_dyn": self.area_dyn,
-            "peak_height": self.peak_height,
-            "peak_width": self.peak_width,
-            "peak_rise_time": self.peak_rise_time,
-            "peak_width_ns": self.peak_width_ns,
+            "height": self.height,
+            "width": self.width,
+            "rise_time": self.rise_time,
+            "width_ns": self.width_ns,
             "width_90area": self.width_90area,
             "width_50area": self.width_50area,
+            "anode_sum_area": self.anode_sum_area,
+            "dynode_sum_area": self.dynode_sum_area,
             "charge_per_pmt": dict(self.charge_per_pmt),
         }
 

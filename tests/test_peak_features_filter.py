@@ -10,8 +10,11 @@ from muon_analysis.filtering import filter_muon_candidates
 def _peaks(run_data, cfg):
     from muon_analysis.matching import match_events
     from muon_analysis.clustering import cluster_peaks
+    from muon_analysis.pulsefinding import compute_peak_start_end
     match_df = match_events(run_data, cfg)
-    return cluster_peaks(match_df, run_data, cfg)
+    peaks = cluster_peaks(match_df, run_data, cfg)
+    compute_peak_start_end(peaks, run_data, cfg)  # sum features need pulse starts
+    return peaks
 
 
 def _features(run_data, peaks, cfg, db):
@@ -26,9 +29,10 @@ def test_peak_features():
     assert len(peaks) > 0
     for peak in peaks:
         pf = compute_peak_features(peak, run_data, db, cfg)
-        assert pf.anode_area_pe > 0
-        assert pf.dynode_area_pe > 0
-        assert pf.peak_height > 0
+        # sum-based areas are 0 when a side has no resolvable pulse
+        assert pf.anode_area_pe >= 0
+        assert pf.dynode_area_pe >= 0
+        assert pf.height > 0
         assert set(pf.anode_features) == set(pf.anode_record_ids)
         assert set(pf.dynode_features) == set(pf.dynode_record_ids)
 
@@ -74,7 +78,7 @@ def test_filter_height_cut():
     db = make_gain_db()
     peaks = _peaks(run_data, cfg)
     feats = _features(run_data, peaks, cfg, db)
-    max_height = max(pf.peak_height for pf in feats)
+    max_height = max(pf.height for pf in feats)
 
     cfg_hard = build_config(overrides={"filtering": {"height_min": max_height + 1}})
     assert filter_muon_candidates(peaks, feats, cfg_hard) == []

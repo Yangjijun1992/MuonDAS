@@ -173,7 +173,7 @@ def main(argv=None) -> int:
             "dynode_record_ids": [r.record_id for r in pk.dynode_records],
             "anode_area_pe": f.anode_area_pe,
             "dynode_area_pe": f.dynode_area_pe,
-            "peak_height": f.peak_height,
+            "height": f.height,
             "cog": cog_map.get(pk.peaks_id),
         })
         print(f"  peak {pk.peaks_id}: {pk.n_channels} ch "

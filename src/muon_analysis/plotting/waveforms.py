@@ -671,13 +671,15 @@ def plot_peak_waveform_from(peak, run_data, output_dir, run_id, side="anode",
 
 def plot_peak_sum_waveform(peak, anode_sum, dynode_sum, output_dir, run_id,
                            sample_interval_ns=4.0, ref=50,
-                           dynode_invert=False) -> list[Path]:
+                           dynode_invert=False, bounds=None) -> list[Path]:
     """Plot the aligned summed waveforms (anode_sum, dynode_sum) of a peak.
 
     x axis is relative to the alignment reference (``ref`` samples before the
     pulse start), in ns.  ``dynode_invert`` flips the dynode sum to negative
-    (for unified polarity with the negative anode).  Returns saved PNG path
-    (empty if no sums).
+    (for unified polarity with the negative anode).  ``bounds`` may carry
+    pulse boundaries ``{side: (start, end)}`` from the sum pulse finder —
+    drawn as dashed vertical lines (start ``--``, end ``:``).  Returns saved
+    PNG path (empty if no sums).
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -700,12 +702,21 @@ def plot_peak_sum_waveform(peak, anode_sum, dynode_sum, output_dir, run_id,
             arr = -arr
         x = (np.arange(len(arr)) - ref) * sample_interval_ns
         ax.plot(x, arr, color=color, alpha=0.85, label=label)
+    if bounds:
+        for side, (st, ed) in bounds.items():
+            c = "royalblue" if side == "anode" else "crimson"
+            ax.axvline((st - ref) * sample_interval_ns, color=c,
+                       linestyle="--", lw=1.2, alpha=0.8,
+                       label=f"{side} sum start {st} ({int((st-ref)*sample_interval_ns)}ns)")
+            ax.axvline((ed - ref) * sample_interval_ns, color=c,
+                       linestyle=":", lw=1.4, alpha=0.8,
+                       label=f"{side} sum end {ed} ({int((ed-ref)*sample_interval_ns)}ns)")
     ax.axhline(0, color="black", linestyle="--", alpha=0.3)
     ax.set_xlabel("Time from pulse-start alignment [ns]")
     ax.set_ylabel("Amplitude [ADC] (sum over channels)")
     ax.set_title(f"peak {peak.peaks_id} aligned summed waveforms "
                  f"({peak.n_channels} ch)")
-    ax.legend(loc="best")
+    ax.legend(loc="best", fontsize=8)
     ax.grid(True, alpha=0.2)
     fig.tight_layout()
     fig.savefig(path, dpi=120)

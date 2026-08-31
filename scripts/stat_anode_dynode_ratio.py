@@ -69,8 +69,8 @@ def process_run(run_id: str, config, out_root: Path):
             "anode_area_pe": a,
             "dynode_area_pe": d,
             "ratio_anode_over_dynode": a / d if d else float("nan"),
-            "peak_height": pf.peak_height,
-            "peak_width_ns": pf.peak_width_ns,
+            "height": pf.height,
+            "width_ns": pf.width_ns,
         })
     print(f"[{run_id}] {len(rows)} rows ({time.time()-t0:.0f}s)", flush=True)
     df = pd.DataFrame(rows)

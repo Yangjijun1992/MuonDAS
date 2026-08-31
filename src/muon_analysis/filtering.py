@@ -271,12 +271,12 @@ def filter_muon_candidates(peaks, peak_features, config) -> List[MuonCandidate]:
             raise ValueError(f"no PeakFeatures for peaks_id={peak.peaks_id}")
 
         conditions = {
-            "height_min": height_min is None or pf.peak_height >= height_min,
-            "height_max": height_max is None or pf.peak_height <= height_max,
-            "width_min": width_min is None or pf.peak_width >= width_min,
-            "width_max": width_max is None or pf.peak_width <= width_max,
+            "height_min": height_min is None or pf.height >= height_min,
+            "height_max": height_max is None or pf.height <= height_max,
+            "width_min": width_min is None or pf.width >= width_min,
+            "width_max": width_max is None or pf.width <= width_max,
             "rise_time_max": rise_time_max is None
-            or pf.peak_rise_time <= rise_time_max,
+            or pf.rise_time <= rise_time_max,
             "min_area_pe_anode": min_area_pe_anode is None
             or pf.anode_area_pe >= min_area_pe_anode,
             "min_area_pe_dynode": min_area_pe_dynode is None
