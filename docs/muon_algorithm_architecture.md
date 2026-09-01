@@ -154,7 +154,13 @@ dynode 侧**每个通道先 ×dynode_scale(230) 再叠加**（`side_sum(records,
 **关键参数**：`filtering.height_min/anode_sum_area_min/width_ns_min`
 （写入 `config/analysis.yaml` 时统一为 sum 基准命名）。
 
-![48 个候选事例 sum 波形叠加（颜色=height）](figures/selected48_sum_overlay.png)
+**候选事例示例**（anode_sum / dynode_sum 波形，各 run 典型代表）：
+
+![候选示例 run 402 peak 10996（height=1.83M ADC, width_ns=18.6µs）](figures/candidate_example_peak10996_run402.png)
+
+![候选示例 run 403 peak 478（height=1.10M ADC, width_ns=12µs）](figures/candidate_example_peak478_run403.png)
+
+![候选示例 run 401 peak 252（height=749k ADC, width_ns=9.4µs）](figures/candidate_example_peak252_run401.png)
 
 > 48 个候选：run 401→10、402→12、403→15、404→11；height 146k-1.83M ADC、
 > anode_sum_area 14.8k-64.9k PE、width_ns 5.1k-18.6k ns。逐事例对比图见
