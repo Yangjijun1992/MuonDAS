@@ -57,7 +57,8 @@ MuonDAS/
 - Python 3.10+，依赖：NumPy、SciPy、Matplotlib、PyYAML、pandas、h5py。
 - 通道约定：`board == 1` 为 dynode，`board == 0` 为 anode。
 - 聚类时间窗默认 100 ns（可配置 `clustering.window_ns`）。
-- dynode 特征分析前置：低通滤波 + 110× 放大，且 area 也按 ×110 scale（写入配置）。
+- dynode 特征分析前置：无软件低通（硬件 25 MHz 内置）+ **×230 放大**（dynode_scale）；
+  `dynode_sum`/逐通道 dynode 特征/`dynode_sum_area` ×230；`area_dyn`/`dynode_area_pe` 基于原始 ×1（写入配置）。
 - 缓存根目录：`/mnt/data/tmp/muon_analysis/`（含缓存追踪与来源溯源）。所有缓存与分析产生的输出统一保存于该路径下。
 - 性能：NumPy 向量化 + 可选 `multiprocessing`/`concurrent.futures` 并行按 run/peak 处理。
 
@@ -74,7 +75,7 @@ MuonDAS/
 
 **任务清单**
 
-- [ ] config 数据模型与默认值：匹配窗口 `[0,40]`、`dynode_shift_ns=6`、聚类 `window_ns=100`、特征积分窗口、dynode 低通 cutoff/scale=110、筛选阈值、`cog`/`track` 参数、`cache_dir=/mnt/data/tmp/muon_analysis`。
+- [ ] config 数据模型与默认值：匹配窗口 `[0,40]`、`dynode_shift_ns=16`（No-Field）/4（00183）、聚类 `window_ns=100`、特征积分窗口、dynode 低通 cutoff=null/scale=230、筛选阈值、`cog`/`track` 参数、`cache_dir=/mnt/data/tmp/muon_analysis`。
 - [ ] YAML 加载、覆盖（CLI > 用户配置 > 默认）与校验。
 - [ ] `analysis.yaml` 完善（含 `clustering`、`features.dynode_*`、`cog`、`track` 默认值）。
 - [ ] `scripts/run_analysis.py` argparse 解析与帮助文本。
@@ -174,13 +175,13 @@ MuonDAS/
 
 ## 6. 模块六：事例特征分析（对合并后的 peaks，含 dynode 滤波/放大 与 PE 标定）
 
-**目标**：对每个合并后的 peak 波形计算特征量（charge/height/上升沿/宽度），并按 PMT gain 换算 PE。dynode 部分需低通滤波 + 110× 放大，area 也按 ×110 scale。
+**目标**：对每个合并后的 peak 波形计算特征量（charge/height/上升沿/宽度），并按 PMT gain 换算 PE。dynode 部分无软件低通 + ×230 放大（`dynode_sum` 逐通道先 ×230 再对齐求和；`area_dyn` 基于原始 ×1）。
 
 **接口约定**
 
 - `compute_peak_features(peak, run_data, cfg) -> PeakFeatures`：
   - 对 peak 内 anode 与 dynode 波形分别计算 area/height/rise_time/width。
-  - **dynode 处理**：先低通滤波（`apply_lowpass_filter`），再 110× 放大，最终 dynode **area ×110 scale**。
+  - **dynode 处理**：无软件低通（硬件 25 MHz 内置）；每个 dynode 通道 ×230 后参与 `dynode_sum` 求和；`area_dyn`/`dynode_area_pe` 用原始 ×1 的 `dynode_sum_raw`。
 - `compute_integral_pe` / 积分窗口策略（固定窗口，预留寻峰）；`pe_fact/gain` 按通道换算 PE。
 - `GainDB`（pmtdata/sqlite/csv，**沿用现有读取方式，不新增后端**）按通道查增益。
 - **寻峰关联**：特征积分窗口的起始点定位（`PeakFinderWindowResolver` 预留接口）与 peak start/end 计算（模块四 `pulse_finder`）共用同一寻峰算法/接口，由用户提供后统一接入。
@@ -188,12 +189,12 @@ MuonDAS/
 **任务清单**
 
 - [x] 特征量计算（面积、峰高、上升沿 10-90%、半高宽/宽度）。
-- [x] **rise_time 定义（修订）**：`peak_index − pulse_start`（start→峰值点，样本）；anode 负脉冲取最负点、dynode 取最正点，两侧均计算。
-- [x] **peak 级参数统一由 sum 波形计算（修订 2026-08-31）**：`anode_sum`/`dynode_sum`（各通道按 pulse_start 对齐逐点求和）→ `height`（sum 高度）、`width`/`rise_time`（anode_sum）、`width_ns`（sum 脉冲时长）、`width_90area`/`width_50area`（anode_sum 面积占比）均由 sum 波形计算；命名去掉 `peak_`/`sum_` 前缀（`peak_height→height` 等）。
-- [x] **面积参数重定义**：`area_ano`/`area_dyn` = anode_sum/dynode_sum 在 **[anode_sum start, dynode_sum end]** 区间的原始（×1）面积；`anode_area_pe`/`dynode_area_pe` = 同区间 × mean-gain 的 PE；`anode_sum_area`/`dynode_sum_area` = sum 全波形 × mean-gain 的 PE。
+- [x] **rise_time 定义（修订）**：`peak_index − pulse_start`（start→峰值点）；anode 负脉冲取最负点、dynode 取最正点，两侧均计算；`width`/`rise_time`/`width_90area`/`width_50area` 均 ×4ns → 以 **ns** 计。
+- [x] **peak 级参数统一由 sum 波形计算（修订 2026-08-31）**：`anode_sum`/`dynode_sum`（各通道按 pulse_start 对齐逐点求和；dynode 每通道先 ×230 再叠加）→ `height`（sum 高度）、`width`/`rise_time`（anode_sum）、`width_ns`（sum 脉冲时长）、`width_90area`/`width_50area`（anode_sum 面积占比）均由 sum 波形计算；命名去掉 `peak_`/`sum_` 前缀（`peak_height→height` 等）。
+- [x] **面积参数重定义**：`area_ano`/`area_dyn` = anode_sum/dynode_sum_raw（原始 ×1）在 **[anode_sum start, dynode_sum end]** 区间的面积；`anode_area_pe`/`dynode_area_pe` = 同区间 × mean-gain 的 PE（无放大）；`anode_sum_area`/`dynode_sum_area` = sum 全波形 × mean-gain 的 PE（dynode 侧含 ×230）。
 - [x] **peak 级总电荷**：`area_ano`/`area_dyn`（sum 波形区间面积，dynode 原始 ×1）。
 - [x] dynode 软件低通滤波（已取消：新数据硬件内置 25 MHz 低通，算法层不滤波）。
-- [x] dynode 放大 110×（幅度与 area 均 ×scale）。
+- [x] dynode 放大 **×230**（`dynode_scale`；逐通道先放大再 sum；`dynode_sum_area`/逐通道特征 ×230，`area_dyn` ×1）。
 - [x] 固定窗口积分策略 + 预留寻峰接口；PE 换算（mean-gain）。
 - [x] 生成特征统计分布图（PE 谱、时间差谱、width_90area/width_50area 直方图与 2D 图）验证聚类/筛选合理性，保存 `.png`。
 
@@ -358,8 +359,8 @@ config/CLI (1)
 ## 15. 待澄清/待定项（blockers）
 
 - [ ] **COG/径迹**：pmt pattern 数据结构与成熟脚本接口；径迹重建图例与坐标约定。
-- [ ] **dynode 处理参数**：低通截止频率、放大倍数（默认 110）、area×110 scale 的确认；1 µs 切片宽度确认。
-- [ ] **筛选阈值**：基于 peak 特征（area/height/width/rise_time/PE/width_90area/width_50area）的具体判据数值。**初步确定（2026-08-17）**：`width_90area > 1000ns` 且 `rise_time > 80ns`；待物理学家确认后固化到 `config['filtering']`。
+- [x] **dynode 处理参数**（已确认）：无软件低通（硬件 25 MHz）；`dynode_scale=230`（每通道先 ×230 再 sum）；`area_dyn`/`dynode_area_pe` 基于原始 ×1；1 µs 切片宽度（后续径迹阶段）。
+- [x] **筛选阈值**（已固化 2026-09-01）：`n_channels ≥ 7` ∧ `height > 15000` ADC ∧ `anode_sum_area > 10000` PE ∧ `width_ns > 5000` ns（AND）；No-Field 4,682 个 7ch peaks 筛出 **48 候选**。
 - [ ] **环境依赖**：`waveform_analysis`、`pmtdata` 安装（`pyth12` 环境）。
 - [ ] 聚类与可视化验证的输出规模/文件命名约定。
 - [ ] **寻峰算法**：默认实现已落地（借鉴 `findpulse_st_ed`，仅负脉冲、dynode 先翻转）；如用户提供自定义寻峰算法，可替换 `pulse_finder` 实现并调优 `config['pulse_finder']` 阈值（height_threshold/search_range/baseline_samples）。
@@ -379,9 +380,11 @@ config/CLI (1)
 
 - **rise_time 定义**：`peak_index − pulse_start`（start→峰值点）；anode/dynode 两侧均计算（不再用 10%-90% 交叉）。
 - **end 判据分侧**：anode 从峰值向右**首次回基线**即 end（`end_consecutive=0`）；dynode 需 end 后连续 3 点保持 ≤20 ADC（稳定确认）。
-- **dynode 软件低通取消**：新数据硬件内置 25 MHz 低通电路；算法层 `dynode_lp_cutoff_hz=None` 不滤波，dynode start/end/特征均基于原始波形（×110 放大后面积）。
+- **dynode 软件低通取消**：新数据硬件内置 25 MHz 低通电路；算法层 `dynode_lp_cutoff_hz=None` 不滤波，dynode start/end/特征均基于原始波形。
+- **dynode 放大 ×230**：`dynode_scale=230`；`dynode_sum` 每通道先 ×230 再对齐求和；`area_dyn`/`dynode_area_pe` 基于原始 ×1。
+- **时间参数单位 ns**：`width`/`rise_time`/`width_90area`/`width_50area` 均 ×4ns 计。
 - **新 peak 参数**：`width_90area`、`width_50area`（面积占比宽度）、`area_ano`/`area_dyn`（总电荷）。
-- **筛选判据初步确定**：`width_90area > 1000 ns` 且 `rise_time > 80 ns`（run 00183 筛出 2/1195），待物理确认固化。
+- **筛选判据已固化（2026-09-01）**：`n_channels ≥ 7` ∧ `height > 15000` ∧ `anode_sum_area > 10000 PE` ∧ `width_ns > 5000 ns`（No-Field 48 候选）；早期 `width_90area > 1000ns 且 rise_time > 80ns` 判据被取代。
 
 **已决议事项（2026-08-31）**
 

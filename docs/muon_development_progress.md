@@ -4,7 +4,7 @@
 > 配套：[需求](muon_dynode_analysis_requirements.md) / [实施计划](muon_dynode_analysis_implementation_plan.md) /
 > [架构](muon_analysis_architecture.md) / [交付](muon_analysis_delivery.md)。
 >
-> 最后更新：2026-08-13
+> 最后更新：2026-09-01
 
 ---
 
@@ -13,19 +13,22 @@
 基于修订后实施计划完成全部 13 个模块开发，峰值（peak）分析流程贯通：
 
 ```
-read → match(6ns,[0,40]) → cluster(100ns) → 验证图(逐对/叠加) → features(dynode LP+×110)
-     → filter(peak级) → COG → CSV(含cog_x/cog_y) → track(1µs切片) → 面积图/分布图
+read → match(16ns No-Field/4ns 00183,[0,40]) → cluster(100ns) → 验证图(逐对/叠加)
+     → features(sum 基准, dynode 逐通道×230, 无软件低通) → filter(peak级 4 cut)
+     → 输出(CSV/npz/PNG)    [COG/径迹为独立后续阶段]
 ```
 
 | 里程碑 | 状态 | 证据 |
 |---|---|---|
 | 数据模型契约（Peak/PeakFeatures/MuonCandidate） | ✅ | models.py |
 | clustering / cog / track / pattern 绘图新模块 | ✅ | 对应 .py 文件 |
-| 匹配参数统一（6ns / [0,40]）+ README/计划/架构文档同步 | ✅ | 三文档一致 |
+| 匹配参数统一（16ns/4ns / [0,40]）+ README/计划/架构文档同步 | ✅ | 三文档一致 |
 | 配置新增 clustering/cog/track 分组 + YAML 数值规范化 | ✅ | config.py `_normalize` |
 | CLI：--run-list / --plot-peaks / --pattern / --no-progress | ✅ | run_analysis.py |
 | 96 项 pytest + pyflakes 零警告 | ✅ | `python -m pytest tests/` |
 | 真实数据端到端（run 00179） | ✅ | 见 §3 |
+| **peak 级参数 sum 化 + dynode_scale=230 + 单位 ns（2026-08-31/09-01）** | ✅ | features.py/models.py，107 pytest |
+| **No-Field 全流程验证 + 48 muon 候选 + 架构图解文档** | ✅ | muon_algorithm_architecture.md / muon_peak_screening_results.md |
 
 ## 2. 模块完成度对照（计划 13 模块）
 
@@ -37,8 +40,8 @@ read → match(6ns,[0,40]) → cluster(100ns) → 验证图(逐对/叠加) → f
 | 3 matching | 移位/merge_asof/窗口[0,40]/延迟校准 | ✅ |
 | 4 clustering | Peak 模型/100ns 算法/配置/输出/测试 | ✅ |
 | 5 验证绘图 | 逐对/叠加/批量+指定/筛选前 | ✅ |
-| 6 features | 特征量/dynode ×110/PE/分布图 | ✅（新增 width_90area/width_50area/area_ano/area_dyn/rise_time=start→peak） |
-| 7 filtering | peak 级判据/配置化/输出/测试 | ✅（判据初步确定：width_90area>1000ns 且 rise_time>80ns，P1 待物理确认） |
+| 6 features | 特征量/dynode ×230/sum 基准/PE/分布图 | ✅（sum 波形为 peak 参数唯一基准；width/rise_time/width_*area ×4ns；dynode 逐通道 ×230 先放大再 sum；area_dyn ×1） |
+| 7 filtering | peak 级判据/配置化/输出/测试 | ✅（判据已固化：n_ch≥7 ∧ height>15000 ∧ anode_sum_area>10000 PE ∧ width_ns>5000 ns → No-Field 48 候选） |
 | 8 output | CSV(peaks_id/record_id/cog + 全部特征列)/npy/统计图 | ✅ |
 | 9 cache | 新路径/哈希/读写/CLI/警告/测试 | ⚠️ 特征未缓存、键不含 gain 版本（P2） |
 | 10 cog | pattern 三级来源/重心法/回填 CSV/测试 | ✅ |
@@ -46,9 +49,9 @@ read → match(6ns,[0,40]) → cluster(100ns) → 验证图(逐对/叠加) → f
 | 12 pipeline | 主流程/缓存短路/tqdm/容错并行/接线 | ✅ |
 | 13 测试文档 | pytest 覆盖/README/示例数据 | ✅ |
 
-**Blockers（§15）解决状态**：COG/pattern 数据结构 ✅（参考 xihu layout）；环境依赖 ✅（真实数据跑通）；
-输出规模/命名 ✅（采样控制）；dynode 参数 ⚠️（软件低通取消/硬件 25MHz、global median 基线已用，待物理确认）；
-筛选阈值 ⚠️（**初步确定 2026-08-17**：width_90area>1000ns 且 rise_time>80ns，待物理确认固化）。
+**Blockers（§15）解决状态**：COG/pattern 数据结构 ✅（参考 xihu layout，当前为独立阶段）；环境依赖 ✅（真实数据跑通）；
+输出规模/命名 ✅（采样控制）；dynode 参数 ✅（软件低通取消/硬件 25MHz、`dynode_scale=230` 每通道先放大再 sum、`area_dyn` ×1）；
+筛选阈值 ✅（**已固化 2026-09-01**：n_ch≥7 ∧ height>15000 ∧ anode_sum_area>10000 PE ∧ width_ns>5000 ns → No-Field 48 候选）。
 
 ## 3. 真实数据验证结果（run 00179，run6_Xe）
 
@@ -72,9 +75,10 @@ read → match(6ns,[0,40]) → cluster(100ns) → 验证图(逐对/叠加) → f
 
 ### P1 - 物理定参 / 需求字面项
 
-- [ ] **筛选阈值确认**：**初步确定（2026-08-17）**：`width_90area > 1000 ns` 且 `rise_time > 80 ns`
-      （run 00183 筛出 2/1195 长尾事例）。待物理学家复核后固化到 `config['filtering']`，
-      并验证对通过/拒绝事例的波形检查。
+- [x] **筛选阈值确认（已固化 2026-09-01）**：`n_channels ≥ 7` ∧ `height > 15000` ADC ∧
+      `anode_sum_area > 10000` PE ∧ `width_ns > 5000` ns（AND）→ No-Field 4,682 个 7ch peaks
+      筛出 **48 候选**（run 401→10、402→12、403→15、404→11）；候选参数分布/波形见
+      `muon_algorithm_architecture.md` 步骤 8 与 `muon_peak_screening_results.md` §9。
 - [ ] **交互式缩放/平移**（需求 §4）：当前仅保存静态 PNG。若要满足字面需求，
       可引入交互式后端（matplotlib GUI / HTML 页面 / plotly），或明确以降级处理。
 
@@ -93,9 +97,9 @@ read → match(6ns,[0,40]) → cluster(100ns) → 验证图(逐对/叠加) → f
 
 | 决策 | 值 | 来源 |
 |---|---|---|
-| 匹配移位/窗口 | dynode_shift_ns=6, dt∈[0,40] | 统一决策（2026-08-13） |
+| 匹配移位/窗口 | dynode_shift_ns=16（No-Field）/ 4（00183）, dt∈[0,40] | 实测 dt 中位数 |
 | 聚类窗口 | clustering.window_ns=100 | 需求 §3 |
-| dynode 放大 | ×110（幅度与 area 均隐含 ×110） | 需求 §5 |
+| dynode 放大 | ×230（dynode_scale；逐通道先 ×230 再 sum；area_dyn ×1） | 实测 anode:dynode 比值 ~230 |
 | dynode 低通 | null（算法层不滤波）| 硬件 25 MHz 内置 |
 | 径迹切片 | track.slice_us=1.0 µs, fs=250e6 | 需求 §9 |
 | PMT 位置来源 | 文件 → runinfo pos → 回退（use_fallback） | 参考 layout.py |

@@ -27,7 +27,7 @@
   - 对 peak 内**所有 anode 与 dynode 通道的波形**分别进行**寻峰**，得到每个通道波形的脉冲起始时间（`pulse_start`）与结束时间（`pulse_end`）。
   - `peak.start` = **所有通道 `pulse_start` 的最小值**；`peak.end` = **所有通道 `pulse_end` 的最大值**。
   - **end 判据**：从脉冲峰值点向右寻找回到基线（`end_baseline_tol`，默认 20 ADC）的位置——anode 取**首次回到基线**即 end；dynode 需 **end 之后连续 3 点保持 ≤20 ADC**（稳定确认，避免瞬时振荡误判）。
-  - **dynode 寻峰输入为低通滤波后波形**（`plotting.dynode_lp_cutoff_hz`，现 30 MHz；与验证图/特征一致），anode 用原始波形。
+  - **dynode 寻峰输入为原始波形**（算法层无软件低通；硬件 25 MHz 低通已内置，`dynode_lp_cutoff_hz=None`），anode 用原始波形。
   - 寻峰算法独立封装、可插拔（当前实现借鉴 `findpulse_st_ed`；`pulse_finder` 接口可替换）。
 
 ## 4. 波形可视化与验证（在筛选之前）
@@ -48,18 +48,17 @@
   - 上升时间（上升沿）
   - 宽度等
 - **peak 级参数统一由 sum 波形计算**：
-  - **sum 波形**：将 peak 内所有 anode（dynode）通道波形按其各自 `pulse_start` **对齐**后**逐点求和**（`anode_sum`/`dynode_sum`；dynode ×110，保留峰前基线 `sum_ref`）。
-  - `height`（= max(anode_sum, dynode_sum) 高度）、`width`（anode_sum FWHM）、`rise_time`（anode_sum 的 start→peak，样本）、`width_ns`（= (anode_sum_end − anode_sum_start)×4ns）均由 sum 波形计算。
-  - `width_90area`/`width_50area`：在 anode_sum 上从脉冲起点累积 90%/50% 面积处的宽度（样本）。
-  - `area_ano`/`area_dyn`：anode_sum/dynode_sum 在 **[anode_sum start, dynode_sum end]** 区间上的原始（×1，未 ×110）面积。
-  - `anode_area_pe`/`dynode_area_pe`：同上区间面积 × mean-gain 的 PE 换算。
-  - `anode_sum_area`/`dynode_sum_area`：sum 波形**全波形**积分 × mean-gain 的 PE。
-- **rise_time 定义**：从脉冲起点（`pulse_start`）到脉冲峰值点的区间（`peak_index − pulse_start`，样本）；anode 峰值=最负点、dynode 峰值=最正点，两侧均计算。
-- 对于每个 peak 内的 **dynode 波形部分**，分析前需经过：
-  - **低通滤波**（硬件 25 MHz 已内置；软件低通取消，`dynode_lp_cutoff_hz=None`）。
-  - **110 倍的高度放大**（scaling，`dynode_scale`）。
-  - 最终每个 dynode 的 **area 都需要 110 倍的 scale**（即 area 也按 ×110 放大后再用于统计/输出）。
-  - **寻峰（start/end）与特征计算均在滤波之后**（dynode 侧）。
+  - **sum 波形**：将 peak 内所有 anode（dynode）通道波形按其各自 `pulse_start` **对齐**后**逐点求和**（`anode_sum`/`dynode_sum`；dynode 侧**每个通道先 ×dynode_scale(230) 再叠加**，保留峰前基线 `sum_ref`；原始 ×1 求和保留为 `dynode_sum_raw`）。
+  - `height`（= max(anode_sum, dynode_sum) 高度）、`width`（anode_sum FWHM ×4ns）、`rise_time`（anode_sum 的 start→peak ×4ns）、`width_ns`（= (anode_sum_end − anode_sum_start)×4ns）均由 sum 波形计算，时间类参数单位为 **ns**。
+  - `width_90area`/`width_50area`：在 anode_sum 上从脉冲起点累积 90%/50% 面积处的宽度（×4ns，单位 ns）。
+  - `area_ano`/`area_dyn`：anode_sum/dynode_sum_raw（原始 ×1）在 **[anode_sum start, dynode_sum end]** 区间上的面积。
+  - `anode_area_pe`/`dynode_area_pe`：同上区间面积 × mean-gain 的 PE 换算（无放大）。
+  - `anode_sum_area`/`dynode_sum_area`：sum 波形**全波形**积分 × mean-gain 的 PE（dynode 侧含 ×230）。
+- **rise_time 定义**：从脉冲起点（`pulse_start`）到脉冲峰值点的区间（`peak_index − pulse_start`，×4ns 后以 ns 计）；anode 峰值=最负点、dynode 峰值=最正点，两侧均计算。
+- 对于每个 peak 内的 **dynode 波形部分**：
+  - **低通滤波**：硬件 25 MHz 已内置；软件低通取消，`dynode_lp_cutoff_hz=None`。
+  - **×dynode_scale(230) 放大**：作用于 `dynode_sum`（逐通道先放大再对齐求和）、逐通道 dynode 特征（高度/面积）、`dynode_sum_area`（全波形 PE）。
+  - **`area_dyn`/`dynode_area_pe` 不放大**（基于原始 ×1 的 `dynode_sum_raw`，按需求重定义）。
 - 调用 **PMT SPE gain 数据库**（根据探测器通道查询增益），将积分电荷换算为光电子数 (PE)。
   - 数据库可为 CSV、JSON 或 SQLite，需支持灵活配置文件路径。
 - 生成特征量的统计分布图（如 PE 谱、时间差谱）以验证聚类/筛选条件合理性，图像保存为 `.png`。
@@ -68,7 +67,10 @@
 
 - 在波形可视化验证与特征分析**之后**，根据以上所得的特征信息设置筛选条件，判定每个 peak 是否为 muon 候选事例。
 - 筛选基于（但不限于）：幅度阈值、时间符合/聚类窗口、脉冲形状（面积/高度/上升时间/宽度）、PE 相关判据。
-- **当前已采用的筛选判据（2026-08-17 初步确定）**：`width_90area > 1000 ns` 且 `rise_time > 80 ns`（run 00183 筛出 2/1195 事例），具体阈值待物理确认后固化。
+- **当前已固化的筛选判据（2026-09-01）**：`n_channels ≥ 7` 且 `height > 15000` ADC 且
+  `anode_sum_area > 10000` PE 且 `width_ns > 5000` ns（AND 交集）。No-Field 数据
+  （00401-00405，n=4,682 个 7ch peaks）筛出 **48 个 muon 候选**（run 401→10、402→12、
+  403→15、404→11）。
 - 所有筛选参数（阈值、窗口大小、形状判据等）集中存放于配置文件（YAML/JSON）。
 - 输出通过筛选的 muon 候选事例集合（按 peak）及其基本属性。
 
@@ -84,8 +86,12 @@
 
 ## 8. PMT pattern 导入与 COG 位置重建
 
-- muon 事例筛选完成之后，导入 **pmt pattern 信息**用于 **COG（重心）位置重建**。
-- 该部分已有成熟脚本可供参考/复用：导入各 PMT 的空间位置 pattern，结合各通道电荷量用重心法计算事件横向位置。
+> ⚠️ **独立阶段（不在当前冻结的筛选 pipeline 内）**：当前数据分析流程以
+> 匹配 → 聚类 → sum 波形 → peak 参数 → 筛选 为主线；COG 位置重建与径迹重建
+> 作为后续物理分析阶段单独开展（对应 `cog.py`/`track.py`，算法见架构总览文档）。
+
+- 导入 **pmt pattern 信息**用于 **COG（重心）位置重建**。
+- 结合各通道电荷量用重心法计算事件横向位置。
 - 输出每个 muon 事例的重建位置（COG）及相关信息。
 
 ## 9. muon 径迹重建
