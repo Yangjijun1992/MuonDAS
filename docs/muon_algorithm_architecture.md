@@ -13,7 +13,7 @@
 ```
 runinfo 发现 → 读取波形 → 时间匹配(anode↔dynode) → 聚类成 peak → 逐通道特征/PE
     → sum 波形(anode_sum/dynode_sum) → peak 级参数(sum 基准) → 筛选(muon 候选)
-    → COG 位置 → 三维径迹 → 输出(CSV/npz/PNG)
+    → 输出(CSV/npz/PNG)
 ```
 
 | 步骤 | 模块 | 产物 |
@@ -25,7 +25,6 @@ runinfo 发现 → 读取波形 → 时间匹配(anode↔dynode) → 聚类成 p
 | 5 | `features.py` `compute_peak_summed_waveforms` | anode_sum / dynode_sum |
 | 6 | `features.py` `compute_peak_features` | peak 级参数（height/width/rise_time/面积/PE）|
 | 7 | `filtering.py` | MuonCandidate |
-| 8 | `cog.py` / `track.py` | cog_x/cog_y / 三维径迹 |
 
 ---
 
@@ -223,16 +222,6 @@ R_geom = Φ·A = 167 × 1.96×10⁻³ ≈ 0.33 s⁻¹ ≈ 19.6 min⁻¹ ≈ 1,17
 **推理**：实测率显著低于几何期望的主因是 **7 通道符合的几何接收度**（~10⁻¹）与
 **宽脉冲判据**（~10⁻²）的联合压低；能标阈值（高度/面积 PE）在本数据集不额外损失。
 两条独立估算路径（对全 peaks 的效率链 0.13% vs 对几何通量的 0.81%）量级一致，交叉验证合理。
-
----
-
-## 步骤 9：COG 位置与三维径迹（cog/track）
-
-**算法**：PMT pattern 导入 → 按 `charge_per_pmt`（电荷权重，侧由
-`cog.charge_source` 选择）计算 COG 重心 `(cog_x, cog_y)` → dynode 1µs 时间切片
-三维径迹重建。
-
-![PMT pattern 示意](figures/cog_pattern_392386.png)
 
 ---
 
