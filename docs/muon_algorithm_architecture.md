@@ -166,6 +166,31 @@ dynode 侧**每个通道先 ×dynode_scale(230) 再叠加**（`side_sum(records,
 > anode_sum_area 14.8k-64.9k PE、width_ns 5.1k-18.6k ns。逐事例对比图见
 > `selected_48/sum_waveforms/`。
 
+### 48 个 muon 候选的 peak 级参数分布
+
+**筛选条件（AND）**：`n_channels ≥ 7`、`height > 15000` ADC、`anode_sum_area > 10000` PE、`width_ns > 5000` ns
+
+| param | median | q25 | q75 | mean | min | max |
+|---|---|---|---|---|---|---|
+| height [ADC] | 320,620 | 250,930 | 437,633 | 400,861 | 146,280 | 1,831,260 |
+| width [ns] | 92 | 83 | 105 | 98 | 56 | 216 |
+| rise_time [ns] | 20 | 16 | 24 | 20 | 12 | 32 |
+| width_ns [ns] | 5,700 | 5,399 | 6,653 | 6,586 | 5,040 | 18,636 |
+| width_90area [ns] | 742 | 648 | 860 | 815 | 492 | 2,124 |
+| width_50area [ns] | 84 | 76 | 93 | 89 | 60 | 208 |
+| area_ano | 3,176,828 | 2,801,916 | 3,676,989 | 3,416,885 | 1,985,282 | 7,946,273 |
+| area_dyn | 26,278 | 20,049 | 35,099 | 32,146 | 11,189 | 140,068 |
+| anode_area_pe [PE] | 20,904 | 18,437 | 24,195 | 22,484 | 13,063 | 52,287 |
+| dynode_area_pe [PE] | 173 | 132 | 231 | 212 | 74 | 922 |
+| anode_sum_area [PE] | 24,305 | 21,332 | 27,679 | 26,141 | 14,842 | 64,945 |
+| dynode_sum_area [PE] | 41,265 | 32,236 | 55,032 | 49,977 | 18,028 | 211,958 |
+
+![48 候选 peak 级参数分布](figures/selected48_params_distributions.png)
+
+> 与全体 7ch peaks（n=4,682）对比：候选 height 中位 320k（全体 71k）、width_ns 5.7µs（2.5µs）、
+> anode_sum_area 24.3k PE（6.9k PE）——候选显著更"高能 + 宽脉冲"。
+> 完整逐事例表：`/mnt/data/tmp/muon_analysis/no_field_peaks/selected_48/selected48_params.csv`。
+
 ---
 
 ## 步骤 9：COG 位置与三维径迹（cog/track）
