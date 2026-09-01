@@ -51,7 +51,7 @@
   - **sum 波形**：将 peak 内所有 anode（dynode）通道波形按其各自 `pulse_start` **对齐**后**逐点求和**（`anode_sum`/`dynode_sum`；dynode 侧**每个通道先 ×dynode_scale(230) 再叠加**，保留峰前基线 `sum_ref`；原始 ×1 求和保留为 `dynode_sum_raw`）。
   - `height`（= max(anode_sum, dynode_sum) 高度）、`width`（anode_sum FWHM ×4ns）、`rise_time`（anode_sum 的 start→peak ×4ns）、`width_ns`（= (anode_sum_end − anode_sum_start)×4ns）均由 sum 波形计算，时间类参数单位为 **ns**。
   - `width_90area`/`width_50area`：在 anode_sum 上从脉冲起点累积 90%/50% 面积处的宽度（×4ns，单位 ns）。
-  - `area_ano`/`area_dyn`：anode_sum/dynode_sum_raw（原始 ×1）在 **[anode_sum start, dynode_sum end]** 区间上的面积。
+  - `area_ano`/`area_dyn`：**叠加前逐通道**原始（×1）面积——各 PMT 通道在物理窗口 [anode_sum start, dynode_sum end]（按 pulse_start+ref 映射到该通道）上积分后求和。
   - `anode_area_pe`/`dynode_area_pe`：同上区间面积 × mean-gain 的 PE 换算（无放大）。
   - `anode_sum_area`/`dynode_sum_area`：sum 波形**全波形**积分 × mean-gain 的 PE（dynode 侧含 ×113）。
 - **rise_time 定义**：从脉冲起点（`pulse_start`）到脉冲峰值点的区间（`peak_index − pulse_start`，×4ns 后以 ns 计）；anode 峰值=最负点、dynode 峰值=最正点，两侧均计算。

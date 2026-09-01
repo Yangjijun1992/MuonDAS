@@ -454,8 +454,35 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
     cal_a = pe_calibration(gain_a) if gain_a else 0.0
     cal_d = pe_calibration(gain_d) if gain_d else 0.0
 
-    area_ano = seg_integral(peak_sum_a, a_st, d_ed, "negative")
-    area_dyn = seg_integral(peak_sum_draw, a_st, d_ed, "positive")
+    # per-channel (pre-sum) area: integrate each PMT channel's raw waveform
+    # over the physical window [a_st, d_ed] mapped to that channel via its
+    # pulse_start and the sum alignment reference (ref_eff = peak_sum_ref).
+    # area_ano/area_dyn are raw (x1) per-channel areas summed over channels;
+    # *_area_pe scale to PE; *_sum_area keep the sum-waveform full integral.
+    accessor = SignalAccessor.from_run_data(run_data)
+
+    def per_channel_area(records, polarity, ref_eff, scale=1.0):
+        total = 0.0
+        for r in records:
+            st = getattr(r, "pulse_start_sample", None)
+            if st is None:
+                continue
+            wf = np.asarray(accessor.signals([r.record_id]).reshape(-1),
+                            dtype=float) * scale
+            if len(wf) == 0:
+                continue
+            bl = float(np.mean(wf[:baseline_samples]))
+            k_lo = max(0, int(st + a_st - ref_eff))
+            k_hi = min(len(wf), int(st + d_ed - ref_eff))
+            if k_hi <= k_lo:
+                continue
+            seg = wf[k_lo:k_hi] - bl
+            total += float(np.sum(np.abs(seg))) if polarity == "negative" \
+                else float(np.sum(seg))
+        return total
+
+    area_ano = per_channel_area(peak.anode_records, "negative", peak_sum_ref)
+    area_dyn = per_channel_area(peak.dynode_records, "positive", peak_sum_ref)
     anode_area_pe = area_ano * cal_a
     dynode_area_pe = area_dyn * cal_d
     anode_sum_area = seg_integral(peak_sum_a, 0, len(peak_sum_a)
@@ -475,7 +502,6 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
     recon_area = 0.0
     n_sat = 0
     if peak.anode_records:
-        accessor = SignalAccessor.from_run_data(run_data)
         dyn_by_ch = {}
         for r in peak.dynode_records:
             dyn_by_ch[int(r.channel)] = r

@@ -113,7 +113,7 @@ dynode 侧**每个通道先 ×dynode_scale(113) 再叠加**（`side_sum(records,
 | `rise_time` | anode_sum start→peak ×4 | ns |
 | `width_ns` | (anode_sum end − anode_sum start) ×4 | ns |
 | `width_90area/50area` | anode_sum 含 90%/50% 面积的宽度 ×4 | ns |
-| `area_ano`/`area_dyn` | 区间 [anode_sum start, dynode_sum end] 内**原始 ×1** 面积 | raw ADC·samples |
+| `area_ano`/`area_dyn` | **叠加前逐通道**原始（×1）面积——各 PMT 通道在物理窗口 [anode_sum start, dynode_sum end]（按 pulse_start+ref 映射到该通道）上积分后求和 | raw ADC·samples |
 | `anode_area_pe`/`dynode_area_pe` | area_ano/area_dyn × mean-gain PE 标定（无放大） | PE |
 | `anode_sum_area`/`dynode_sum_area` | 全波形面积 × PE 标定（dynode 含 ×113） | PE |
 

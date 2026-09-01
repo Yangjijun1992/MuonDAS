@@ -191,8 +191,8 @@ MuonDAS/
 - [x] 特征量计算（面积、峰高、上升沿 10-90%、半高宽/宽度）。
 - [x] **rise_time 定义（修订）**：`peak_index − pulse_start`（start→峰值点）；anode 负脉冲取最负点、dynode 取最正点，两侧均计算；`width`/`rise_time`/`width_90area`/`width_50area` 均 ×4ns → 以 **ns** 计。
 - [x] **peak 级参数统一由 sum 波形计算（修订 2026-08-31）**：`anode_sum`/`dynode_sum`（各通道按 pulse_start 对齐逐点求和；dynode 每通道先 ×113 再叠加）→ `height`（sum 高度）、`width`/`rise_time`（anode_sum）、`width_ns`（sum 脉冲时长）、`width_90area`/`width_50area`（anode_sum 面积占比）均由 sum 波形计算；命名去掉 `peak_`/`sum_` 前缀（`peak_height→height` 等）。
-- [x] **面积参数重定义**：`area_ano`/`area_dyn` = anode_sum/dynode_sum_raw（原始 ×1）在 **[anode_sum start, dynode_sum end]** 区间的面积；`anode_area_pe`/`dynode_area_pe` = 同区间 × mean-gain 的 PE（无放大）；`anode_sum_area`/`dynode_sum_area` = sum 全波形 × mean-gain 的 PE（dynode 侧含 ×113）。
-- [x] **peak 级总电荷**：`area_ano`/`area_dyn`（sum 波形区间面积，dynode 原始 ×1）。
+- [x] **面积参数重定义**：`area_ano`/`area_dyn` = **叠加前逐通道**原始（×1）面积（各 PMT 通道在 [anode_sum start, dynode_sum end] 物理窗口、按 pulse_start+ref 映射后积分再求和）；`anode_area_pe`/`dynode_area_pe` = 同面积 × mean-gain 的 PE（无放大）；`anode_sum_area`/`dynode_sum_area` = sum 全波形 × mean-gain 的 PE（dynode 侧含 ×113）。
+- [x] **peak 级总电荷**：`area_ano`/`area_dyn`（叠加前逐通道面积求和，dynode 原始 ×1）。
 - [x] dynode 软件低通滤波（已取消：新数据硬件内置 25 MHz 低通，算法层不滤波）。
 - [x] dynode 放大 **×113**（`dynode_scale`；逐通道先放大再 sum；`dynode_sum_area`/逐通道特征 ×113，`area_dyn` ×1）。
 - [x] 固定窗口积分策略 + 预留寻峰接口；PE 换算（mean-gain）。
@@ -389,4 +389,4 @@ config/CLI (1)
 **已决议事项（2026-08-31）**
 
 - **peak 级参数统一由 sum 波形计算**：`anode_sum`/`dynode_sum`（pulse_start 对齐逐点求和）为计算基准；命名统一（`peak_height→height`、`peak_width→width`、`peak_rise_time→rise_time`、`peak_width_ns→width_ns`），删除 `*_sum_height/width/rise_time` 等重复字段（保留 `*_sum_area` PE）。
-- **面积积分区间**：`[anode_sum start, dynode_sum end]`（sum 寻峰边界）；`area_ano`/`area_dyn` 为原始 ×1 面积，`anode_area_pe`/`dynode_area_pe` 用 **mean-gain** 换算 PE，`anode_sum_area`/`dynode_sum_area` 为 sum 全波形 PE。
+- **面积积分区间**：`[anode_sum start, dynode_sum end]`（sum 寻峰边界）；`area_ano`/`area_dyn` 为**叠加前逐通道**原始 ×1 面积，`anode_area_pe`/`dynode_area_pe` 用 **mean-gain** 换算 PE，`anode_sum_area`/`dynode_sum_area` 为 sum 全波形 PE。
