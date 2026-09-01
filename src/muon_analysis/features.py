@@ -465,6 +465,39 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
                                    if peak_sum_d is not None else 0,
                                    "positive") * cal_d
 
+    # --- anode saturation reconstruction (per-channel) ---
+    # anode channels saturate (clip) at the ADC floor; when saturated the true
+    # charge is taken from the (linear, non-saturating) dynode channel scaled
+    # by k (dynode_scale).  Reconstructed anode PE is the sum over channels of
+    # (saturated ? k * dyn_ch_area : anode_ch_area) * cal_a.
+    sat_cfg = config.get("features", {}).get("saturation", {}) or {}
+    clip_adc = float(sat_cfg.get("anode_clip_adc", -14700.0))
+    recon_area = 0.0
+    n_sat = 0
+    if peak.anode_records:
+        accessor = SignalAccessor.from_run_data(run_data)
+        dyn_by_ch = {}
+        for r in peak.dynode_records:
+            dyn_by_ch[int(r.channel)] = r
+        for r in peak.anode_records:
+            wf = np.asarray(accessor.signals([r.record_id]).reshape(-1),
+                            dtype=float)
+            if len(wf) == 0:
+                continue
+            bl = float(np.mean(wf[:baseline_samples]))
+            ch_area = float(np.sum(np.abs(wf - bl)))
+            if float(wf.min()) <= clip_adc:
+                d_rec = dyn_by_ch.get(int(r.channel))
+                if d_rec is not None:
+                    wf_d = np.asarray(
+                        accessor.signals([d_rec.record_id]).reshape(-1),
+                        dtype=float)
+                    bl_d = float(np.mean(wf_d[:baseline_samples]))
+                    ch_area = dyn_scale * float(np.sum(wf_d - bl_d))
+                n_sat += 1
+            recon_area += ch_area
+    anode_area_pe_recon = recon_area * cal_a
+
     # shape parameters from the summed waveforms (anode reference)
     def sum_feats(wf, polarity):
         if wf is None:
@@ -538,6 +571,10 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         dynode_area_pe=dynode_area_pe,
         area_ano=area_ano,
         area_dyn=area_dyn,
+        anode_area_pe_recon=anode_area_pe_recon,
+        n_anode_saturated=n_sat,
+        anode_saturation_frac=(n_sat / len(peak.anode_records)
+                               if peak.anode_records else 0.0),
         height=height,
         width=width,
         rise_time=rise_time,

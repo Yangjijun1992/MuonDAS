@@ -46,9 +46,9 @@ dt 中位数 ≈16ns → 移位后 dt∈[0,40ns]），按 **channel** 用 `merge
 ## 步骤 2：匹配后波形对比（逐对）
 
 **算法**：匹配对（同一 channel、同一事件的 anode 与 dynode 波形）按时间对齐后
-叠加对比；`rawdyn` 版本为 dynode 原始波形（无 ×230 放大），用于核对形状关系。
+叠加对比；`rawdyn` 版本为 dynode 原始波形（无 ×113 放大），用于核对形状关系。
 
-![run 00401 匹配对叠加（anode vs dynode×230）](figures/matching_pairs_overlay_run401.png)
+![run 00401 匹配对叠加（anode vs dynode×113）](figures/matching_pairs_overlay_run401.png)
 
 ![run 00401 匹配对叠加（dynode 原始）](figures/matching_pairs_overlay_rawdyn_run401.png)
 
@@ -69,14 +69,14 @@ anode_sum / dynode_sum 波形对比：
 ## 步骤 4：逐通道特征与 PE（features/gain/pe）
 
 **算法**：`compute_features` 对单条波形计算 baseline、height、charge、rise_time、
-width（FWHM）；dynode 侧特征**先 ×dynode_scale(230) 再计算**。PE 换算：
+width（FWHM）；dynode 侧特征**先 ×dynode_scale(113) 再计算**。PE 换算：
 `PE = charge × pe_fact / mean_gain`，`pe_fact=(2/16384)×4e-9/(50×1.6e-19)/1e6`。
 
 **关键参数**：`features.baseline_samples`、`rise_time_low/high=0.1/0.9`、
 `gain_db`（pmtdata/sqlite/csv）。
 
-> anode/dynode 共用同一套通道增益 → cal 相消，原始信号幅度比 ~230
-> （见步骤 7 面积关系）。
+> anode/dynode 共用同一套通道增益 → cal 相消；原始 ×1 面积比实测 ~230
+> （见步骤 7），但可读信号按 LED 标定采用 **dynode_scale=113**。
 
 ---
 
@@ -84,12 +84,12 @@ width（FWHM）；dynode 侧特征**先 ×dynode_scale(230) 再计算**。PE 换
 
 **算法**：peak 内所有 anode（dynode）通道波形按各自 `pulse_start_sample` **对齐**
 （公共参考 `ref=50` 样本，保留基线）后**逐点求和** → `anode_sum` / `dynode_sum`。
-dynode 侧**每个通道先 ×dynode_scale(230) 再叠加**（`side_sum(records, scale)`）；
+dynode 侧**每个通道先 ×dynode_scale(113) 再叠加**（`side_sum(records, scale)`）；
 原始 ×1 求和保留为 `dynode_sum_raw`（用于未放大面积）。
 
-**关键参数**：`plotting.dynode_scale=230`、`SUMMED_REF=50`。
+**关键参数**：`plotting.dynode_scale=113`、`SUMMED_REF=50`。
 
-![peak 级 anode_sum/dynode_sum 对比（run 00401，dynode 翻转负极性）](figures/sum_compare_peak10077_run00401.png)
+![peak 级 anode_sum/dynode_sum 对比（run 00401，dynode 翻转负极性，×113）](figures/sum_compare_peak10077_run00401.png)
 
 > 放大后 dynode_sum 与 anode_sum 同尺度（高度比 ≈1-3），可直接对比形状。
 
@@ -115,7 +115,7 @@ dynode 侧**每个通道先 ×dynode_scale(230) 再叠加**（`side_sum(records,
 | `width_90area/50area` | anode_sum 含 90%/50% 面积的宽度 ×4 | ns |
 | `area_ano`/`area_dyn` | 区间 [anode_sum start, dynode_sum end] 内**原始 ×1** 面积 | raw ADC·samples |
 | `anode_area_pe`/`dynode_area_pe` | area_ano/area_dyn × mean-gain PE 标定（无放大） | PE |
-| `anode_sum_area`/`dynode_sum_area` | 全波形面积 × PE 标定（dynode 含 ×230） | PE |
+| `anode_sum_area`/`dynode_sum_area` | 全波形面积 × PE 标定（dynode 含 ×113） | PE |
 
 ![No-Field 7ch peak 参数分布（n=4682）](figures/peak_params_distributions.png)
 
@@ -171,7 +171,7 @@ dynode 侧**每个通道先 ×dynode_scale(230) 再叠加**（`side_sum(records,
 
 | param | median | q25 | q75 | mean | min | max |
 |---|---|---|---|---|---|---|
-| height [ADC] | 320,620 | 250,930 | 437,633 | 400,861 | 146,280 | 1,831,260 |
+| height [ADC] | 157,522 | 123,283 | 215,011 | 200,840 | 103,829 | 899,706 |
 | width [ns] | 92 | 83 | 105 | 98 | 56 | 216 |
 | rise_time [ns] | 20 | 16 | 24 | 20 | 12 | 32 |
 | width_ns [ns] | 5,700 | 5,399 | 6,653 | 6,586 | 5,040 | 18,636 |
@@ -182,13 +182,13 @@ dynode 侧**每个通道先 ×dynode_scale(230) 再叠加**（`side_sum(records,
 | anode_area_pe [PE] | 20,904 | 18,437 | 24,195 | 22,484 | 13,063 | 52,287 |
 | dynode_area_pe [PE] | 173 | 132 | 231 | 212 | 74 | 922 |
 | anode_sum_area [PE] | 24,305 | 21,332 | 27,679 | 26,141 | 14,842 | 64,945 |
-| dynode_sum_area [PE] | 41,265 | 32,236 | 55,032 | 49,977 | 18,028 | 211,958 |
+| dynode_sum_area [PE] | 20,274 | 15,838 | 27,037 | 24,554 | 8,857 | 104,136 |
 
 ![48 候选 peak 级参数分布](figures/selected48_params_distributions.png)
 
-> 与全体 7ch peaks（n=4,682）对比：候选 height 中位 320k（全体 71k）、width_ns 5.7µs（2.5µs）、
+> 与全体 7ch peaks（n=4,682）对比：候选 height 中位 157k（全体 70k）、width_ns 5.7µs（2.5µs）、
 > anode_sum_area 24.3k PE（6.9k PE）——候选显著更"高能 + 宽脉冲"。
-> 完整逐事例表：`/mnt/data/tmp/muon_analysis/no_field_peaks/selected_48/selected48_params.csv`。
+> 完整逐事例表：`/mnt/data/tmp/muon_analysis/no_field_peaks/selected_48/selected48_params_113.csv`。
 
 ### muon 事例率：实测 vs 理论对比
 
@@ -231,7 +231,7 @@ R_geom = Φ·A = 167 × 1.96×10⁻³ ≈ 0.33 s⁻¹ ≈ 19.6 min⁻¹ ≈ 1,17
 |---|---|---|
 | matching | `dynode_shift_ns` / `sample_interval_ns` | 16 / 4 |
 | clustering | `window_ns` | 100 |
-| plotting | `dynode_scale` / `dynode_lp_cutoff_hz` | **230** / null（硬件 25MHz，无软件低通）|
+| plotting | `dynode_scale` / `dynode_lp_cutoff_hz` | **113** / null（硬件 25MHz，无软件低通）|
 | filtering | peak 级阈值 | 见步骤 8（sum 基准命名）|
 | features | `baseline_samples` / `rise_time_low/high` | 0.1/0.9 |
 

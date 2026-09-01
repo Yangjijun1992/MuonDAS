@@ -53,7 +53,7 @@
   - `width_90area`/`width_50area`：在 anode_sum 上从脉冲起点累积 90%/50% 面积处的宽度（×4ns，单位 ns）。
   - `area_ano`/`area_dyn`：anode_sum/dynode_sum_raw（原始 ×1）在 **[anode_sum start, dynode_sum end]** 区间上的面积。
   - `anode_area_pe`/`dynode_area_pe`：同上区间面积 × mean-gain 的 PE 换算（无放大）。
-  - `anode_sum_area`/`dynode_sum_area`：sum 波形**全波形**积分 × mean-gain 的 PE（dynode 侧含 ×230）。
+  - `anode_sum_area`/`dynode_sum_area`：sum 波形**全波形**积分 × mean-gain 的 PE（dynode 侧含 ×113）。
 - **rise_time 定义**：从脉冲起点（`pulse_start`）到脉冲峰值点的区间（`peak_index − pulse_start`，×4ns 后以 ns 计）；anode 峰值=最负点、dynode 峰值=最正点，两侧均计算。
 - 对于每个 peak 内的 **dynode 波形部分**：
   - **低通滤波**：硬件 25 MHz 已内置；软件低通取消，`dynode_lp_cutoff_hz=None`。

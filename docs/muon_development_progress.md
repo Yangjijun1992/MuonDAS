@@ -14,7 +14,7 @@
 
 ```
 read → match(16ns No-Field/4ns 00183,[0,40]) → cluster(100ns) → 验证图(逐对/叠加)
-     → features(sum 基准, dynode 逐通道×230, 无软件低通) → filter(peak级 4 cut)
+     → features(sum 基准, dynode 逐通道×113, 无软件低通) → filter(peak级 4 cut)
      → 输出(CSV/npz/PNG)    [COG/径迹为独立后续阶段]
 ```
 
@@ -27,7 +27,7 @@ read → match(16ns No-Field/4ns 00183,[0,40]) → cluster(100ns) → 验证图(
 | CLI：--run-list / --plot-peaks / --pattern / --no-progress | ✅ | run_analysis.py |
 | 96 项 pytest + pyflakes 零警告 | ✅ | `python -m pytest tests/` |
 | 真实数据端到端（run 00179） | ✅ | 见 §3 |
-| **peak 级参数 sum 化 + dynode_scale=230 + 单位 ns（2026-08-31/09-01）** | ✅ | features.py/models.py，107 pytest |
+| **peak 级参数 sum 化 + dynode_scale=113 + 单位 ns（2026-08-31/09-01）** | ✅ | features.py/models.py，107 pytest |
 | **No-Field 全流程验证 + 48 muon 候选 + 架构图解文档** | ✅ | muon_algorithm_architecture.md / muon_peak_screening_results.md |
 
 ## 2. 模块完成度对照（计划 13 模块）
@@ -40,7 +40,7 @@ read → match(16ns No-Field/4ns 00183,[0,40]) → cluster(100ns) → 验证图(
 | 3 matching | 移位/merge_asof/窗口[0,40]/延迟校准 | ✅ |
 | 4 clustering | Peak 模型/100ns 算法/配置/输出/测试 | ✅ |
 | 5 验证绘图 | 逐对/叠加/批量+指定/筛选前 | ✅ |
-| 6 features | 特征量/dynode ×230/sum 基准/PE/分布图 | ✅（sum 波形为 peak 参数唯一基准；width/rise_time/width_*area ×4ns；dynode 逐通道 ×230 先放大再 sum；area_dyn ×1） |
+| 6 features | 特征量/dynode ×113/sum 基准/PE/分布图 | ✅（sum 波形为 peak 参数唯一基准；width/rise_time/width_*area ×4ns；dynode 逐通道 ×113 先放大再 sum；area_dyn ×1） |
 | 7 filtering | peak 级判据/配置化/输出/测试 | ✅（判据已固化：n_ch≥7 ∧ height>15000 ∧ anode_sum_area>10000 PE ∧ width_ns>5000 ns → No-Field 48 候选） |
 | 8 output | CSV(peaks_id/record_id/cog + 全部特征列)/npy/统计图 | ✅ |
 | 9 cache | 新路径/哈希/读写/CLI/警告/测试 | ⚠️ 特征未缓存、键不含 gain 版本（P2） |
@@ -50,7 +50,7 @@ read → match(16ns No-Field/4ns 00183,[0,40]) → cluster(100ns) → 验证图(
 | 13 测试文档 | pytest 覆盖/README/示例数据 | ✅ |
 
 **Blockers（§15）解决状态**：COG/pattern 数据结构 ✅（参考 xihu layout，当前为独立阶段）；环境依赖 ✅（真实数据跑通）；
-输出规模/命名 ✅（采样控制）；dynode 参数 ✅（软件低通取消/硬件 25MHz、`dynode_scale=230` 每通道先放大再 sum、`area_dyn` ×1）；
+输出规模/命名 ✅（采样控制）；dynode 参数 ✅（软件低通取消/硬件 25MHz、`dynode_scale=113` 每通道先放大再 sum、`area_dyn` ×1）；
 筛选阈值 ✅（**已固化 2026-09-01**：n_ch≥7 ∧ height>15000 ∧ anode_sum_area>10000 PE ∧ width_ns>5000 ns → No-Field 48 候选）。
 
 ## 3. 真实数据验证结果（run 00179，run6_Xe）
@@ -99,7 +99,7 @@ read → match(16ns No-Field/4ns 00183,[0,40]) → cluster(100ns) → 验证图(
 |---|---|---|
 | 匹配移位/窗口 | dynode_shift_ns=16（No-Field）/ 4（00183）, dt∈[0,40] | 实测 dt 中位数 |
 | 聚类窗口 | clustering.window_ns=100 | 需求 §3 |
-| dynode 放大 | ×230（dynode_scale；逐通道先 ×230 再 sum；area_dyn ×1） | 实测 anode:dynode 比值 ~230 |
+| dynode 放大 | ×113（dynode_scale；逐通道先 ×113 再 sum；area_dyn ×1） | 实测 anode:dynode 比值 ~230 |
 | dynode 低通 | null（算法层不滤波）| 硬件 25 MHz 内置 |
 | 径迹切片 | track.slice_us=1.0 µs, fs=250e6 | 需求 §9 |
 | PMT 位置来源 | 文件 → runinfo pos → 回退（use_fallback） | 参考 layout.py |

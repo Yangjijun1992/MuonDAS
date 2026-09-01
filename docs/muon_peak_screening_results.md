@@ -396,7 +396,7 @@ peak 级 width_90area = max(所有 anode+dynode 通道的 width_90area)
 
 | param | median | q25 | q75 | mean | min | max |
 |---|---|---|---|---|---|---|
-| height [ADC] | 320,620 | 250,930 | 437,633 | 400,861 | 146,280 | 1,831,260 |
+| height [ADC] | 157,522 | 123,283 | 215,011 | 200,840 | 103,829 | 899,706 |
 | width [ns] | 92 | 83 | 105 | 98 | 56 | 216 |
 | rise_time [ns] | 20 | 16 | 24 | 20 | 12 | 32 |
 | width_ns [ns] | 5,700 | 5,399 | 6,653 | 6,586 | 5,040 | 18,636 |
@@ -407,7 +407,7 @@ peak 级 width_90area = max(所有 anode+dynode 通道的 width_90area)
 | anode_area_pe [PE] | 20,904 | 18,437 | 24,195 | 22,484 | 13,063 | 52,287 |
 | dynode_area_pe [PE] | 173 | 132 | 231 | 212 | 74 | 922 |
 | anode_sum_area [PE] | 24,305 | 21,332 | 27,679 | 26,141 | 14,842 | 64,945 |
-| dynode_sum_area [PE] | 41,265 | 32,236 | 55,032 | 49,977 | 18,028 | 211,958 |
+| dynode_sum_area [PE] | 20,274 | 15,838 | 27,037 | 24,554 | 8,857 | 104,136 |
 
 ![48 候选 peak 级参数分布](figures/selected48_params_distributions.png)
 

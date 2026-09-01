@@ -101,6 +101,12 @@ class PeakFeatures:
     charge_per_pmt: Dict[str, float] = field(default_factory=dict) # pmt_id -> charge weight
     anode_area_pe: float = 0.0
     dynode_area_pe: float = 0.0
+    # anode saturation reconstruction: when an anode channel clips at the ADC
+    # floor its true charge is taken from the (linear) dynode channel x
+    # dynode_scale; these are the per-channel-reconstructed totals.
+    anode_area_pe_recon: float = 0.0
+    n_anode_saturated: int = 0
+    anode_saturation_frac: float = 0.0
     area_ano: float = 0.0      # total charge from all anode channels (uncalibrated)
     area_dyn: float = 0.0      # total charge from all dynode channels (x dynode_scale)
     # shape params computed on the summed waveforms (anode reference)

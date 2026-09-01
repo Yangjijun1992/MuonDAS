@@ -80,6 +80,13 @@ features:
   baseline_samples: 10
   rise_time_low: 0.1 # amplitude fraction (10%)
   rise_time_high: 0.9 # amplitude fraction (90%)
+  # Anode saturation reconstruction:
+  #   anode channels saturate (clip) at the ADC floor; when saturated the true
+  #   charge is taken from the (linear, non-saturating) dynode channel x k
+  #   (k = plotting.dynode_scale).  anode_clip_adc is the per-channel ADC floor
+  #   (waveform min below it => saturated).
+  saturation:
+    anode_clip_adc: -14700.0 # ADC value: anode waveform min below => saturated
 
 # --- PMT SPE gain database ---
 gain_db:
@@ -98,7 +105,7 @@ output:
 # --- plotting ---
 plotting:
   backend: "Agg"
-  dynode_scale: 230 # anode:dynode 实测比值 ~230, sum 对比同尺度
+  dynode_scale: 113 # anode:dynode 面积斜率 ~113（LED 小信号标定），饱和重建用
   # Low-pass cutoff (Hz) applied to the dynode waveform in compare_run plots.
   # None => no dynode low-pass filter (raw dynode, matching notebook default).
   dynode_lp_cutoff_hz: null # 硬件 25MHz 低通已内置 → 算法层取消软件低通 (None=不过滤)
