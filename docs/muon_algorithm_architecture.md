@@ -38,8 +38,6 @@ dt 中位数 ≈16ns → 移位后 dt∈[0,40ns]），按 **channel** 用 `merge
 **关键参数**：`matching.dynode_shift_ns=16`（00183 为 4ns）、`sample_interval_ns=4`、
 匹配窗口 dt∈[0,40ns]。
 
-![00183 匹配前后 dt 分布](figures/matching_dt_before_after.png)
-
 ![No-Field 匹配后 dt 分布](figures/matching_dt_nofield_histogram.png)
 
 > No-Field 匹配后 dt 峰值位于 0-40ns 窗口内，主峰 ~16ns 迁移后归零，证实移位参数正确。
@@ -55,8 +53,6 @@ dt 中位数 ≈16ns → 移位后 dt∈[0,40ns]），按 **channel** 用 `merge
 
 ![run 00401 匹配对叠加（dynode 原始）](figures/matching_pairs_overlay_rawdyn_run401.png)
 
-![00183 单事例匹配对（peak 477824）](figures/peak477824_pairs_run_00183.png)
-
 ---
 
 ## 步骤 3：聚类成 peak（clustering）
@@ -64,15 +60,10 @@ dt 中位数 ≈16ns → 移位后 dt∈[0,40ns]），按 **channel** 用 `merge
 **算法**：100ns 时间窗口内聚合匹配对 → `Peak`（同一事例的多 anode + 多 dynode
 record）。窗口参数：`clustering.window_ns=100`。
 
-**验证图**（筛选前逐事例验证，00183）：
+**聚类结果示例**（本次新算法，No-Field run 00401）：聚类得到的 peak 级
+anode_sum / dynode_sum 波形对比：
 
-![anode 通道波形验证](figures/peak186131_verify_anode_run_00183.png)
-
-![dynode 通道波形验证](figures/peak186131_verify_dynode_run_00183.png)
-
-![anode/dynode 对比验证](figures/peak186131_verify_compare_run_00183.png)
-
-![anode 从 -60ns 展开](figures/peak186131_anode_from60ns_run_00183.png)
+![peak 级 anode_sum/dynode_sum 波形对比（run 00401）](figures/sum_compare_peak000_run00401.png)
 
 ---
 
@@ -85,11 +76,8 @@ width（FWHM）；dynode 侧特征**先 ×dynode_scale(230) 再计算**。PE 换
 **关键参数**：`features.baseline_samples`、`rise_time_low/high=0.1/0.9`、
 `gain_db`（pmtdata/sqlite/csv）。
 
-![anode/dynode 电荷对比（PE）](figures/peak477824_charge_compare.png)
-
-![anode:dynode 比值分布（~230）](figures/ratio_anode_dynode_hist.png)
-
-> anode/dynode 共用同一套通道增益 → cal 相消，比值 ~230 即原始信号幅度比。
+> anode/dynode 共用同一套通道增益 → cal 相消，原始信号幅度比 ~230
+> （见步骤 7 面积关系）。
 
 ---
 
@@ -102,7 +90,7 @@ dynode 侧**每个通道先 ×dynode_scale(230) 再叠加**（`side_sum(records,
 
 **关键参数**：`plotting.dynode_scale=230`、`SUMMED_REF=50`。
 
-![peak 级 anode_sum/dynode_sum 对比（run 00401，dynode 翻转负极性）](figures/sum_compare_peak000_run00401.png)
+![peak 级 anode_sum/dynode_sum 对比（run 00401，dynode 翻转负极性）](figures/sum_compare_peak10077_run00401.png)
 
 > 放大后 dynode_sum 与 anode_sum 同尺度（高度比 ≈1-3），可直接对比形状。
 
