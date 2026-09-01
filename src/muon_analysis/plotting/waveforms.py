@@ -693,15 +693,16 @@ def plot_peak_sum_waveform(peak, anode_sum, dynode_sum, output_dir, run_id,
     path = plot_dir / f"peak{peak.peaks_id:03d}_sum_compare{suffix}_run_{run_id}.png"
 
     fig, ax = plt.subplots(figsize=(14, 6))
-    for arr, color, label in ((anode_sum, "royalblue", "Anode sum (aligned)"),
-                              (dynode_sum, "crimson",
-                               "Dynode sum (aligned, x110, flipped)")):
+    for arr, color, label, ls, lw in (
+            (anode_sum, "royalblue", "Anode sum (aligned)", "-", 2.6),
+            (dynode_sum, "crimson", "Dynode sum (aligned, flipped)", "--", 2.0)):
         if arr is None:
             continue
         if label.startswith("Dynode") and dynode_invert:
             arr = -arr
         x = (np.arange(len(arr)) - ref) * sample_interval_ns
-        ax.plot(x, arr, color=color, alpha=0.85, label=label)
+        ax.plot(x, arr, color=color, alpha=0.9, label=label,
+                linestyle=ls, linewidth=lw)
     if bounds:
         for side, (st, ed) in bounds.items():
             c = "royalblue" if side == "anode" else "crimson"
