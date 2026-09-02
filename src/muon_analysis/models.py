@@ -101,6 +101,8 @@ class PeakFeatures:
     charge_per_pmt: Dict[str, float] = field(default_factory=dict) # pmt_id -> charge weight
     anode_area_per_pmt: Dict[str, float] = field(default_factory=dict)  # pmt_id -> per-channel (pre-sum) raw anode integral
     dynode_area_per_pmt: Dict[str, float] = field(default_factory=dict) # pmt_id -> per-channel (pre-sum, x1) dynode integral
+    anode_area_pe_per_pmt: Dict[str, float] = field(default_factory=dict)  # pmt_id -> per-channel anode integral scaled to PE (own gain)
+    dynode_area_pe_per_pmt: Dict[str, float] = field(default_factory=dict) # pmt_id -> per-channel dynode integral scaled to PE (own gain)
     anode_area_pe: float = 0.0
     dynode_area_pe: float = 0.0
     # anode saturation reconstruction: when an anode channel clips at the ADC

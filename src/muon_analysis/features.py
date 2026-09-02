@@ -593,14 +593,26 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
     pmt_id_map = run_data.runinfo.pmt_id_map
     anode_area_per_pmt: Dict[str, float] = {}
     dynode_area_per_pmt: Dict[str, float] = {}
+    anode_area_per_pmt: Dict[str, float] = {}
+    dynode_area_per_pmt: Dict[str, float] = {}
+    anode_area_pe_per_pmt: Dict[str, float] = {}
+    dynode_area_pe_per_pmt: Dict[str, float] = {}
     for channel, val in ano_area_by_ch.items():
         pmid = pmt_id_map.get((0, channel))
         if pmid is not None:
-            anode_area_per_pmt[str(pmid)] = val
+            pmid_s = str(pmid)
+            anode_area_per_pmt[pmid_s] = val
+            g = gain_db.get_gain(channel)
+            if g:
+                anode_area_pe_per_pmt[pmid_s] = val * pe_calibration(g)
     for channel, val in dyn_area_by_ch.items():
         pmid = pmt_id_map.get((1, channel))
         if pmid is not None:
-            dynode_area_per_pmt[str(pmid)] = val
+            pmid_s = str(pmid)
+            dynode_area_per_pmt[pmid_s] = val
+            g = gain_db.get_gain(channel)
+            if g:
+                dynode_area_pe_per_pmt[pmid_s] = val * pe_calibration(g)
 
     return PeakFeatures(
         peaks_id=peak.peaks_id,
@@ -620,6 +632,8 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         charge_per_pmt=charge_per_pmt,
         anode_area_per_pmt=anode_area_per_pmt,
         dynode_area_per_pmt=dynode_area_per_pmt,
+        anode_area_pe_per_pmt=anode_area_pe_per_pmt,
+        dynode_area_pe_per_pmt=dynode_area_pe_per_pmt,
         anode_area_pe=anode_area_pe,
         dynode_area_pe=dynode_area_pe,
         area_ano=area_ano,
