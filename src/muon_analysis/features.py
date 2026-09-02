@@ -455,13 +455,16 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
     cal_d = pe_calibration(gain_d) if gain_d else 0.0
 
     # per-channel (pre-sum) area: integrate each PMT channel's raw waveform
-    # over the physical window [a_st, d_ed] mapped to that channel via its
-    # pulse_start and the sum alignment reference (ref_eff = peak_sum_ref).
-    # area_ano/area_dyn are raw (x1) per-channel areas summed over channels;
-    # *_area_pe scale to PE; *_sum_area keep the sum-waveform full integral.
+    # over [pulse_start, pulse_end] of that channel.  For anode channels the
+    # end is the END of the same-channel dynode pulse (per whole-pulse window);
+    # the start is each channel's own pulse-finder start.  area_ano/area_dyn
+    # are raw (x1) per-channel areas summed over channels; *_area_pe scale to
+    # PE; *_sum_area keep the sum-waveform full integral.
     accessor = SignalAccessor.from_run_data(run_data)
+    dyn_end_by_ch = {int(r.channel): getattr(r, "pulse_end_sample", None)
+                     for r in peak.dynode_records}
 
-    def per_channel_area(records, polarity, ref_eff, scale=1.0):
+    def per_channel_area(records, polarity, scale=1.0, use_dyn_end=False):
         total = 0.0
         chan_area: Dict[int, float] = {}
         for r in records:
@@ -473,8 +476,13 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
             if len(wf) == 0:
                 continue
             bl = float(np.mean(wf[:baseline_samples]))
-            k_lo = max(0, int(st + a_st - ref_eff))
-            k_hi = min(len(wf), int(st + d_ed - ref_eff))
+            k_lo = max(0, int(st))
+            if use_dyn_end:
+                end = dyn_end_by_ch.get(int(r.channel))
+                k_hi = min(len(wf), int(end)) if end is not None else len(wf)
+            else:
+                pe = getattr(r, "pulse_end_sample", None)
+                k_hi = min(len(wf), int(pe)) if pe is not None else len(wf)
             if k_hi <= k_lo:
                 continue
             seg = wf[k_lo:k_hi] - bl
@@ -485,9 +493,9 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         return total, chan_area
 
     area_ano, ano_area_by_ch = per_channel_area(peak.anode_records,
-                                                "negative", peak_sum_ref)
+                                                "negative", use_dyn_end=True)
     area_dyn, dyn_area_by_ch = per_channel_area(peak.dynode_records,
-                                                "positive", peak_sum_ref)
+                                                "positive")
     anode_area_pe = area_ano * cal_a
     dynode_area_pe = area_dyn * cal_d
     anode_sum_area = seg_integral(peak_sum_a, 0, len(peak_sum_a)
