@@ -141,16 +141,8 @@ dynode 侧**每个通道先 ×dynode_scale(113) 再叠加**（`side_sum(records,
 
 > 逐 PMT 数据：`/mnt/data/tmp/muon_analysis/no_field_peaks/all_pairs_perpmt_pe.csv`。
 
-**算法**：`area_ano/area_dyn` 2D 直方图 + 线性拟合。No-Field 实测：
-
-- 中位比值 **≈230**（anode:dynode 原始面积比，稳定）
-- PE scale 后比值不变（cal 相消），中位 area_ano ≈7,842 PE、area_dyn ≈33.9 PE
-- 自由线性拟合（x≤12000 段）：`y = 147.4·x + 344,774`（R²≈0.965）——截距来自
-  area_ano 未减基线的常数偏移
-
-![面积比直方图](figures/area_ratio_histograms.png)
-
-![area_ano vs area_dyn 2D 直方图 + 线性拟合（PE）](figures/area_ano_dyn_2dhist_fit_pe.png)
+> 以上逐 PMT 积分/双峰分析取代了旧版"area_ano/area_dyn 全局比值~230 / 2D 拟合斜率147"
+> 的合成描述——该旧分析把所有 PMT 混在一起，掩盖了 ch9(≈107) vs ch10-15(≈300) 的真实分群。
 
 ---
 
