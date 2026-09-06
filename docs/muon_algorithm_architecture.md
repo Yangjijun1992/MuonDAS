@@ -121,9 +121,25 @@ dynode 侧**每个通道先 ×dynode_scale(113) 再叠加**（`side_sum(records,
 
 > 统计表见 `muon_peak_screening_results.md`；完整数据：`peak_params_all.csv`。
 
----
+### 逐 PMT 原始 anode/dynode 积分
 
-## 步骤 7：面积关系与 anode/dynode 比值
+除 peak 级合成面积外，`PeakFeatures` 还暴露**每个 PMT 各自**的原始积分及 PE：
+
+- `anode_area_per_pmt` / `dynode_area_per_pmt`：各 PMT 通道在自身脉冲窗口（起始=该通道寻峰 start；anode 结束=同通道 dynode 的 pulse_end）上的原始（×1）积分（raw ADC·samples）
+- `anode_area_pe_per_pmt` / `dynode_area_pe_per_pmt`：各 PMT 积分 **× 该通道自身 gain** 的 PE 标定
+
+**No-Field 全部 anode/dynode 匹配对（n=74,702，00401-00405）逐 PMT 积分分布**：
+
+![逐 PMT anode/dynode 积分 2D 直方图 + 比值（全部匹配对）](figures/perpmt_2dhist_all_pairs.png)
+
+**发现 anode/dynode 比值呈双峰——对应不同 PMT**（ch9 低比值 vs ch10-15 高比值）：
+
+- ch9：ratio 中位 ~114，拟合斜率 ~88
+- ch10-15：ratio 中位 ~300，拟合斜率 ~250-265
+
+![逐 PMT 比值双峰分离（ch9 vs ch10-15）](figures/perpmt_bimodal_ratio.png)
+
+> 逐 PMT 数据：`/mnt/data/tmp/muon_analysis/no_field_peaks/all_pairs_perpmt_pe.csv`。
 
 **算法**：`area_ano/area_dyn` 2D 直方图 + 线性拟合。No-Field 实测：
 
