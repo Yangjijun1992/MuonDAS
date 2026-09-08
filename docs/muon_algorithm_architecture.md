@@ -64,6 +64,23 @@ anode_sum / dynode_sum 波形对比：
 
 ![peak 级 anode_sum/dynode_sum 波形对比（run 00401）](figures/sum_compare_peak000_run00401.png)
 
+### 寻峰算法约定（pulsefinding）
+
+`find_pulse_boundaries`（`pulse_finder`）对每条 anode/dynode 波形定位脉冲边界：
+
+- **基线恒为 0**：reader 已返回**基线归零**的波形（`processed == waveform`），不再用
+  `global_median`/`first_mean` 二次减基线（对脉冲为主/截断记录会算错基线）。
+- **start**：从脉冲峰**向左找第一个回到 0 的点**（`|值| < start_baseline_tol(20 ADC)`）
+  即脉冲起点；若记录**开头就在脉冲中/截断**（无前基线，扫到样本 0 仍未回 0），
+  则 **start = 记录波形起点 (0)**。
+- **end**：向右回到基线并稳定 —— end 样本及后续 `end_consecutive` 个样本均须在
+  `end_baseline_tol` 内（anode 用 `end_consecutive=0`，dynode 用配置值）。
+- **rise_time**：`peak_index − rise_start`；若为负（对齐参考在峰后/截断），改用
+  `peak_index`（从波形起点算）→ **rise_time 恒 ≥0**（`features.py` `compute_features`）。
+
+**关键参数**：`pulse_finder.start_baseline_tol=20`、`end_baseline_tol=20`、
+`end_consecutive=3`(dynode)/0(anode)。
+
 ---
 
 ## 步骤 4：逐通道特征与 PE（features/gain/pe）

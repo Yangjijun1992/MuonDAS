@@ -1,0 +1,51 @@
+run_id,runtype,trigger_mode,run_tag,run_comment,acq_time,start_time
+00513,run7_Xe,self,Calibration Run,"Co60, ano 30adc, dyn 15adc",3600.0,2026-09-04T18:15:36
+00514,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc",3600.0,2026-09-04T18:26:27
+00515,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc",3600.0,2026-09-04T18:30:17
+00516,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc",3600.0,2026-09-04T19:30:35
+00517,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-04T20:27:26
+00518,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-04T21:27:45
+00519,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-04T22:28:04
+00520,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-04T23:28:23
+00521,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T00:28:41
+00522,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T01:29:00
+00523,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T02:29:20
+00524,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T02:50:34
+00525,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T03:50:49
+00526,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T04:51:07
+00527,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T05:51:25
+00528,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T06:51:45
+00529,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T07:52:05
+00530,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T08:52:24
+00531,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T09:52:42
+00532,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T10:52:57
+00533,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T11:53:18
+00534,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T12:53:38
+00535,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T13:53:56
+00536,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T14:54:15
+00537,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position west",3600.0,2026-09-05T15:54:34
+00538,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-05T16:31:57
+00539,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-05T17:32:16
+00540,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-05T18:32:36
+00541,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-05T19:32:53
+00542,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-05T20:33:11
+00543,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-05T21:33:30
+00544,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-05T22:33:48
+00545,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-05T23:34:08
+00546,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T00:34:26
+00547,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T01:34:44
+00548,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T02:22:07
+00549,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T03:22:30
+00550,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T04:22:48
+00551,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T05:23:07
+00552,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T06:23:25
+00553,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T07:23:43
+00554,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T08:24:01
+00555,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T09:24:20
+00556,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T10:24:39
+00557,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T11:24:59
+00558,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T12:25:17
+00559,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T13:25:36
+00560,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T14:25:55
+00561,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T15:26:15
+00562,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, position south",3600.0,2026-09-06T16:26:34
