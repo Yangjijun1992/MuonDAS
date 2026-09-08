@@ -45,6 +45,8 @@ pulse_finder:
   min_recovery_frac: 0.3 # min recovery rise (fraction of pulse height) to accept
   end_baseline_tol: 20.0 # ADC: end must return within this of baseline
   end_consecutive: 3 # samples AFTER the end that must stay within tol (confirm stable return)
+  start_baseline_tol: 20.0 # ADC: pulse START must be within this of the baseline;
+                           # the left walk scans past a baseline return before stopping
 
 # --- filtering ---
 filtering:

@@ -55,6 +55,7 @@ _DEFAULTS: Dict[str, Any] = {
         "min_recovery_frac": 0.3,    # min recovery rise (frac of height) to accept
         "end_baseline_tol": 20.0,    # ADC: end must be within this of baseline
         "end_consecutive": 3,        # samples AFTER the end that must stay within tol
+        "start_baseline_tol": 20.0,  # ADC: pulse START must be within this of baseline
     },
     "filtering": {
         "signal_positive_polarity": {"asym_min": 0.7, "height_min": None, "height_max": None},

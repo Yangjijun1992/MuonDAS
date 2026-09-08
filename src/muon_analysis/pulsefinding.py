@@ -100,6 +100,7 @@ def find_pulse_boundaries(
     min_recovery_frac: float = 0.3,
     end_baseline_tol: float = 20.0,
     end_consecutive: int = 3,
+    start_baseline_tol: float = 20.0,
 ) -> Optional[Tuple[int, int]]:
     """Full main-pulse ``(start, end)`` for a negative-going waveform.
 
@@ -131,6 +132,9 @@ def find_pulse_boundaries(
     start_idx = min_idx
     while start_idx > 0 and processed[start_idx] == processed[min_idx]:
         start_idx -= 1
+    # LEFT walk over the descending edge (pulse leading edge); when the record
+    # starts already inside the pulse (no clean pre-pulse baseline) this stops
+    # at the leading edge rather than being pushed to sample 0.
     while start_idx > 0 and processed[start_idx] <= processed[start_idx - 1]:
         start_idx -= 1
 
@@ -187,6 +191,7 @@ def pulse_finder(
         min_recovery_frac=cfg.get("min_recovery_frac", 0.3),
         end_baseline_tol=cfg.get("end_baseline_tol", 20.0),
         end_consecutive=ec,
+        start_baseline_tol=cfg.get("start_baseline_tol", 20.0),
     )
 
 

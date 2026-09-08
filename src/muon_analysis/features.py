@@ -298,8 +298,14 @@ def compute_features(
 
     height = abs(peak_amp - baseline)
 
+    # rise_time: from the pulse start (rise_start) to the peak; when the
+    # aligned reference falls after the peak (e.g. a record whose front edge
+    # is truncated / has no clean pre-pulse baseline), measure from the
+    # waveform start (0) so the rise is non-negative.
     rise_start_idx = int(rise_start) if rise_start is not None else 0
     rise_time = float(peak_index - rise_start_idx)
+    if rise_time < 0:
+        rise_time = float(peak_index)
 
     width = _fwhm_samples(wf, peak_index, baseline, peak_amp, direction)
     if width is None:
