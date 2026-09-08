@@ -22,28 +22,16 @@ def preprocess_waveform(
     mode: str = "global_median",
     baseline: Optional[float] = None,
 ) -> Tuple[np.ndarray, float]:
-    """Subtract a robust baseline; return ``(processed, baseline)``.
+    """Return the waveform without subtraction (baseline == 0).
 
-    ``mode``:
-      - ``"global_median"`` (default): median of the whole waveform.  Robust
-        when the pulse starts early in the record (the reference first-N mean
-        is corrupted when the first ``baseline_samples`` contain the pulse
-        edge, which shifts the whole post-pulse tail away from zero).
-      - ``"first_mean"``: reference behaviour, mean of the first
-        ``baseline_samples``.
-
-    When ``baseline`` is provided (e.g. the record's own DAQ baseline field),
-    it is used directly instead of the mode estimate.
+    The reader already returns baseline-subtracted waveforms, so ``baseline``
+    is 0 and ``processed == waveform``.  ``baseline_samples``/``mode`` are kept
+    for interface compatibility; ``baseline`` may override a non-zero baseline
+    if a caller needs one.
     """
     wf = np.asarray(waveform, dtype=float)
-    if baseline is not None:
-        baseline = float(baseline)
-    elif mode == "first_mean":
-        n = min(int(baseline_samples), len(wf))
-        baseline = float(np.mean(wf[:n]))
-    else:
-        baseline = float(np.median(wf))
-    return wf - baseline, baseline
+    base = float(baseline) if baseline is not None else 0.0
+    return wf - base, base
 
 
 def findpulse_st_ed(
@@ -130,8 +118,14 @@ def find_pulse_boundaries(
 
     Returns ``(start, end)`` sample indices or None when no pulse is found.
     """
-    processed, _ = preprocess_waveform(waveform, baseline_samples,
-                                       baseline_mode, baseline=baseline)
+    # The waveform is already baseline-subtracted by the reader (baseline == 0),
+    # so ``processed`` is the waveform as-is; the pulse start is where the
+    # signal returns to ~0.  (Subtracting a global/median baseline here
+    # corrupts records that are dominated by the pulse / truncated.)
+    if baseline is not None:
+        processed = np.asarray(waveform, dtype=float) - float(baseline)
+    else:
+        processed = np.asarray(waveform, dtype=float)
     min_idx = int(np.argmin(processed))
     height = abs(float(processed[min_idx]))
     if height < float(height_threshold):
@@ -143,12 +137,11 @@ def find_pulse_boundaries(
     # LEFT walk over the descending edge (pulse leading edge).
     while start_idx > 0 and processed[start_idx] <= processed[start_idx - 1]:
         start_idx -= 1
-    # Keep scanning left to the pulse start: the start is the point where the
-    # waveform returns to the baseline (|processed| < start_baseline_tol).  If
-    # the record begins already inside the pulse (no clean pre-pulse baseline,
-    # truncated front edge), the walk reaches sample 0 still away from the
-    # baseline — in that case the start IS the recording waveform start (0),
-    # and the record's own baseline field should be used for the subtraction.
+    # Keep scanning left to the pulse start: the signal begins where it returns
+    # to baseline (|value| < start_baseline_tol).  If the record begins already
+    # inside the pulse (no baseline at the front / truncated), the walk reaches
+    # sample 0 still away from 0 — in that case the start IS the recording
+    # waveform start (0).
     while start_idx > 0 and abs(processed[start_idx]) >= float(start_baseline_tol):
         start_idx -= 1
 
