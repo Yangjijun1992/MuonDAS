@@ -153,8 +153,10 @@ def width_to_fraction_area(
     if total <= 0:
         return float("nan")
     cum = np.cumsum(seg)
-    idx = int(np.searchsorted(cum, frac * total))
-    return float(idx)
+    target = frac * total
+    idx_float = float(np.interp(target, cum,
+                                np.arange(len(cum)))) + 1.0
+    return idx_float
 
 
 def _record_width_fraction(sig, baseline, rec, n, frac=0.9) -> float:
@@ -569,11 +571,15 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
 
     width_90area = 0.0
     width_50area = 0.0
+    width_20_50area = 0.0
     if peak_sum_a is not None and a_ed > a_st:
         w = np.asarray(peak_sum_a, dtype=float)
         bl = float(np.mean(w[:baseline_samples]))
         width_90area = width_to_fraction_area(w, bl, a_st, a_ed, 0.9) * interval_ns
         width_50area = width_to_fraction_area(w, bl, a_st, a_ed, 0.5) * interval_ns
+        w20 = width_to_fraction_area(w, bl, a_st, a_ed, 0.2)
+        w50 = width_to_fraction_area(w, bl, a_st, a_ed, 0.5)
+        width_20_50area = (w50 - w20) * interval_ns if (w20 == w20 and w50 == w50) else 0.0
 
     if peak.dynode_records:
         time_ns = min(r.time_ns for r in peak.dynode_records)
@@ -654,4 +660,5 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         width_ns=width_ns,
         width_90area=width_90area,
         width_50area=width_50area,
+        width_20_50area=width_20_50area,
     )

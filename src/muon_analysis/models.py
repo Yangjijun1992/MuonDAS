@@ -120,6 +120,7 @@ class PeakFeatures:
     width_ns: float = 0.0      # summed-waveform pulse duration (end-start) [ns]
     width_90area: float = 0.0  # max over channels: width from start containing 90% area [ns]
     width_50area: float = 0.0  # max over channels: width from start containing 50% area [ns]
+    width_20_50area: float = 0.0  # anode_sum: area-accumulation width between 20% and 50% [ns]
     # aligned (by pulse start) summed waveforms over all channels, in npz only
     anode_sum: Optional[np.ndarray] = field(default=None, repr=False)
     dynode_sum: Optional[np.ndarray] = field(default=None, repr=False)

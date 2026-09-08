@@ -1,0 +1,19 @@
+run_id,runtype,trigger_mode,run_tag,run_comment,acq_time,start_time
+00590,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, Postion Norh, jointed pmt1 anode",3600.0,2026-09-07T19:31:27
+00591,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-07T20:15:11
+00592,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-07T21:15:34
+00593,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-07T22:15:53
+00594,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-07T23:16:12
+00595,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T00:16:31
+00596,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T01:16:47
+00597,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T02:17:14
+00598,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T03:17:39
+00599,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T04:18:00
+00600,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T05:18:17
+00601,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T06:18:36
+00602,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T07:18:53
+00603,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T08:19:12
+00604,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T09:19:30
+00605,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T10:19:53
+00606,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T11:20:12
+00607,run7_Xe,self,Calibration Run,"Co60, ano 40adc, dyn 15adc, postion North, canceled 2inch PMTs, jointed pmt1",3600.0,2026-09-08T12:20:27
