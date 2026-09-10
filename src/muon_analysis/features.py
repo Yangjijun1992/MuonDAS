@@ -581,6 +581,11 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         w50 = width_to_fraction_area(w, bl, a_st, a_ed, 0.5)
         width_20_50area = (w50 - w20) * interval_ns if (w20 == w20 and w50 == w50) else 0.0
 
+    n_samples_gt1000adc = 0
+    if peak_sum_a is not None:
+        w = np.asarray(peak_sum_a, dtype=float)
+        n_samples_gt1000adc = int(np.count_nonzero(np.abs(w) > 1000.0))
+
     if peak.dynode_records:
         time_ns = min(r.time_ns for r in peak.dynode_records)
     elif peak.anode_records:
@@ -661,6 +666,7 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         width_90area=width_90area,
         width_50area=width_50area,
         width_20_50area=width_20_50area,
+        n_samples_gt1000adc=n_samples_gt1000adc,
     )
     from muon_analysis.signal_id import classify_signal
     feats.signal_type = classify_signal(feats, len(peak.channels), config)

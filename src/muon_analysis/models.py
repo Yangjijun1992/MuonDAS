@@ -121,6 +121,7 @@ class PeakFeatures:
     width_90area: float = 0.0  # max over channels: width from start containing 90% area [ns]
     width_50area: float = 0.0  # max over channels: width from start containing 50% area [ns]
     width_20_50area: float = 0.0  # anode_sum: area-accumulation width between 20% and 50% [ns]
+    n_samples_gt1000adc: int = 0  # anode_sum: #samples with |amplitude| > 1000 ADC
     # aligned (by pulse start) summed waveforms over all channels, in npz only
     anode_sum: Optional[np.ndarray] = field(default=None, repr=False)
     dynode_sum: Optional[np.ndarray] = field(default=None, repr=False)
@@ -147,6 +148,8 @@ class PeakFeatures:
             "width_ns": self.width_ns,
             "width_90area": self.width_90area,
             "width_50area": self.width_50area,
+            "width_20_50area": self.width_20_50area,
+            "n_samples_gt1000adc": self.n_samples_gt1000adc,
             "anode_sum_area": self.anode_sum_area,
             "dynode_sum_area": self.dynode_sum_area,
             "signal_type": self.signal_type,
