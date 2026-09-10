@@ -71,6 +71,16 @@ filtering:
   min_area_pe_anode: null
   min_area_pe_dynode: null
 
+# --- signal discrimination (peak level) ---
+# A peak passing ALL muon_s1 cuts is labelled "muon_s1"; otherwise "other".
+signal_id:
+  muon_s1:
+    n_channels: 7
+    width_20_50area_max: 80.0 # ns
+    anode_sum_area_min: 300.0 # PE
+    height_min: 4000.0 # ADC
+    width_90area_max: 500.0 # ns
+
 # --- features / integration ---
 features:
   # Integration window strategy:

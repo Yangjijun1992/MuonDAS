@@ -70,6 +70,17 @@ _DEFAULTS: Dict[str, Any] = {
         "min_area_pe_anode": None,
         "min_area_pe_dynode": None,
     },
+    "signal_id": {
+        # peak-level discrimination; a peak passing ALL muon_s1 cuts is
+        # labelled "muon_s1", otherwise "other".
+        "muon_s1": {
+            "n_channels": 7,
+            "width_20_50area_max": 80.0,
+            "anode_sum_area_min": 300.0,
+            "height_min": 4000.0,
+            "width_90area_max": 500.0,
+        },
+    },
     "features": {
         "integral_window_mode": "fixed",
         "integral_start": 20,

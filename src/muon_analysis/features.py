@@ -626,7 +626,7 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
             if g:
                 dynode_area_pe_per_pmt[pmid_s] = val * pe_calibration(g)
 
-    return PeakFeatures(
+    feats = PeakFeatures(
         peaks_id=peak.peaks_id,
         time_ns=time_ns,
         channels=list(peak.channels),
@@ -662,3 +662,6 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         width_50area=width_50area,
         width_20_50area=width_20_50area,
     )
+    from muon_analysis.signal_id import classify_signal
+    feats.signal_type = classify_signal(feats, len(peak.channels), config)
+    return feats
