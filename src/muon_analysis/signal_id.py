@@ -19,25 +19,34 @@ def classify_signal(
     n_channels: int,
     config: Dict[str, Any],
 ) -> str:
-    """Return the signal type of a peak (``"muon_s1"`` or ``"other"``).
+    """Return the signal type of a peak.
 
-    ``muon_s1`` requires ALL of (AND):
+    Types (checked in order):
 
-      - ``n_channels == n_channels`` (default 7, full 7-PMT coincidence)
-      - ``width_20_50area < width_20_50area_max`` (default 80 ns)
-      - ``anode_sum_area > anode_sum_area_min`` (default 300 PE)
-      - ``height >= height_min`` (default 4000 ADC)
-      - ``width_90area < width_90area_max`` (default 500 ns)
+      - ``"muon_s1"``: 7-channel coincidence, narrow pulse
+        (``width_20_50area < width_20_50area_max``, default 80 ns),
+        ``anode_sum_area > anode_sum_area_min`` (300 PE),
+        ``height >= height_min`` (4000 ADC),
+        ``width_90area < width_90area_max`` (500 ns).
+      - ``"muon_s2"``: 7-channel coincidence, wide pulse
+        (``width_20_50area > width_20_50area_min``, default 80 ns),
+        ``anode_sum_area > anode_sum_area_min`` (300 PE).
+      - ``"other"``: everything else.
     """
-    cfg = (config or {}).get("signal_id", {}).get("muon_s1", {}) or {}
-    if n_channels != int(cfg.get("n_channels", 7)):
-        return "other"
-    if not (peak_features.width_20_50area < float(cfg.get("width_20_50area_max", 80.0))):
-        return "other"
-    if not (peak_features.anode_sum_area > float(cfg.get("anode_sum_area_min", 300.0))):
-        return "other"
-    if not (peak_features.height >= float(cfg.get("height_min", 4000.0))):
-        return "other"
-    if not (peak_features.width_90area < float(cfg.get("width_90area_max", 500.0))):
-        return "other"
-    return "muon_s1"
+    cfg = (config or {}).get("signal_id", {}) or {}
+
+    s1 = cfg.get("muon_s1", {}) or {}
+    if n_channels == int(s1.get("n_channels", 7)) \
+            and peak_features.width_20_50area < float(s1.get("width_20_50area_max", 80.0)) \
+            and peak_features.anode_sum_area > float(s1.get("anode_sum_area_min", 300.0)) \
+            and peak_features.height >= float(s1.get("height_min", 4000.0)) \
+            and peak_features.width_90area < float(s1.get("width_90area_max", 500.0)):
+        return "muon_s1"
+
+    s2 = cfg.get("muon_s2", {}) or {}
+    if n_channels == int(s2.get("n_channels", 7)) \
+            and peak_features.width_20_50area > float(s2.get("width_20_50area_min", 80.0)) \
+            and peak_features.anode_sum_area > float(s2.get("anode_sum_area_min", 300.0)):
+        return "muon_s2"
+
+    return "other"

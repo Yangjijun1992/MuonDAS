@@ -72,13 +72,18 @@ _DEFAULTS: Dict[str, Any] = {
     },
     "signal_id": {
         # peak-level discrimination; a peak passing ALL muon_s1 cuts is
-        # labelled "muon_s1", otherwise "other".
+        # labelled "muon_s1", muon_s2 cuts "muon_s2", otherwise "other".
         "muon_s1": {
             "n_channels": 7,
             "width_20_50area_max": 80.0,
             "anode_sum_area_min": 300.0,
             "height_min": 4000.0,
             "width_90area_max": 500.0,
+        },
+        "muon_s2": {
+            "n_channels": 7,
+            "width_20_50area_min": 80.0,
+            "anode_sum_area_min": 300.0,
         },
     },
     "features": {
