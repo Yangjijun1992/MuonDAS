@@ -33,7 +33,7 @@ matching:
 
 # --- waveform clustering into peaks ---
 clustering:
-  window_ns: 100 # record times within this window merge into one peak
+  window_ns: 320 # pulse-start times within this window (80 samples) merge into one peak
 
 # --- pulse boundary finding (peak start/end, negative pulses) ---
 # Borrowed from pmt_analysis findpulse_st_ed(). Dynode (positive) waveforms
@@ -75,16 +75,15 @@ filtering:
 # A peak passing ALL muon_s1 cuts is labelled "muon_s1"; muon_s2 cuts
 # "muon_s2"; otherwise "other".
 signal_id:
+  long_wave_min_samples: 20000 # only long waveforms get S1/S2 discrimination
   muon_s1:
     n_channels: 7
-    width_20_50area_max: 80.0 # ns
-    anode_sum_area_min: 300.0 # PE
+    s1_width_min_ns: 0.0 # start -> end_first (prompt) width range
+    s1_width_max_ns: 500.0
     height_min: 4000.0 # ADC
-    width_90area_max: 500.0 # ns
   muon_s2:
     n_channels: 7
-    width_20_50area_min: 80.0 # ns
-    anode_sum_area_min: 300.0 # PE
+    s2_width_min_ns: 500.0 # end_first -> end_final (delayed) width [ns]
 
 # --- features / integration ---
 features:

@@ -43,7 +43,7 @@ _DEFAULTS: Dict[str, Any] = {
         "channel_delay_ns": {},
     },
     "clustering": {
-        "window_ns": 100,
+        "window_ns": 320,
     },
     "pulse_finder": {
         # Negative-pulse boundary finder (borrowed from pmt_analysis
@@ -71,19 +71,17 @@ _DEFAULTS: Dict[str, Any] = {
         "min_area_pe_dynode": None,
     },
     "signal_id": {
-        # peak-level discrimination; a peak passing ALL muon_s1 cuts is
-        # labelled "muon_s1", muon_s2 cuts "muon_s2", otherwise "other".
+        # S1/S2-width based discrimination (applies to long waveforms only).
+        "long_wave_min_samples": 20000,
         "muon_s1": {
             "n_channels": 7,
-            "width_20_50area_max": 80.0,
-            "anode_sum_area_min": 300.0,
+            "s1_width_min_ns": 0.0,
+            "s1_width_max_ns": 500.0,
             "height_min": 4000.0,
-            "width_90area_max": 500.0,
         },
         "muon_s2": {
             "n_channels": 7,
-            "width_20_50area_min": 80.0,
-            "anode_sum_area_min": 300.0,
+            "s2_width_min_ns": 500.0,
         },
     },
     "features": {

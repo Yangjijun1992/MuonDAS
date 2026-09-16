@@ -122,6 +122,11 @@ class PeakFeatures:
     width_50area: float = 0.0  # max over channels: width from start containing 50% area [ns]
     width_20_50area: float = 0.0  # anode_sum: area-accumulation width between 20% and 50% [ns]
     n_samples_gt1000adc: int = 0  # anode_sum: #samples with |amplitude| > 1000 ADC
+    end_first_sample: int = 0     # pulse-finder end (first return to baseline)
+    end_final_sample: int = 0     # whole peak waveform final end (last significant sample)
+    muon_s1_width_ns: float = 0.0 # start -> end_first (prompt/S1 width) [ns]
+    muon_s2_width_ns: float = 0.0 # end_first -> end_final (delayed/S2 width) [ns]
+    wave_len_samples: int = 0     # length of the peak sum waveform [samples]
     # aligned (by pulse start) summed waveforms over all channels, in npz only
     anode_sum: Optional[np.ndarray] = field(default=None, repr=False)
     dynode_sum: Optional[np.ndarray] = field(default=None, repr=False)
@@ -150,6 +155,11 @@ class PeakFeatures:
             "width_50area": self.width_50area,
             "width_20_50area": self.width_20_50area,
             "n_samples_gt1000adc": self.n_samples_gt1000adc,
+            "end_first_sample": self.end_first_sample,
+            "end_final_sample": self.end_final_sample,
+            "muon_s1_width_ns": self.muon_s1_width_ns,
+            "muon_s2_width_ns": self.muon_s2_width_ns,
+            "wave_len_samples": self.wave_len_samples,
             "anode_sum_area": self.anode_sum_area,
             "dynode_sum_area": self.dynode_sum_area,
             "signal_type": self.signal_type,

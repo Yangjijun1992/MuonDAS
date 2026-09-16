@@ -567,19 +567,40 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         rise_time = sf_a.rise_time * interval_ns
     if sf_d is not None:
         height = max(height, sf_d.height)
-    width_ns = float(max(0, a_ed - a_st)) * interval_ns if a_ed > a_st else 0.0
+    # two end points: (1) pulse-finder first baseline return (a_ed), (2) the
+    # whole peak waveform's final end (covers a long prompt+delayed pulse whose
+    # first baseline return would truncate the muon tail).  width_ns spans from
+    # the anode start to the FINAL end.
+    from muon_analysis.pulsefinding import find_wave_final_end
+    a_ed_final = (find_wave_final_end(peak_sum_a, config)
+                  if peak_sum_a is not None else a_ed)
+    d_ed_final = (find_wave_final_end(peak_sum_d, config)
+                  if peak_sum_d is not None else a_ed)
+    end_first_sample = int(a_ed)
+    end_final_sample = int(max(a_ed_final, d_ed_final))
+    width_ns = (float(max(0, end_final_sample - a_st)) * interval_ns
+                if end_final_sample > a_st else 0.0)
 
     width_90area = 0.0
     width_50area = 0.0
     width_20_50area = 0.0
-    if peak_sum_a is not None and a_ed > a_st:
+    if peak_sum_a is not None and end_final_sample > a_st:
         w = np.asarray(peak_sum_a, dtype=float)
         bl = float(np.mean(w[:baseline_samples]))
-        width_90area = width_to_fraction_area(w, bl, a_st, a_ed, 0.9) * interval_ns
-        width_50area = width_to_fraction_area(w, bl, a_st, a_ed, 0.5) * interval_ns
-        w20 = width_to_fraction_area(w, bl, a_st, a_ed, 0.2)
-        w50 = width_to_fraction_area(w, bl, a_st, a_ed, 0.5)
+        width_90area = width_to_fraction_area(w, bl, a_st, end_final_sample, 0.9) * interval_ns
+        width_50area = width_to_fraction_area(w, bl, a_st, end_final_sample, 0.5) * interval_ns
+        w20 = width_to_fraction_area(w, bl, a_st, end_final_sample, 0.2)
+        w50 = width_to_fraction_area(w, bl, a_st, end_final_sample, 0.5)
         width_20_50area = (w50 - w20) * interval_ns if (w20 == w20 and w50 == w50) else 0.0
+
+    # S1/S2 width decomposition: muon_s1_width = start -> end_first (prompt),
+    # muon_s2_width = end_first -> end_final (delayed tail).
+    muon_s1_width_ns = (float(max(0, end_first_sample - a_st)) * interval_ns
+                        if end_first_sample > a_st else 0.0)
+    muon_s2_width_ns = (float(max(0, end_final_sample - end_first_sample))
+                        * interval_ns if end_final_sample > end_first_sample else 0.0)
+    wave_len_samples = int(max(len(peak_sum_a) if peak_sum_a is not None else 0,
+                              len(peak_sum_d) if peak_sum_d is not None else 0))
 
     n_samples_gt1000adc = 0
     if peak_sum_a is not None:
@@ -667,6 +688,11 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         width_50area=width_50area,
         width_20_50area=width_20_50area,
         n_samples_gt1000adc=n_samples_gt1000adc,
+        end_first_sample=end_first_sample,
+        end_final_sample=end_final_sample,
+        muon_s1_width_ns=muon_s1_width_ns,
+        muon_s2_width_ns=muon_s2_width_ns,
+        wave_len_samples=wave_len_samples,
     )
     from muon_analysis.signal_id import classify_signal
     feats.signal_type = classify_signal(feats, len(peak.channels), config)

@@ -92,10 +92,12 @@ def test_sorted_and_sequential_ids():
 
 def test_multichannel_merging_within_window():
     cfg = build_config()
-    # ch2@1000, ch3@1050 within window -> one peak; ch4@1200 > anchor+100 -> separate
+    win = float(cfg["clustering"]["window_ns"])
+    far = 1000.0 + win + 100.0  # beyond the anchor window -> separate peak
+    # ch2@1000, ch3@1050 within window -> one peak; ch4 far beyond -> separate
     rd = _make_run_data(
-        dyn_times=[1000, 1050, 1200],
-        ano_times=[1006, 1056, 1206],
+        dyn_times=[1000, 1050, far],
+        ano_times=[1006, 1056, far + 6],
         dyn_ch=[2, 3, 4],
         ano_ch=[2, 3, 4],
     )
@@ -108,7 +110,7 @@ def test_multichannel_merging_within_window():
     assert first.n_anode == 2 and first.n_dynode == 2
     assert first.start_time_ns == 1000.0
     assert set(second.channels) == {4}
-    assert second.start_time_ns == 1200.0
+    assert second.start_time_ns == far
 
 
 def test_missing_time_field_raises():
