@@ -15,10 +15,10 @@ OUT = "/home/yjj/MuonDAS/docs/figures/co60_590_v2_2d_panels.png"
 
 df = pd.read_csv(CSV)
 panels = [
-    ("width_90area", "width_90area [ns]", (1.0, 1e5), None),
+    ("width_90area", "width_90area [ns]", (10.0, 1e5), 1000.0),
     ("width_ns", "width_ns [ns]", (40.0, 1e5), 2000.0),
-    ("width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 80.0),
-    ("height", "height [ADC]", (1e1, 1e6), None),
+    ("width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 100.0),
+    ("height", "height [ADC]", (400.0, 1e6), None),
 ]
 
 fig, axes = plt.subplots(2, 2, figsize=(24, 20))
