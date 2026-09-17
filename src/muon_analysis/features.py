@@ -423,7 +423,7 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
     # integration interval = [anode_sum start, dynode_sum end] from the sum
     # pulse finder; area_ano/area_dyn are raw (x1) areas, *_area_pe scale to
     # PE with the mean channel gain, *_sum_area integrate the full waveform;
-    # height/width/rise_time/width_ns/width_90area/50area come from the sum.
+    # height/width/rise_time/width_90area/50area come from the sum.
     from muon_analysis.pe_calibration import pe_calibration
     from muon_analysis.pulsefinding import find_sum_pulse_bounds
 
@@ -568,7 +568,7 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         height = max(height, sf_d.height)
     # two end points: (1) pulse-finder first baseline return (a_ed), (2) the
     # whole peak waveform's final end (covers a long prompt+delayed pulse whose
-    # first baseline return would truncate the muon tail).  width_ns spans from
+    # first baseline return would truncate the muon tail).  width spans from
     # the anode start to the FINAL end.
     from muon_analysis.pulsefinding import find_wave_final_end
     a_ed_final = (find_wave_final_end(peak_sum_a, config)
@@ -577,11 +577,10 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
                   if peak_sum_d is not None else a_ed)
     end_first_sample = int(a_ed)
     end_final_sample = int(max(a_ed_final, d_ed_final))
-    width_ns = (float(max(0, end_final_sample - a_st)) * interval_ns
-                if end_final_sample > a_st else 0.0)
     # width = the pulse span, i.e. the distance from the peak start (a_st) to the
-    # final end point (end_final_sample) -- same definition as width_ns.
-    width = width_ns
+    # final end point (end_final_sample).
+    width = (float(max(0, end_final_sample - a_st)) * interval_ns
+             if end_final_sample > a_st else 0.0)
 
     width_90area = 0.0
     width_50area = 0.0
@@ -685,7 +684,6 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         height=height,
         width=width,
         rise_time=rise_time,
-        width_ns=width_ns,
         width_90area=width_90area,
         width_50area=width_50area,
         width_20_50area=width_20_50area,

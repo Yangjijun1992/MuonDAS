@@ -90,7 +90,6 @@ def peaks_to_dataframe(
             "height": feats["height"],
             "width": feats["width"],
             "rise_time": feats["rise_time"],
-            "width_ns": feats["width_ns"],
             "width_90area": feats["width_90area"],
             "width_50area": feats["width_50area"],
         }

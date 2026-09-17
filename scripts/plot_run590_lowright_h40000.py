@@ -33,7 +33,7 @@ for pid in sel.peaks_id.astype(int):
     b = find_sum_pulse_bounds(pf.anode_sum, pf.dynode_sum, cfg)
     p = plot_peak_sum_waveform(pk, pf.anode_sum, pf.dynode_sum, outdir, rid,
                                dynode_invert=True, bounds=b)
-    print(f"peak {pid}: h={pf.height:.0f} w_ns={pf.width_ns:.0f} "
+    print(f"peak {pid}: h={pf.height:.0f} w_ns={pf.width:.0f} "
           f"area_pe={pf.anode_sum_area:.0f} n_ch={pk.n_channels} -> {os.path.basename(p[0])}",
           flush=True)
 print("DONE")

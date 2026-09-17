@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Four 2D panels (separate axes) vs anode_sum_area, Co60 590+ v2 data:
-width_90area, width_ns, width_20_50area, height."""
+width_90area, width, width_20_50area, height."""
 import sys
 sys.path.insert(0, "/home/yjj/MuonDAS/src")
 import numpy as np
@@ -16,7 +16,7 @@ OUT = "/home/yjj/MuonDAS/docs/figures/co60_590_v2_2d_panels.png"
 df = pd.read_csv(CSV)
 panels = [
     ("width_90area", "width_90area [ns]", (10.0, 1e5), 1000.0),
-    ("width_ns", "width_ns [ns]", (40.0, 1e5), 2000.0),
+    ("width", "width [ns]", (40.0, 1e5), 2000.0),
     ("width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 100.0),
     ("height", "height [ADC]", (400.0, 1e6), None),
 ]

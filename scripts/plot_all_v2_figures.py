@@ -6,7 +6,7 @@ Outputs to docs/figures/ and /mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/
   - co60_590_v2_s1_2d_panels.png     (S1 cut, 4 panels)
   - co60_590_v2_nons1_2d_panels.png  (S2, 4 panels)
   - w2050area_vs_anodesum_area_v2.png
-  - width_ns_vs_anodesum_area_v2.png
+  - width_vs_anodesum_area_v2.png
 """
 import sys
 sys.path.insert(0, "/home/yjj/MuonDAS/src")
@@ -32,7 +32,7 @@ TMP = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 
 PANELS = [
     ("width_90area", "width_90area [ns]", (10.0, 1e5), 1000.0),
-    ("width_ns", "width_ns [ns]", (40.0, 1e5), 2000.0),
+    ("width", "width [ns]", (40.0, 1e5), 2000.0),
     ("width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 100.0),
     ("height", "height [ADC]", (400.0, 1e6), None),
 ]
@@ -102,9 +102,9 @@ def draw_single(df, col, ylab, ylim, yguide, title, name):
 df = pd.read_csv(CSV)
 s1 = df[(df.width_20_50area < 100) & (df.width_90area < 1000)]
 rest = df[~((df.width_20_50area < 100) & (df.width_90area < 1000))]
-cut3 = df[(df.width_ns > 2000) & (df.width_90area > 1000) & (df.height > 1.5e4)]
+cut3 = df[(df.width > 2000) & (df.width_90area > 1000) & (df.height > 1.5e4)]
 cut4 = cut3[cut3.n_ch >= 2]
-cut_low = df[(df.width_ns > 2000) & (df.width_90area > 1000) & (df.height < 1.5e4)]
+cut_low = df[(df.width > 2000) & (df.width_90area > 1000) & (df.height < 1.5e4)]
 
 draw_panels(df, "Co60 590+ v2 (new clustering + params): peak-level 2D panels",
             "co60_590_v2_2d_panels.png")
@@ -112,21 +112,21 @@ draw_panels(s1, f"Co60 590+ v2 S1 cut (w20_50area<100ns & w90area<1000ns): n={le
             "co60_590_v2_s1_2d_panels.png")
 draw_panels(rest, f"Co60 590+ v2 S2 (exceeds w20_50area<100ns & w90area<1000ns): n={len(rest)}",
             "co60_590_v2_nons1_2d_panels.png")
-draw_panels(cut3, f"Co60 590+ v2 cut: width_ns>2000ns & width_90area>1000ns & height>1.5e4 ADC (n={len(cut3)})",
+draw_panels(cut3, f"Co60 590+ v2 cut: width>2000ns & width_90area>1000ns & height>1.5e4 ADC (n={len(cut3)})",
             "co60_590_v2_wn2000_w90a1000_h15000_2d_panels.png",
             guides={"height": 1.5e4})
-draw_panels(cut4, f"Co60 590+ v2 cut: width_ns>2000ns & width_90area>1000ns & height>1.5e4 ADC & n_ch>=2 (n={len(cut4)})",
+draw_panels(cut4, f"Co60 590+ v2 cut: width>2000ns & width_90area>1000ns & height>1.5e4 ADC & n_ch>=2 (n={len(cut4)})",
             "co60_590_v2_wn2000_w90a1000_h15000_nch2_2d_panels.png",
             guides={"height": 1.5e4})
-draw_panels(cut_low, f"Co60 590+ v2 cut: width_ns>2000ns & width_90area>1000ns & height<1.5e4 ADC (n={len(cut_low)})",
+draw_panels(cut_low, f"Co60 590+ v2 cut: width>2000ns & width_90area>1000ns & height<1.5e4 ADC (n={len(cut_low)})",
             "co60_590_v2_wn2000_w90a1000_hlt15000_2d_panels.png",
             guides={"height": 1.5e4})
 draw_single(df, "width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 100.0,
             f"Co60 590+ v2: width_20_50area vs anode_sum_area (n={len(df)})",
             "w2050area_vs_anodesum_area_v2.png")
-draw_single(df, "width_ns", "width_ns [ns]", (40.0, 1e5), 2000.0,
-            f"Co60 590+ v2: width_ns vs anode_sum_area (n={len(df)})",
-            "width_ns_vs_anodesum_area_v2.png")
+draw_single(df, "width", "width [ns]", (40.0, 1e5), 2000.0,
+            f"Co60 590+ v2: width vs anode_sum_area (n={len(df)})",
+            "width_vs_anodesum_area_v2.png")
 draw_single(df, "height", "height [ADC]", (400.0, 1e6), 1.5e4,
             f"Co60 590+ v2: height vs anode_sum_area (n={len(df)})",
             "height_vs_anodesum_area_v2.png")

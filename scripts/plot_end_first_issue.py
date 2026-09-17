@@ -60,8 +60,8 @@ ax.axvline((third_idx - a_st) * interval / 1000.0, color="orange", ls=":", lw=1.
 ax.set_xlabel("time rel. to anode-sum start [us]", fontsize=14)
 ax.set_ylabel("anode_sum [ADC]", fontsize=14)
 ax.set_title(f"run {RUN} peak_id={PEAK_ID}: whole peak sum waveform "
-             f"(S1w={pf.muon_s1_width_ns:.0f}ns S2w={pf.muon_s2_width_ns:.0f}ns "
-             f"width_ns={pf.width_ns:.0f})", fontsize=12)
+             f"(S1w={pf.muon_s1_width:.0f}ns S2w={pf.muon_s2_width:.0f}ns "
+             f"width={pf.width:.0f})", fontsize=12)
 ax.legend(fontsize=11, loc="upper right")
 ax.tick_params(labelsize=12)
 fig.tight_layout()

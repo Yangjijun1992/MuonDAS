@@ -70,7 +70,7 @@ def process_run(run_id: str, config, out_root: Path):
             "dynode_area_pe": d,
             "ratio_anode_over_dynode": a / d if d else float("nan"),
             "height": pf.height,
-            "width_ns": pf.width_ns,
+            "width": pf.width,
         })
     print(f"[{run_id}] {len(rows)} rows ({time.time()-t0:.0f}s)", flush=True)
     df = pd.DataFrame(rows)

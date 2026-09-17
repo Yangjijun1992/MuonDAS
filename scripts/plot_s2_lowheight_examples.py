@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Plot 30 example waveforms for the low-height wide events:
-    height < 1.5e4  &  width_90area > 1000  &  anode_sum_area > 300  &  width_ns > 2000
+    height < 1.5e4  &  width_90area > 1000  &  anode_sum_area > 300  &  width > 2000
 Source run: 00595."""
 import sys
 sys.path.insert(0, "/home/yjj/MuonDAS/src")
@@ -32,7 +32,7 @@ g = build_gain_db(cfg, run_id=RUN)
 
 csv = pd.read_csv("/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/run_00595.csv")
 sel = csv[(csv.height < 1.5e4) & (csv.width_90area > 1000)
-          & (csv.anode_sum_area > 300) & (csv.width_ns > 2000)]
+          & (csv.anode_sum_area > 300) & (csv.width > 2000)]
 ids = [int(i) for i in sel.peaks_id]
 print(f"run {RUN}: matching peaks = {len(ids)}")
 step = max(1, len(ids) // N_EX)
@@ -63,7 +63,7 @@ for ax, (pk, pf) in zip(axes, rows):
     ax.axvline(0, color="green", ls="--", lw=0.8)
     ax.axhline(0, color="black", ls="--", alpha=0.3, lw=0.5)
     ax.set_title(f"id={pk.peaks_id} nch={len(pk.anode_records)} h={pf.height:.0f} "
-                 f"wns={pf.width_ns:.0f} w90a={pf.width_90area:.0f} "
+                 f"wns={pf.width:.0f} w90a={pf.width_90area:.0f} "
                  f"asa={pf.anode_sum_area:.0f} dsa={pf.dynode_sum_area:.0f}", fontsize=7)
     ax.tick_params(labelsize=7)
     ax.set_xlabel("t from alignment ref [us]", fontsize=8)
@@ -72,12 +72,12 @@ for ax, (pk, pf) in zip(axes, rows):
 for ax in axes[len(rows):]:
     ax.axis("off")
 fig.suptitle(f"run {RUN}: height<1.5e4 & width_90area>1000 & anode_sum_area>300 "
-             f"& width_ns>2000 (n={len(rows)} shown)", fontsize=13)
+             f"& width>2000 (n={len(rows)} shown)", fontsize=13)
 fig.tight_layout(rect=(0, 0, 1, 0.98))
 fig.savefig(OUT, dpi=130)
 plt.close(fig)
 print("saved:", OUT)
 for pk, pf in rows[:12]:
     print(f"  id={pk.peaks_id} nch={len(pk.anode_records)} h={pf.height:.0f} "
-          f"w90a={pf.width_90area:.0f} wns={pf.width_ns:.0f} asa={pf.anode_sum_area:.0f} "
+          f"w90a={pf.width_90area:.0f} wns={pf.width:.0f} asa={pf.anode_sum_area:.0f} "
           f"len={pf.wave_len_samples}")

@@ -10,11 +10,11 @@ from types import SimpleNamespace
 from muon_analysis.config import build_config
 from muon_analysis.signal_id import classify_signal
 
-NARROW = dict(width_20_50area=10.0, width_90area=100.0, width_ns=300.0,
+NARROW = dict(width_20_50area=10.0, width_90area=100.0, width=300.0,
               anode_sum_area=200.0, height=2000.0, wave_len_samples=1000)
-S2 = dict(width_20_50area=5000.0, width_90area=6000.0, width_ns=10000.0,
+S2 = dict(width_20_50area=5000.0, width_90area=6000.0, width=10000.0,
           anode_sum_area=8000.0, height=5000.0, wave_len_samples=3000)
-MUON = dict(width_20_50area=5000.0, width_90area=19000.0, width_ns=26000.0,
+MUON = dict(width_20_50area=5000.0, width_90area=19000.0, width=26000.0,
             anode_sum_area=30000.0, height=60000.0, wave_len_samples=6700)
 
 
@@ -38,7 +38,7 @@ def test_s2_peak_needs_all_four_cuts():
     cfg = _cfg()
     assert classify_signal(_feats(**S2), 7, cfg) == "S2"
     assert classify_signal(_feats(**{**S2, "height": 50000.0}), 7, cfg) == "muon"
-    violations = {"width_90area": 100.0, "width_ns": 300.0, "anode_sum_area": 200.0}
+    violations = {"width_90area": 100.0, "width": 300.0, "anode_sum_area": 200.0}
     for key, bad in violations.items():
         over = dict(S2)
         over[key] = bad
@@ -82,7 +82,7 @@ def test_muon_peak_needs_all_cuts():
     cfg = _cfg()
     assert classify_signal(_feats(**MUON), 7, cfg) == "muon"
     assert classify_signal(_feats(**{**MUON, "height": 10000.0}), 7, cfg) == "S2"
-    violations = {"width_ns": 300.0, "width_90area": 100.0, "anode_sum_area": 200.0}
+    violations = {"width": 300.0, "width_90area": 100.0, "anode_sum_area": 200.0}
     for key, bad in violations.items():
         over = dict(MUON)
         over[key] = bad

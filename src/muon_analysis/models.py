@@ -117,7 +117,6 @@ class PeakFeatures:
     height: float = 0.0        # summed-waveform height
     width: float = 0.0         # summed-waveform pulse span (start -> final end) [ns]
     rise_time: float = 0.0     # summed-waveform rise (start->peak) [ns]
-    width_ns: float = 0.0      # summed-waveform pulse duration (end-start) [ns]
     width_90area: float = 0.0  # max over channels: width from start containing 90% area [ns]
     width_50area: float = 0.0  # max over channels: width from start containing 50% area [ns]
     width_20_50area: float = 0.0  # anode_sum: area-accumulation width between 20% and 50% [ns]
@@ -150,7 +149,6 @@ class PeakFeatures:
             "height": self.height,
             "width": self.width,
             "rise_time": self.rise_time,
-            "width_ns": self.width_ns,
             "width_90area": self.width_90area,
             "width_50area": self.width_50area,
             "width_20_50area": self.width_20_50area,

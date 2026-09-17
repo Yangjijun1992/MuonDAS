@@ -19,7 +19,7 @@ TMP = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 
 PANELS = [
     ("width_90area", "width_90area [ns]", (10.0, 1e5), 1000.0),
-    ("width_ns", "width_ns [ns]", (40.0, 1e5), 2000.0),
+    ("width", "width [ns]", (40.0, 1e5), 2000.0),
     ("width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 100.0),
     ("height", "height [ADC]", (400.0, 1e6), None),
 ]

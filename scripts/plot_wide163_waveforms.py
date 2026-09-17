@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Plot 3 anode_sum/dynode_sum waveforms per run for the 163 widest lowright
-high-energy events (width_ns>2000 & width_90area>300)."""
+high-energy events (width>2000 & width_90area>300)."""
 import sys, os
 sys.path.insert(0, "/home/yjj/MuonDAS/src")
 import numpy as np, pandas as pd
@@ -23,7 +23,7 @@ os.makedirs(outdir, exist_ok=True)
 
 for rid in sorted(wide.run_id.unique()):
     rid5 = f"{int(rid):05d}"
-    sub = wide[wide.run_id == rid].sort_values("width_ns", ascending=False).head(3)
+    sub = wide[wide.run_id == rid].sort_values("width", ascending=False).head(3)
     if sub.empty:
         continue
     ids = set(sub.peaks_id.astype(int).tolist())
@@ -41,7 +41,7 @@ for rid in sorted(wide.run_id.unique()):
         b = find_sum_pulse_bounds(pf.anode_sum, pf.dynode_sum, cfg)
         p = plot_peak_sum_waveform(pk, pf.anode_sum, pf.dynode_sum, outdir, rid5,
                                    dynode_invert=True, bounds=b)
-        print(f"{rid5} peak {pid}: w_ns={pf.width_ns:.0f} w90={pf.width_90area:.0f} "
+        print(f"{rid5} peak {pid}: w_ns={pf.width:.0f} w90={pf.width_90area:.0f} "
               f"h={pf.height:.0f} n_ch={pk.n_channels} -> {os.path.basename(p[0])}",
               flush=True)
 print("DONE")

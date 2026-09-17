@@ -8,11 +8,11 @@ Classification (checked in order; the three cuts are mutually exclusive):
   - ``"muon"``: a through-going muon candidate -- **all** cuts satisfied:
     ``n_channels >= n_channels_min`` (default 2),
     ``height > height_min_adc`` (default 15000 ADC),
-    ``width_ns > width_ns_min_ns`` (default 2000 ns),
+    ``width > width_min_ns`` (default 2000 ns),
     ``width_90area > w90area_min_ns`` (default 1000 ns) and
     ``anode_sum_area > anode_sum_area_min_pe`` (default 300 PE).
   - ``"S2"``: a wide, delayed-like peak at low height -- **all** cuts satisfied:
-    ``width_90area > w90area_min_ns``, ``width_ns > width_ns_min_ns``,
+    ``width_90area > w90area_min_ns``, ``width > width_min_ns``,
     ``anode_sum_area > anode_sum_area_min_pe`` and
     ``height < height_max_adc`` (default 15000 ADC).
   - ``"other"``: everything else (or excluded by an optional gate
@@ -22,7 +22,7 @@ The earlier ``end_first``-based ``s1_width`` / ``s2_width`` criteria are
 **void**: a muon tail keeps the summed waveform below the baseline-return
 tolerance, so ``end_first`` falls back to the waveform end and the prompt and
 delayed components cannot be separated that way -- see
-``docs/end_first_muon_s1_issue.md``.  ``width_ns`` is record-length limited for
+``docs/end_first_muon_s1_issue.md``.  ``width`` is record-length limited for
 muon peaks (see ``docs/other_muon_candidates_params.md``), so ``height`` /
 ``anode_sum_area`` / ``n_channels`` carry the discrimination.
 
@@ -49,14 +49,14 @@ def _is_s1(peak_features: PeakFeatures, s1: Dict[str, Any]) -> bool:
 def _is_muon(peak_features: PeakFeatures, n_channels: int, muon: Dict[str, Any]) -> bool:
     return (n_channels >= int(muon.get("n_channels_min", 2))
             and peak_features.height > float(muon.get("height_min_adc", 15000.0))
-            and peak_features.width_ns > float(muon.get("width_ns_min_ns", 2000.0))
+            and peak_features.width > float(muon.get("width_min_ns", 2000.0))
             and peak_features.width_90area > float(muon.get("w90area_min_ns", 1000.0))
             and peak_features.anode_sum_area > float(muon.get("anode_sum_area_min_pe", 300.0)))
 
 
 def _is_s2(peak_features: PeakFeatures, s2: Dict[str, Any]) -> bool:
     return (peak_features.width_90area > float(s2.get("w90area_min_ns", 1000.0))
-            and peak_features.width_ns > float(s2.get("width_ns_min_ns", 2000.0))
+            and peak_features.width > float(s2.get("width_min_ns", 2000.0))
             and peak_features.anode_sum_area > float(s2.get("anode_sum_area_min_pe", 300.0))
             and peak_features.height < float(s2.get("height_max_adc", 15000.0)))
 

@@ -58,8 +58,8 @@ for ax, (pk, pf) in zip(axes, picks):
                      (pf.end_final_sample, "k", "end_final")]:
         ax.axvline((x - a_st) * 4 / 1000.0, color=c, ls="--", lw=1.4, label=lb)
     ax.set_title(f"id={pk.peaks_id} n_ch={len(pk.anode_records)} "
-                 f"len={pf.wave_len_samples} | S1w={pf.muon_s1_width_ns:.0f}ns "
-                 f"S2w={pf.muon_s2_width_ns:.0f}ns width_ns={pf.width_ns:.0f} "
+                 f"len={pf.wave_len_samples} | S1w={pf.muon_s1_width:.0f}ns "
+                 f"S2w={pf.muon_s2_width:.0f}ns width={pf.width:.0f} "
                  f"h={pf.height:.0f} | {pf.signal_type}", fontsize=9)
     ax.set_xlabel("time rel. to anode-sum start [us]")
     ax.set_ylabel("ADC")
@@ -70,5 +70,5 @@ fig.savefig(out, dpi=120)
 print("saved:", out)
 for pk, pf in picks:
     print(f"  id={pk.peaks_id} len={pf.wave_len_samples} end_first={pf.end_first_sample} "
-          f"end_final={pf.end_final_sample} S1w={pf.muon_s1_width_ns:.0f} "
-          f"S2w={pf.muon_s2_width_ns:.0f}")
+          f"end_final={pf.end_final_sample} S1w={pf.muon_s1_width:.0f} "
+          f"S2w={pf.muon_s2_width:.0f}")
