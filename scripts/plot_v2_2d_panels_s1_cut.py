@@ -15,7 +15,7 @@ from matplotlib.colors import LogNorm
 
 CSV = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/co60_590_peak_level_v2_with_signal.csv"
 DOCS = "/home/yjj/MuonDAS/docs/figures"
-TMP = "/mnt/data/tmp"
+TMP = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 
 PANELS = [
     ("width_90area", "width_90area [ns]", (10.0, 1e5), 1000.0),
