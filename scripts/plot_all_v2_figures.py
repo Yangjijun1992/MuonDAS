@@ -100,6 +100,8 @@ def draw_single(df, col, ylab, ylim, yguide, title, name):
 df = pd.read_csv(CSV)
 s1 = df[(df.width_20_50area < 100) & (df.width_90area < 1000)]
 rest = df[~((df.width_20_50area < 100) & (df.width_90area < 1000))]
+cut3 = df[(df.width_ns > 2000) & (df.width_90area > 1000) & (df.height > 1.5e4)]
+cut4 = cut3[cut3.n_ch >= 2]
 
 draw_panels(df, "Co60 590+ v2 (new clustering + params): peak-level 2D panels",
             "co60_590_v2_2d_panels.png")
@@ -107,6 +109,10 @@ draw_panels(s1, f"Co60 590+ v2 S1 cut (w20_50area<100ns & w90area<1000ns): n={le
             "co60_590_v2_s1_2d_panels.png")
 draw_panels(rest, f"Co60 590+ v2 S2 (exceeds w20_50area<100ns & w90area<1000ns): n={len(rest)}",
             "co60_590_v2_nons1_2d_panels.png")
+draw_panels(cut3, f"Co60 590+ v2 3-cut (width_ns>2000ns & width_90area>1000ns & height>1.5e4 ADC): n={len(cut3)}",
+            "co60_590_v2_3cut_2d_panels.png")
+draw_panels(cut4, f"Co60 590+ v2 4-cut (width_ns>2000ns & width_90area>1000ns & height>1.5e4 ADC & n_ch>=2): n={len(cut4)}",
+            "co60_590_v2_4cut_2d_panels.png")
 draw_single(df, "width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 100.0,
             f"Co60 590+ v2: width_20_50area vs anode_sum_area (n={len(df)})",
             "w2050area_vs_anodesum_area_v2.png")
