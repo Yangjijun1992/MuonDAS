@@ -75,7 +75,7 @@ filtering:
 # A peak passing ALL muon_s1 cuts is labelled "muon_s1"; muon_s2 cuts
 # "muon_s2"; otherwise "other".
 signal_id:
-  long_wave_min_samples: 20000 # only long waveforms get S1/S2 discrimination
+  long_wave_min_samples: 5000 # 20us (5000 samples @4ns): only long waveforms get S1/S2 discrimination
   muon_s1:
     n_channels: 7
     s1_width_min_ns: 0.0 # start -> end_first (prompt) width range

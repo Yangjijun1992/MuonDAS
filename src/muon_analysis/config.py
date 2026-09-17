@@ -72,7 +72,7 @@ _DEFAULTS: Dict[str, Any] = {
     },
     "signal_id": {
         # S1/S2-width based discrimination (applies to long waveforms only).
-        "long_wave_min_samples": 20000,
+        "long_wave_min_samples": 5000,
         "muon_s1": {
             "n_channels": 7,
             "s1_width_min_ns": 0.0,
