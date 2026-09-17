@@ -31,7 +31,7 @@ print(f"S1 peaks={len(s1)}  plotted={len(v)}")
 lo, hi = 1.0, 1e7
 fig, ax = plt.subplots(figsize=(16, 13))
 hb = ax.hist2d(
-    v.anode_sum_area, v.dynode_sum_area,
+    v.dynode_sum_area, v.anode_sum_area,
     bins=[np.logspace(np.log10(lo), np.log10(hi), 140),
           np.logspace(np.log10(lo), np.log10(hi), 140)],
     cmap="jet", cmin=1, norm=LogNorm())
@@ -40,10 +40,10 @@ ax.set_yscale("log")
 ax.set_xlim(lo, hi)
 ax.set_ylim(lo, hi)
 ax.plot([lo, hi], [lo, hi], color="lime", ls=":", lw=2.2, label="y = x")
-ax.axvline(300, color="gray", ls="--", lw=2.4, label="anode_sum_area=300 PE")
-ax.set_xlabel("anode_sum_area [PE]")
-ax.set_ylabel("dynode_sum_area [PE]")
-ax.set_title(f"Co60 590+ v2 S1 peaks: anode_sum_area vs dynode_sum_area (n={len(v)})")
+ax.axhline(300, color="gray", ls="--", lw=2.4, label="anode_sum_area=300 PE")
+ax.set_xlabel("dynode_sum_area [PE]")
+ax.set_ylabel("anode_sum_area [PE]")
+ax.set_title(f"Co60 590+ v2 S1 peaks: dynode_sum_area vs anode_sum_area (n={len(v)})")
 ax.legend(loc="upper left", framealpha=0.9)
 cb = fig.colorbar(hb[3], ax=ax)
 cb.set_label("counts (log)", fontsize=22, fontweight="bold")
