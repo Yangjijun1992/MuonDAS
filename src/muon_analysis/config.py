@@ -71,17 +71,17 @@ _DEFAULTS: Dict[str, Any] = {
         "min_area_pe_dynode": None,
     },
     "signal_id": {
-        # S1/S2-width based discrimination (applies to long waveforms only).
-        "long_wave_min_samples": 5000,
+        # Width-cut discrimination: narrow (prompt-like) -> muon_s1, wide
+        # (delayed-like) -> muon_s2.  Optional gates (None disables):
+        # long_wave_min_samples = sum-waveform length; n_channels = PMT count.
+        "long_wave_min_samples": None,
         "muon_s1": {
-            "n_channels": 7,
-            "s1_width_min_ns": 0.0,
-            "s1_width_max_ns": 500.0,
-            "height_min": 4000.0,
+            "n_channels": None,
+            "w20_50area_max_ns": 100.0,
+            "w90area_max_ns": 1000.0,
         },
         "muon_s2": {
-            "n_channels": 7,
-            "s2_width_min_ns": 500.0,
+            "n_channels": None,
         },
     },
     "features": {
