@@ -1,0 +1,22 @@
+run_id,runtype,trigger_mode,run_tag,run_comment,acq_time,start_time
+00608,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T14:38:44
+00609,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T15:39:07
+00610,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T16:39:22
+00611,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T17:39:46
+00612,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T18:40:00
+00613,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T19:40:19
+00614,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T20:40:37
+00615,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T21:00:56
+00616,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T22:01:19
+00617,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T22:28:12
+00618,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-08T23:28:20
+00619,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-09T00:28:51
+00620,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-09T01:28:59
+00621,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-09T02:29:18
+00623,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-09T14:32:36
+00624,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-09T15:32:57
+00625,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-09T16:33:12
+00626,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-09T17:33:42
+00627,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-09T18:33:54
+00628,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-09T19:34:12
+00629,run7_Xe,self,TPC Run,"ano 40adc, dyn 15adc, Source free",3600.0,2026-09-09T20:34:34
