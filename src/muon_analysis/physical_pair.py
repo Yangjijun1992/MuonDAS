@@ -1,10 +1,10 @@
-"""Physical pairing of muon_s1 and muon_s2 peak-level events.
+"""Physical pairing of S1 and S2 peak-level events.
 
-For each ``muon_s2`` event, look back a fixed time window (default 80 us) for
-an unpaired ``muon_s1``; if several are found, pick the one with the largest
-``anode_sum_area``.  Each ``muon_s1`` is used at most once.  ``muon_s2`` events
-without a match are isolated; ``muon_s1`` events never matched are isolated.
-Pairing is per run (never across runs).
+For each ``S2`` event, look back a fixed time window (default 80 us) for an
+unpaired ``S1``; if several are found, pick the one with the largest
+``anode_sum_area``.  Each ``S1`` is used at most once.  ``S2`` events without a
+match are isolated; ``S1`` events never matched are isolated.  Pairing is per
+run (never across runs).
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 
-def pair_muon_s1_s2(
+def pair_s1_s2(
     events: pd.DataFrame,
     window_ns: float = 80000.0,
     signal_col: str = "signal_type",
@@ -23,15 +23,15 @@ def pair_muon_s1_s2(
     run_col: str = "run_id",
     id_col: str = "peaks_id",
 ) -> Dict[str, Any]:
-    """Pair muon_s2 with the largest unpaired muon_s1 within ``window_ns`` before it.
+    """Pair each S2 with the largest unpaired S1 within ``window_ns`` before it.
 
     Returns a dict with:
-      - ``pairs``: DataFrame(run_id, muon_s1_id, muon_s2_id, dt_ns, s1_size)
-      - ``isolated_s2``: DataFrame of unpaired muon_s2 rows
-      - ``isolated_s1``: DataFrame of unmatched muon_s1 rows
+      - ``pairs``: DataFrame(run_id, s1_id, s2_id, dt_ns, s1_size)
+      - ``isolated_s2``: DataFrame of unpaired S2 rows
+      - ``isolated_s1``: DataFrame of unmatched S1 rows
     """
-    s1 = events[events[signal_col] == "muon_s1"].copy()
-    s2 = events[events[signal_col] == "muon_s2"].copy()
+    s1 = events[events[signal_col] == "S1"].copy()
+    s2 = events[events[signal_col] == "S2"].copy()
 
     pairs: List[dict] = []
     isolated_s2: List[int] = []
@@ -58,8 +58,8 @@ def pair_muon_s1_s2(
             used_s1.add(int(s1_id[best]))
             pairs.append({
                 run_col: int(rid),
-                "muon_s1_id": int(s1_id[best]),
-                "muon_s2_id": int(row[id_col]),
+                "s1_id": int(s1_id[best]),
+                "s2_id": int(row[id_col]),
                 "dt_ns": t - float(s1_t[best]),
                 "s1_size": float(s1_sz[best]),
             })

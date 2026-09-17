@@ -20,45 +20,45 @@ def _feats(w20_50area=10.0, w90area=100.0, wave_len=1000):
 def _cfg():
     cfg = build_config()
     cfg["signal_id"]["long_wave_min_samples"] = None
-    cfg["signal_id"]["muon_s1"]["n_channels"] = None
-    cfg["signal_id"]["muon_s2"]["n_channels"] = None
+    cfg["signal_id"]["s1"]["n_channels"] = None
+    cfg["signal_id"]["s2"]["n_channels"] = None
     return cfg
 
 
-def test_narrow_peak_is_muon_s1():
-    assert classify_signal(_feats(10.0, 100.0), 7, _cfg()) == "muon_s1"
+def test_narrow_peak_is_s1():
+    assert classify_signal(_feats(10.0, 100.0), 7, _cfg()) == "S1"
 
 
-def test_w20_50area_over_cut_is_muon_s2():
-    assert classify_signal(_feats(150.0, 100.0), 7, _cfg()) == "muon_s2"
+def test_w20_50area_over_cut_is_s2():
+    assert classify_signal(_feats(150.0, 100.0), 7, _cfg()) == "S2"
 
 
-def test_w90area_over_cut_is_muon_s2():
-    assert classify_signal(_feats(10.0, 1500.0), 7, _cfg()) == "muon_s2"
+def test_w90area_over_cut_is_s2():
+    assert classify_signal(_feats(10.0, 1500.0), 7, _cfg()) == "S2"
 
 
 def test_both_cuts_must_hold():
-    assert classify_signal(_feats(150.0, 1500.0), 7, _cfg()) == "muon_s2"
+    assert classify_signal(_feats(150.0, 1500.0), 7, _cfg()) == "S2"
 
 
 def test_cut_boundaries_are_exclusive():
     cfg = _cfg()
-    assert classify_signal(_feats(99.9, 999.9), 7, cfg) == "muon_s1"
-    assert classify_signal(_feats(100.0, 999.9), 7, cfg) == "muon_s2"
-    assert classify_signal(_feats(99.9, 1000.0), 7, cfg) == "muon_s2"
+    assert classify_signal(_feats(99.9, 999.9), 7, cfg) == "S1"
+    assert classify_signal(_feats(100.0, 999.9), 7, cfg) == "S2"
+    assert classify_signal(_feats(99.9, 1000.0), 7, cfg) == "S2"
 
 
 def test_long_wave_gate_yields_other():
     cfg = _cfg()
     cfg["signal_id"]["long_wave_min_samples"] = 5000
     assert classify_signal(_feats(10.0, 100.0, wave_len=4000), 7, cfg) == "other"
-    assert classify_signal(_feats(10.0, 100.0, wave_len=6000), 7, cfg) == "muon_s1"
+    assert classify_signal(_feats(10.0, 100.0, wave_len=6000), 7, cfg) == "S1"
 
 
 def test_n_channels_gate_yields_other():
     cfg = _cfg()
-    cfg["signal_id"]["muon_s1"]["n_channels"] = 7
-    cfg["signal_id"]["muon_s2"]["n_channels"] = 7
+    cfg["signal_id"]["s1"]["n_channels"] = 7
+    cfg["signal_id"]["s2"]["n_channels"] = 7
     assert classify_signal(_feats(10.0, 100.0), 3, cfg) == "other"
     assert classify_signal(_feats(150.0, 100.0), 3, cfg) == "other"
-    assert classify_signal(_feats(10.0, 100.0), 7, cfg) == "muon_s1"
+    assert classify_signal(_feats(10.0, 100.0), 7, cfg) == "S1"

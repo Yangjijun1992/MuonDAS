@@ -72,17 +72,17 @@ filtering:
   min_area_pe_dynode: null
 
 # --- signal discrimination (peak level) ---
-# Width cuts: a peak satisfying BOTH muon_s1 cuts is "muon_s1"; a peak
-# exceeding either cut is "muon_s2".  Optional gates (null = disabled):
-# long_wave_min_samples (sum-waveform length) and n_channels (PMT count).
+# Width cuts: a peak satisfying BOTH s1 cuts is "S1"; a peak exceeding either
+# cut is "S2".  Optional gates (null = disabled): long_wave_min_samples
+# (sum-waveform length) and n_channels (PMT count).
 signal_id:
   long_wave_min_samples: null
-  muon_s1:
+  s1:
     n_channels: null
     w20_50area_max_ns: 100.0 # width_20_50area < 100 ns
     w90area_max_ns: 1000.0 # width_90area < 1000 ns
-  muon_s2:
-    n_channels: null # complement of the muon_s1 cuts
+  s2:
+    n_channels: null # complement of the s1 cuts
 
 # --- features / integration ---
 features:

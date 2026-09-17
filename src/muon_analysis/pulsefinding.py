@@ -282,3 +282,23 @@ def find_sum_pulse_bounds(anode_sum, dynode_sum, config) -> Dict[str, Tuple[int,
         if b is not None:
             out["dynode"] = b
     return out
+
+
+def find_wave_final_end(waveform, config) -> int:
+    """Final end sample of a peak waveform = its LAST return-to-baseline point.
+
+    The final end is the last sample whose magnitude is below
+    ``pulse_finder.end_baseline_tol`` (i.e. the last point where the signal is
+    back at the baseline).  When the waveform never returns to the baseline
+    (the record ends while the signal is still high), the waveform's last
+    sample is returned — so a long prompt+delayed pulse (muon S1 + tail) is not
+    truncated at the first baseline return.
+    """
+    cfg = (config or {}).get("pulse_finder") or {}
+    tol = float(cfg.get("end_baseline_tol", 20.0))
+    w = np.abs(np.asarray(waveform, dtype=float))
+    n = len(w)
+    if n == 0:
+        return 0
+    below = np.nonzero(w < tol)[0]
+    return int(below[-1]) if len(below) else n - 1

@@ -134,7 +134,7 @@ class PeakFeatures:
     # side-specific area of the summed waveforms (full waveform, scaled to PE)
     anode_sum_area: float = 0.0
     dynode_sum_area: float = 0.0
-    signal_type: str = "other"  # peak-level discrimination label (e.g. "muon_s1")
+    signal_type: str = "other"  # peak-level discrimination label ("S1" / "S2" / "other")
 
     def as_dict(self) -> Dict[str, Any]:
         return {
