@@ -8,15 +8,6 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
-plt.rcParams.update({
-    "axes.labelsize": 24,
-    "axes.labelweight": "bold",
-    "xtick.labelsize": 17,
-    "ytick.labelsize": 17,
-    "axes.titlesize": 16,
-    "legend.fontsize": 15,
-})
 from muon_analysis.config import build_config
 from muon_analysis.io.runinfo import get_runinfo
 from muon_analysis.io.readers import read_data
@@ -71,8 +62,8 @@ for ax, (pk, pf) in zip(axes, picks):
                  f"S2w={pf.muon_s2_width_ns:.0f}ns width_ns={pf.width_ns:.0f} "
                  f"h={pf.height:.0f}", fontsize=9)
     ax.set_xlabel("time rel. to anode-sum start [us]")
-    ax.set_ylabel("anode_sum [ADC]")
-    ax.legend(ncol=5, loc="upper right")
+    ax.set_ylabel("ADC")
+    ax.legend(fontsize=7, ncol=5, loc="upper right")
 fig.tight_layout()
 out = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/long_peaks_diagnosis.png"
 fig.savefig(out, dpi=120)
