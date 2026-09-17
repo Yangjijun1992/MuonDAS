@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+"""muon S1/S2 parameter distributions and correlations (Co60 590+ v2).
+
+Figure 1: 1D histograms of muon_s1_width_ns, muon_s2_width_ns,
+          muon_s1_height_an, muon_s1_height_dy.
+Figure 2: 2D histograms of muon_s1_height_an vs muon_s1_area_an,
+          muon_s2_width_ns vs muon_s2_area_an,
+          muon_s1_height_dy vs muon_s1_height_an,
+          muon_s1_area_an vs muon_s1_area_dy.
+Only peaks labelled "muon" are used."""
+import sys
+sys.path.insert(0, "/home/yjj/MuonDAS/src")
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+
+plt.rcParams.update({
+    "axes.labelsize": 26,
+    "axes.labelweight": "bold",
+    "xtick.labelsize": 18,
+    "ytick.labelsize": 18,
+    "axes.titlesize": 22,
+    "legend.fontsize": 16,
+})
+
+CSV = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/co60_590_peak_level_v2.csv"
+DOCS = "/home/yjj/MuonDAS/docs/figures"
+TMP = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
+
+df = pd.read_csv(CSV)
+m = df[df.signal_type == "muon"]
+print(f"muon peaks = {len(m)}")
+
+# --- Figure 1: 1D histograms ---
+panels1 = [
+    ("muon_s1_width_ns", "muon_s1_width_ns [ns]", None),
+    ("muon_s2_width_ns", "muon_s2_width_ns [ns]", None),
+    ("muon_s1_height_an", "muon_s1_height_an [ADC]", "log"),
+    ("muon_s1_height_dy", "muon_s1_height_dy [ADC]", "log"),
+]
+fig, axes = plt.subplots(2, 2, figsize=(22, 16))
+for ax, (col, lab, xlog) in zip(axes.ravel(), panels1):
+    v = m[col]
+    v = v[v > 0]
+    if xlog == "log":
+        bins = np.logspace(np.log10(max(v.min(), 1)), np.log10(v.max()), 80)
+    else:
+        bins = 80
+    ax.hist(v, bins=bins, color="royalblue", alpha=0.85)
+    if xlog == "log":
+        ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel(lab)
+    ax.set_ylabel("counts (log)")
+    ax.set_title(f"{col}  (n={len(v)}, median={v.median():,.1f})")
+    ax.grid(True, axis="y", alpha=0.25)
+fig.suptitle(f"Co60 590+ v2 muon peaks: S1/S2 width and height (n={len(m)})",
+             fontsize=26, fontweight="bold")
+fig.tight_layout(rect=(0, 0, 1, 0.97))
+fig.savefig(f"{DOCS}/co60_590_v2_muon_s1s2_1d.png", dpi=150)
+fig.savefig(f"{TMP}/co60_590_v2_muon_s1s2_1d.png", dpi=150)
+plt.close(fig)
+print("saved 1D")
+
+# --- Figure 2: 2D histograms ---
+panels2 = [
+    ("muon_s1_height_an", "muon_s1_area_an",
+     "muon_s1_height_an [ADC]", "muon_s1_area_an [PE]"),
+    ("muon_s2_width_ns", "muon_s2_area_an",
+     "muon_s2_width_ns [ns]", "muon_s2_area_an [PE]"),
+    ("muon_s1_height_an", "muon_s1_height_dy",
+     "muon_s1_height_an [ADC]", "muon_s1_height_dy [ADC]"),
+    ("muon_s1_area_an", "muon_s1_area_dy",
+     "muon_s1_area_an [PE]", "muon_s1_area_dy [PE]"),
+]
+fig, axes = plt.subplots(2, 2, figsize=(24, 20))
+for ax, (xc, yc, xlab, ylab) in zip(axes.ravel(), panels2):
+    v = m[(m[xc] > 0) & (m[yc] > 0)]
+    xlo, xhi = 10 ** np.floor(np.log10(v[xc].min())), 10 ** np.ceil(np.log10(v[xc].max()))
+    ylo, yhi = 10 ** np.floor(np.log10(v[yc].min())), 10 ** np.ceil(np.log10(v[yc].max()))
+    hb = ax.hist2d(v[xc], v[yc],
+                   bins=[np.logspace(np.log10(xlo), np.log10(xhi), 100),
+                         np.logspace(np.log10(ylo), np.log10(yhi), 100)],
+                   cmap="jet", cmin=1, norm=LogNorm())
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(xlo, xhi)
+    ax.set_ylim(ylo, yhi)
+    ax.set_xlabel(xlab)
+    ax.set_ylabel(ylab)
+    ax.grid(True, alpha=0.15)
+    cb = fig.colorbar(hb[3], ax=ax)
+    cb.set_label("counts (log)", fontsize=22, fontweight="bold")
+    cb.ax.tick_params(labelsize=16)
+fig.suptitle(f"Co60 590+ v2 muon peaks: S1/S2 parameter correlations (n={len(m)})",
+             fontsize=26, fontweight="bold")
+fig.tight_layout(rect=(0, 0, 1, 0.98))
+fig.savefig(f"{DOCS}/co60_590_v2_muon_s1s2_2d.png", dpi=150)
+fig.savefig(f"{TMP}/co60_590_v2_muon_s1s2_2d.png", dpi=150)
+plt.close(fig)
+print("saved 2D")
