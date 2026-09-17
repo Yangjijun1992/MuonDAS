@@ -56,7 +56,6 @@ def draw_panels(df, title, name):
             ax.axhline(yguide, color="gray", ls="--", lw=2.2, label=f"{col}={yguide:g}")
         ax.set_xlabel("anode_sum_area [PE]")
         ax.set_ylabel(ylab)
-        ax.set_title(f"{col} vs anode_sum_area (n={len(v)})")
         ax.legend(loc="upper right", framealpha=0.9)
         cb = fig.colorbar(hb[3], ax=ax)
         cb.set_label("counts (log)", fontsize=22, fontweight="bold")
