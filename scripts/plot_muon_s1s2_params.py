@@ -68,22 +68,28 @@ plt.close(fig)
 print("saved 1D")
 
 # --- Figure 2: 2D histograms ---
-panels2 = [
+panels_s1 = [
     ("muon_s1_area_an", "muon_s1_height_an",
      "muon_s1_area_an [PE]", "muon_s1_height_an [ADC]"),
-    ("muon_s2_area_an", "muon_s2_width_ns",
-     "muon_s2_area_an [PE]", "muon_s2_width_ns [ns]"),
     ("muon_s1_height_dy", "muon_s1_height_an",
      "muon_s1_height_dy [ADC]", "muon_s1_height_an [ADC]"),
     ("muon_s1_area_dy", "muon_s1_area_an",
      "muon_s1_area_dy [PE]", "muon_s1_area_an [PE]"),
     ("muon_s1_area_an", "muon_s1_width_ns",
      "muon_s1_area_an [PE]", "muon_s1_width_ns [ns]"),
+]
+panels_s2 = [
+    ("muon_s2_area_an", "muon_s2_width_ns",
+     "muon_s2_area_an [PE]", "muon_s2_width_ns [ns]"),
     ("muon_s2_area_an", "muon_s2_height_an",
      "muon_s2_area_an [PE]", "muon_s2_height_an [ADC]"),
 ]
-fig, axes = plt.subplots(2, 3, figsize=(36, 20))
-for ax, (xc, yc, xlab, ylab) in zip(axes.ravel(), panels2):
+fig, axes = plt.subplots(2, 4, figsize=(48, 20))
+grid = [(axes[0, k], spec) for k, spec in enumerate(panels_s1)]
+grid += [(axes[1, 1 + k], spec) for k, spec in enumerate(panels_s2)]
+for ax in (axes[1, 0], axes[1, 3]):
+    ax.axis("off")
+for ax, (xc, yc, xlab, ylab) in grid:
     v = m[(m[xc] > 0) & (m[yc] > 0)]
     xlo = 10 ** np.floor(np.log10(v[xc].min()))
     ylo = 10 ** np.floor(np.log10(v[yc].min()))
