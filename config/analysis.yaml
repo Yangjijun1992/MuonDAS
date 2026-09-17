@@ -94,6 +94,15 @@ signal_id:
     w90area_min_ns: 1000.0 # width_90area > 1000 ns
     anode_sum_area_min_pe: 300.0 # anode_sum_area > 300 PE
 
+# --- muon S1/S2 decomposition (separate muon parameters) ---
+# S1 end (== S2 start) is found on the anode sum by find_s1_endpoint_from_peak:
+# S1 = [a_st, s1_end], S2 = [s1_end, end_final]; width/height/area are computed
+# per segment on both anode_sum and dynode_sum.
+muon_s1_s2:
+  min_decay: 20 # search window start [samples after the S1 peak]
+  max_decay: 500 # search window end [samples]
+  method: second_derivative # second_derivative (3B) | min_derivative (3A)
+
 # --- features / integration ---
 features:
   # Integration window strategy:

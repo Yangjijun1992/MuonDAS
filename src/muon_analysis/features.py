@@ -594,12 +594,54 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         w50 = width_to_fraction_area(w, bl, a_st, end_final_sample, 0.5)
         width_20_50area = (w50 - w20) * interval_ns if (w20 == w20 and w50 == w50) else 0.0
 
-    # S1/S2 width decomposition: muon_s1_width = start -> end_first (prompt),
-    # muon_s2_width = end_first -> end_final (delayed tail).
-    muon_s1_width_ns = (float(max(0, end_first_sample - a_st)) * interval_ns
-                        if end_first_sample > a_st else 0.0)
-    muon_s2_width_ns = (float(max(0, end_final_sample - end_first_sample))
-                        * interval_ns if end_final_sample > end_first_sample else 0.0)
+    # muon S1 / S2 decomposition (separate muon parameters): the cut point is
+    # the S1 end found on the anode sum by find_s1_endpoint_from_peak, giving
+    # S1 = [a_st, s1_end] and S2 = [s1_end, end_final].  width/height/area are
+    # computed per segment on both the anode_sum and the dynode_sum.
+    from muon_analysis.pulsefinding import find_s1_endpoint_from_peak
+
+    s1_cfg = config.get("muon_s1_s2", {}) or {}
+    s1_peak_sample = (int(np.argmin(peak_sum_a))
+                      if peak_sum_a is not None and len(peak_sum_a) else a_st)
+    s1_end_sample = find_s1_endpoint_from_peak(
+        peak_sum_a if peak_sum_a is not None else np.zeros(1),
+        s1_peak_sample,
+        min_decay=int(s1_cfg.get("min_decay", 20)),
+        max_decay=int(s1_cfg.get("max_decay", 500)),
+        polarity="negative",
+        method=s1_cfg.get("method", "second_derivative"),
+    )
+    muon_s1_start_sample = int(a_st)
+    muon_s1_end_sample = int(s1_end_sample)
+    muon_s2_end_sample = int(end_final_sample)
+    muon_s1_width_ns = (float(max(0, muon_s1_end_sample - muon_s1_start_sample))
+                        * interval_ns if muon_s1_end_sample > muon_s1_start_sample
+                        else 0.0)
+    muon_s2_width_ns = (float(max(0, muon_s2_end_sample - muon_s1_end_sample))
+                        * interval_ns if muon_s2_end_sample > muon_s1_end_sample
+                        else 0.0)
+
+    def seg_stats(wf, lo, hi, abs_sum=False):
+        if wf is None or hi <= lo:
+            return 0.0, 0.0
+        w = np.asarray(wf, dtype=float)
+        seg = w[max(0, lo):min(len(w), hi)]
+        if len(seg) == 0:
+            return 0.0, 0.0
+        total = float(np.sum(np.abs(seg))) if abs_sum else float(np.sum(seg))
+        return float(np.max(np.abs(seg))), total
+
+    a_s1_h, a_s1_area = seg_stats(peak_sum_a, muon_s1_start_sample, muon_s1_end_sample, True)
+    a_s2_h, a_s2_area = seg_stats(peak_sum_a, muon_s1_end_sample, muon_s2_end_sample, True)
+    d_s1_h, d_s1_area = seg_stats(peak_sum_d, muon_s1_start_sample, muon_s1_end_sample)
+    d_s2_h, d_s2_area = seg_stats(peak_sum_d, muon_s1_end_sample, muon_s2_end_sample)
+    muon_s1_height = max(a_s1_h, d_s1_h)
+    muon_s2_height = max(a_s2_h, d_s2_h)
+    muon_s1_area_ano = a_s1_area * cal_a
+    muon_s1_area_dyn = d_s1_area * cal_d
+    muon_s2_area_ano = a_s2_area * cal_a
+    muon_s2_area_dyn = d_s2_area * cal_d
+
     wave_len_samples = int(max(len(peak_sum_a) if peak_sum_a is not None else 0,
                               len(peak_sum_d) if peak_sum_d is not None else 0))
 
@@ -690,8 +732,17 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         n_samples_gt1000adc=n_samples_gt1000adc,
         end_first_sample=end_first_sample,
         end_final_sample=end_final_sample,
+        muon_s1_start_sample=muon_s1_start_sample,
+        muon_s1_end_sample=muon_s1_end_sample,
+        muon_s2_end_sample=muon_s2_end_sample,
         muon_s1_width_ns=muon_s1_width_ns,
         muon_s2_width_ns=muon_s2_width_ns,
+        muon_s1_height=muon_s1_height,
+        muon_s2_height=muon_s2_height,
+        muon_s1_area_ano=muon_s1_area_ano,
+        muon_s1_area_dyn=muon_s1_area_dyn,
+        muon_s2_area_ano=muon_s2_area_ano,
+        muon_s2_area_dyn=muon_s2_area_dyn,
         wave_len_samples=wave_len_samples,
     )
     from muon_analysis.signal_id import classify_signal

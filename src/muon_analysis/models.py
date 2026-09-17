@@ -123,8 +123,19 @@ class PeakFeatures:
     n_samples_gt1000adc: int = 0  # anode_sum: #samples with |amplitude| > 1000 ADC
     end_first_sample: int = 0     # pulse-finder end (first return to baseline)
     end_final_sample: int = 0     # whole peak waveform final end (last significant sample)
-    muon_s1_width_ns: float = 0.0 # start -> end_first (prompt/S1 width) [ns]
-    muon_s2_width_ns: float = 0.0 # end_first -> end_final (delayed/S2 width) [ns]
+    # muon S1 / S2 decomposition: S1 = [a_st, s1_end], S2 = [s1_end, end_final],
+    # where s1_end is the S1/S2 cut point found by find_s1_endpoint_from_peak.
+    muon_s1_start_sample: int = 0   # = a_st (anode sum start)
+    muon_s1_end_sample: int = 0     # = s1_end (S1 end == S2 start)
+    muon_s2_end_sample: int = 0     # = end_final
+    muon_s1_width_ns: float = 0.0   # (s1_end - a_st) * 4
+    muon_s2_width_ns: float = 0.0   # (end_final - s1_end) * 4
+    muon_s1_height: float = 0.0     # max |anode_sum| / |dynode_sum| in S1 window
+    muon_s2_height: float = 0.0     # max |anode_sum| / |dynode_sum| in S2 window
+    muon_s1_area_ano: float = 0.0   # anode_sum integral over S1 window, PE
+    muon_s1_area_dyn: float = 0.0   # dynode_sum integral over S1 window, PE
+    muon_s2_area_ano: float = 0.0   # anode_sum integral over S2 window, PE
+    muon_s2_area_dyn: float = 0.0   # dynode_sum integral over S2 window, PE
     wave_len_samples: int = 0     # length of the peak sum waveform [samples]
     # aligned (by pulse start) summed waveforms over all channels, in npz only
     anode_sum: Optional[np.ndarray] = field(default=None, repr=False)
@@ -155,8 +166,17 @@ class PeakFeatures:
             "n_samples_gt1000adc": self.n_samples_gt1000adc,
             "end_first_sample": self.end_first_sample,
             "end_final_sample": self.end_final_sample,
+            "muon_s1_start_sample": self.muon_s1_start_sample,
+            "muon_s1_end_sample": self.muon_s1_end_sample,
+            "muon_s2_end_sample": self.muon_s2_end_sample,
             "muon_s1_width_ns": self.muon_s1_width_ns,
             "muon_s2_width_ns": self.muon_s2_width_ns,
+            "muon_s1_height": self.muon_s1_height,
+            "muon_s2_height": self.muon_s2_height,
+            "muon_s1_area_ano": self.muon_s1_area_ano,
+            "muon_s1_area_dyn": self.muon_s1_area_dyn,
+            "muon_s2_area_ano": self.muon_s2_area_ano,
+            "muon_s2_area_dyn": self.muon_s2_area_dyn,
             "wave_len_samples": self.wave_len_samples,
             "anode_sum_area": self.anode_sum_area,
             "dynode_sum_area": self.dynode_sum_area,

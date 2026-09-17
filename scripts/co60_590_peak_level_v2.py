@@ -21,11 +21,14 @@ runs = [f"{int(r):05d}" for r in pd.read_csv(
 OUT = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 os.makedirs(OUT, exist_ok=True)
 
-PARAMS = ['height','width','rise_time','width','width_90area','width_50area',
+PARAMS = ['height','width','rise_time','width_90area','width_50area',
           'width_20_50area','n_samples_gt1000adc','area_ano','area_dyn',
           'anode_area_pe','dynode_area_pe','anode_sum_area','dynode_sum_area',
-          'end_first_sample','end_final_sample','muon_s1_width',
-          'muon_s2_width','wave_len_samples']
+          'end_first_sample','end_final_sample',
+          'muon_s1_start_sample','muon_s1_end_sample','muon_s2_end_sample',
+          'muon_s1_width_ns','muon_s2_width_ns','muon_s1_height','muon_s2_height',
+          'muon_s1_area_ano','muon_s1_area_dyn','muon_s2_area_ano','muon_s2_area_dyn',
+          'wave_len_samples']
 for rid in runs:
     done = os.path.join(OUT, f"run_{rid}.csv")
     if os.path.exists(done):

@@ -12,7 +12,7 @@ from muon_analysis.features import compute_peak_features
 from muon_analysis.gain import build_gain_db
 
 cfg = build_config()
-PARAMS=['height','width','rise_time','width','width_90area','width_50area','area_ano','area_dyn','anode_area_pe','dynode_area_pe','anode_sum_area','dynode_sum_area']
+PARAMS=['height','width','rise_time','width_90area','width_50area','area_ano','area_dyn','anode_area_pe','dynode_area_pe','anode_sum_area','dynode_sum_area']
 OUT='/mnt/data/tmp/muon_analysis/co60_calib'
 os.makedirs(OUT, exist_ok=True)
 rows=[]

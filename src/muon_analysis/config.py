@@ -95,6 +95,11 @@ _DEFAULTS: Dict[str, Any] = {
             "anode_sum_area_min_pe": 300.0,
         },
     },
+    "muon_s1_s2": {
+        "min_decay": 20,
+        "max_decay": 500,
+        "method": "second_derivative",
+    },
     "features": {
         "integral_window_mode": "fixed",
         "integral_start": 20,
