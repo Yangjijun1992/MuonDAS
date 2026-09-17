@@ -21,8 +21,8 @@ from muon_analysis.gain import build_gain_db
 RUN = "00595"
 N_EX = 30
 MIN_DECAY, MAX_DECAY = 20, 500
-ZOOM_US = 5.0
-Y_FRAC = 30.0
+ZOOM_MIN_US, ZOOM_MAX_US = -1.0, 5.0
+Y_MIN, Y_MAX = -5000.0, 500.0
 TMP = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 DOCS = "/home/yjj/MuonDAS/docs/figures"
 OUT = f"{TMP}/muon_examples_zoom_run595.png"
@@ -73,19 +73,19 @@ for ax, (pk, pf) in zip(axes, rows):
                label="S1 end / S2 start (3B)")
     ax.axhline(0, color="black", ls="--", alpha=0.3, lw=0.5)
     t0 = (s1_peak - ref) * 4 / 1000.0
-    ax.set_xlim(t0 - ZOOM_US, t0 + ZOOM_US)
-    ax.set_ylim(-s1_h / Y_FRAC, s1_h / Y_FRAC)
+    ax.set_xlim(t0 + ZOOM_MIN_US, t0 + ZOOM_MAX_US)
+    ax.set_ylim(Y_MIN, Y_MAX)
     ax.set_title(f"id={pk.peaks_id} nch={len(pk.anode_records)} S1h={s1_h:.0f} "
-                 f"(y=+/-{s1_h/Y_FRAC:.0f}) S1end={(s1_end-a_st)*4:.0f}ns",
-                 fontsize=7)
+                 f"S1end={(s1_end-a_st)*4:.0f}ns", fontsize=7)
     ax.tick_params(labelsize=7)
     ax.set_xlabel("t from S1 peak [us]", fontsize=8)
     ax.set_ylabel("ADC", fontsize=8)
     ax.legend(fontsize=6, loc="upper right")
 for ax in axes[len(rows):]:
     ax.axis("off")
-fig.suptitle(f"run {RUN}: muon peaks zoom (+/-{ZOOM_US:g} us around S1 peak, "
-             f"y = +/- S1 height/{Y_FRAC:g}), n={len(rows)}", fontsize=13)
+fig.suptitle(f"run {RUN}: muon peaks zoom (x: S1 peak {ZOOM_MIN_US:g} to "
+             f"+{ZOOM_MAX_US:g} us, y: {Y_MIN:g} to {Y_MAX:g} ADC), "
+             f"n={len(rows)}", fontsize=13)
 fig.tight_layout(rect=(0, 0, 1, 0.98))
 fig.savefig(OUT, dpi=130)
 plt.close(fig)
