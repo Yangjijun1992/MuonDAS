@@ -104,6 +104,7 @@ s1 = df[(df.width_20_50area < 100) & (df.width_90area < 1000)]
 rest = df[~((df.width_20_50area < 100) & (df.width_90area < 1000))]
 cut3 = df[(df.width_ns > 2000) & (df.width_90area > 1000) & (df.height > 1.5e4)]
 cut4 = cut3[cut3.n_ch >= 2]
+cut_low = df[(df.width_ns > 2000) & (df.width_90area > 1000) & (df.height < 1.5e4)]
 
 draw_panels(df, "Co60 590+ v2 (new clustering + params): peak-level 2D panels",
             "co60_590_v2_2d_panels.png")
@@ -116,6 +117,9 @@ draw_panels(cut3, f"Co60 590+ v2 cut: width_ns>2000ns & width_90area>1000ns & he
             guides={"height": 1.5e4})
 draw_panels(cut4, f"Co60 590+ v2 cut: width_ns>2000ns & width_90area>1000ns & height>1.5e4 ADC & n_ch>=2 (n={len(cut4)})",
             "co60_590_v2_wn2000_w90a1000_h15000_nch2_2d_panels.png",
+            guides={"height": 1.5e4})
+draw_panels(cut_low, f"Co60 590+ v2 cut: width_ns>2000ns & width_90area>1000ns & height<1.5e4 ADC (n={len(cut_low)})",
+            "co60_590_v2_wn2000_w90a1000_hlt15000_2d_panels.png",
             guides={"height": 1.5e4})
 draw_single(df, "width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 100.0,
             f"Co60 590+ v2: width_20_50area vs anode_sum_area (n={len(df)})",
