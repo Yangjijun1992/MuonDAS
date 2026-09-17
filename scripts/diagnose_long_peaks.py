@@ -60,7 +60,7 @@ for ax, (pk, pf) in zip(axes, picks):
     ax.set_title(f"id={pk.peaks_id} n_ch={len(pk.anode_records)} "
                  f"len={pf.wave_len_samples} | S1w={pf.muon_s1_width_ns:.0f}ns "
                  f"S2w={pf.muon_s2_width_ns:.0f}ns width_ns={pf.width_ns:.0f} "
-                 f"h={pf.height:.0f}", fontsize=9)
+                 f"h={pf.height:.0f} | {pf.signal_type}", fontsize=9)
     ax.set_xlabel("time rel. to anode-sum start [us]")
     ax.set_ylabel("ADC")
     ax.legend(fontsize=7, ncol=5, loc="upper right")
