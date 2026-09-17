@@ -32,7 +32,8 @@ TMP = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 
 df = pd.read_csv(CSV)
 m = df[df.signal_type == "muon"]
-print(f"muon peaks = {len(m)}")
+m = m[m.muon_s1_height_an < 2.0e5]
+print(f"muon peaks = {len(m)} (after muon_s1_height_an < 2e5)")
 
 # --- Figure 1: 1D histograms ---
 panels1 = [
