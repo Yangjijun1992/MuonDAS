@@ -563,7 +563,6 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
     rise_time = 0.0
     if sf_a is not None:
         height = max(height, sf_a.height)
-        width = sf_a.width * interval_ns
         rise_time = sf_a.rise_time * interval_ns
     if sf_d is not None:
         height = max(height, sf_d.height)
@@ -580,6 +579,9 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
     end_final_sample = int(max(a_ed_final, d_ed_final))
     width_ns = (float(max(0, end_final_sample - a_st)) * interval_ns
                 if end_final_sample > a_st else 0.0)
+    # width = the pulse span, i.e. the distance from the peak start (a_st) to the
+    # final end point (end_final_sample) -- same definition as width_ns.
+    width = width_ns
 
     width_90area = 0.0
     width_50area = 0.0

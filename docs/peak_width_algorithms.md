@@ -19,20 +19,17 @@
 | `end_first_sample` | 同上 → `a_ed` | anode_sum 的**首次回基线**点 |
 | `end_final_sample` | `max(find_wave_final_end(anode_sum), find_wave_final_end(dynode_sum))` | 整条 peak 波形的**最后回基线**点（`find_wave_final_end` = 最后一个 \|值\| < `end_baseline_tol`(20 ADC) 的样本；若从未回基线则取波形末样本）|
 
-## 1. `width`（FWHM，样本计数法）
-
-`features.py::_fwhm_samples` → 在 `compute_peak_features` 中 `width = sf_a.width × 4 ns`
+## 1. `width`（脉冲跨度，= `width_ns`）
 
 ```
-above = (anode_sum − baseline) × direction >= 0.5 × |peak_amp − baseline|
-width_samples = count_nonzero(above)          # 整条波形中所有超半高样本的个数
-width [ns]    = width_samples × 4
+width = (end_final_sample − a_st) × 4 ns          # end_final > a_st 时；否则 0
 ```
 
-- `direction = −1`（anode 负极性），`peak_amp = anode_sum` 的极值（argmin）
-- `baseline` = 前 `baseline_samples`(10) 个样本的均值
-- **注意**：这是**计数**而非连续跨度——若波形有多个峰/振荡，所有超半高的样本都被计入
-- `rise_time` 同样取自 `anode_sum`：`(argmin − pulse_start) × 4 ns`
+- 即 **peak 起点（`a_st`）到 peak 最终结束点（`end_final_sample`）的距离**
+- 与 `width_ns` **同一定义**（`width_ns` 为该跨度的显式命名）
+- `rise_time` 仍取自 `anode_sum`：`(argmin − a_st) × 4 ns`
+- 说明：per-record 的 `Features.width`（`_fwhm_samples`，半高以上样本**计数**）
+  仅用于单通道波形，**不再**作为 peak 级 `width`
 
 ## 2. `width_ns`（全脉冲时长）
 
@@ -79,8 +76,8 @@ width_20_50area = (w50 − w20) × 4 ns            # w20/w50 任一为 NaN 时�
 
 | 参数 | 公式 | 参考端点 | 敏感对象 |
 |---|---|---|---|
-| `width` [ns] | `count(\|anode_sum−bl\| ≥ 0.5·peak) × 4` | 无（全波形计数）| 半高以上的总样本数 |
-| `width_ns` [ns] | `(end_final − a_st) × 4` | a_st → end_final | 全脉冲时长（μ 子被记录长度饱和）|
+| `width` [ns] | `(end_final − a_st) × 4` | a_st → end_final | **全脉冲跨度**（= `width_ns`）|
+| `width_ns` [ns] | `(end_final − a_st) × 4` | a_st → end_final | 同上（显式命名）|
 | `width_90area` [ns] | `idx(0.9·total) × 4` | a_st → end_final | 90% 面积累积宽度（含拖尾）|
 | `width_50area` [ns] | `idx(0.5·total) × 4` | a_st → end_final | 50% 面积累积宽度 |
 | `width_20_50area` [ns] | `(idx(0.5·total) − idx(0.2·total)) × 4` | a_st → end_final | **前段上升/前沿形状** |
@@ -95,5 +92,4 @@ width_20_50area = (w50 − w20) × 4 ns            # w20/w50 任一为 NaN 时�
 
 **判别力排序**（Co60 590+ v2 实测）：
 - `width_20_50area` / `width_90area` —— **最有效**（S1 与 muon/S2 在此清晰分离）
-- `width_ns` —— 对 μ 子被记录长度饱和，区分力弱
-- `width`（FWHM 计数）—— 受振荡影响，未用于分类
+- `width` / `width_ns` —— 同为「起点→终点跨度」，对 μ 子被记录长度饱和，区分力弱
