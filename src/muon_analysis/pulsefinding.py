@@ -302,3 +302,53 @@ def find_wave_final_end(waveform, config) -> int:
         return 0
     below = np.nonzero(w < tol)[0]
     return int(below[-1]) if len(below) else n - 1
+
+
+def find_s1_endpoint_from_peak(
+    waveform,
+    s1_peak_idx: int,
+    min_decay: int = 20,
+    max_decay: int = 500,
+    polarity: str = "negative",
+    method: str = "min_derivative",
+) -> int:
+    """S1 end point (== S2 start point) to the right of the S1 peak.
+
+    The S1 and S2 components are joined in one waveform, so the boundary is
+    looked for on the S1 falling edge, over the search window
+    ``[min_decay, max_decay]`` (samples after the peak):
+
+      - ``method="min_derivative"`` (step 3A): the sample with the most negative
+        forward difference -- the steepest decay point.
+      - ``method="second_derivative"`` (step 3B): the first sample where the
+        second difference turns positive -- the point where the decay stops
+        accelerating (start of the flattening).
+
+    ``polarity="negative"`` (anode sum) flips the waveform first so that the
+    decay is a negative slope, matching the positive-pulse (dynode) convention.
+    Returns the sample index in the ORIGINAL waveform; falls back to
+    ``s1_peak_idx + min_decay`` when the window is degenerate.
+
+    See ``docs/muon_s1_s2_cutpoint_algorithm.md``.
+    """
+    y = np.asarray(waveform, dtype=float)
+    if polarity == "negative":
+        y = -y
+    start = int(s1_peak_idx)
+    y_right = y[start:]
+    if len(y_right) < 3:
+        return start
+    y_prime = np.diff(y_right)
+    search_start = max(0, int(min_decay))
+    search_end = min(int(max_decay), len(y_prime) - 1)
+    if search_end <= search_start:
+        return start + min(search_start, len(y_prime) - 1)
+    if method == "second_derivative":
+        y2 = np.diff(y_prime)
+        window = y2[search_start:search_end]
+        turning = np.nonzero(window > 0)[0]
+        if len(turning):
+            return start + search_start + int(turning[0])
+        return start + search_start + int(np.argmax(window))
+    idx_rel = search_start + int(np.argmin(y_prime[search_start:search_end]))
+    return start + idx_rel
