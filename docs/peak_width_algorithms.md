@@ -19,30 +19,21 @@
 | `end_first_sample` | 同上 → `a_ed` | anode_sum 的**首次回基线**点 |
 | `end_final_sample` | `max(find_wave_final_end(anode_sum), find_wave_final_end(dynode_sum))` | 整条 peak 波形的**最后回基线**点（`find_wave_final_end` = 最后一个 \|值\| < `end_baseline_tol`(20 ADC) 的样本；若从未回基线则取波形末样本）|
 
-## 1. `width`（脉冲跨度，= `width_ns`）
+## 1. `width`（脉冲跨度：peak 起点 → 最终结束点）
 
 ```
 width = (end_final_sample − a_st) × 4 ns          # end_final > a_st 时；否则 0
 ```
 
 - 即 **peak 起点（`a_st`）到 peak 最终结束点（`end_final_sample`）的距离**
-- 与 `width_ns` **同一定义**（`width_ns` 为该跨度的显式命名）
 - `rise_time` 仍取自 `anode_sum`：`(argmin − a_st) × 4 ns`
+- ⚠️ **对 μ 子事例被记录长度饱和**：μ 子拖尾在记录结束前不归零 →
+  `end_final_sample ≈ 波形末端` → `width ≈ wave_len_samples × 4`
+  （见 `docs/other_muon_candidates_params.md` §5）
 - 说明：per-record 的 `Features.width`（`_fwhm_samples`，半高以上样本**计数**）
   仅用于单通道波形，**不再**作为 peak 级 `width`
 
-## 2. `width_ns`（全脉冲时长）
-
-```
-width_ns = (end_final_sample − a_st) × 4 ns        # end_final > a_st 时；否则 0
-```
-
-- 从 anode_sum 起点到**整条波形最后回基线**点
-- ⚠️ **对 μ 子事例被记录长度饱和**：μ 子拖尾在记录结束前不归零 →
-  `end_final_sample ≈ 波形末端` → `width_ns ≈ wave_len_samples × 4`
-  （见 `docs/other_muon_candidates_params.md` §5）
-
-## 3. `width_90area` / `width_50area`（面积累积宽度）
+## 2. `width_90area` / `width_50area`（面积累积宽度）
 
 `features.py::width_to_fraction_area` → 在 `compute_peak_features` 中调用，
 窗口固定为 `[a_st, end_final_sample]`：
@@ -61,7 +52,7 @@ width  = idx × 4 ns
 - `frac = 0.9` → `width_90area`；`frac = 0.5` → `width_50area`
 - `+1.0` 为半开区间修正；`end <= start` 或 `total <= 0` 时返回 NaN
 
-## 4. `width_20_50area`（20%→50% 面积累积宽度）
+## 3. `width_20_50area`（20%→50% 面积累积宽度）
 
 ```
 w20 = width_to_fraction_area(..., frac = 0.2)   # 样本数
@@ -72,24 +63,23 @@ width_20_50area = (w50 − w20) × 4 ns            # w20/w50 任一为 NaN 时�
 - 物理含义：从 20% 面积累积点走到 50% 面积累积点所需的宽度
 - **对上升沿形状敏感**（前 50% 面积的分布），与 `width_90area`（覆盖到 90%）互补
 
-## 5. 汇总表
+## 4. 汇总表
 
 | 参数 | 公式 | 参考端点 | 敏感对象 |
 |---|---|---|---|
-| `width` [ns] | `(end_final − a_st) × 4` | a_st → end_final | **全脉冲跨度**（= `width_ns`）|
-| `width_ns` [ns] | `(end_final − a_st) × 4` | a_st → end_final | 同上（显式命名）|
+| `width` [ns] | `(end_final − a_st) × 4` | a_st → end_final | **全脉冲跨度**（peak 起点→最终结束点）|
 | `width_90area` [ns] | `idx(0.9·total) × 4` | a_st → end_final | 90% 面积累积宽度（含拖尾）|
 | `width_50area` [ns] | `idx(0.5·total) × 4` | a_st → end_final | 50% 面积累积宽度 |
 | `width_20_50area` [ns] | `(idx(0.5·total) − idx(0.2·total)) × 4` | a_st → end_final | **前段上升/前沿形状** |
 
-## 6. 用于信号分类的 width
+## 5. 用于信号分类的 width
 
 | 分类 | 使用的 width | 阈值 |
 |---|---|---|
 | **S1** | `width_20_50area` + `width_90area` | `< 100 ns` ∧ `< 1000 ns` |
-| **muon** | `width_ns` + `width_90area` | `> 2000 ns` ∧ `> 1000 ns` |
-| **S2** | `width_ns` + `width_90area` | `> 2000 ns` ∧ `> 1000 ns`（另需 `height < 1.5e4`）|
+| **muon** | `width` + `width_90area` | `> 2000 ns` ∧ `> 1000 ns` |
+| **S2** | `width` + `width_90area` | `> 2000 ns` ∧ `> 1000 ns`（另需 `height < 1.5e4`）|
 
 **判别力排序**（Co60 590+ v2 实测）：
 - `width_20_50area` / `width_90area` —— **最有效**（S1 与 muon/S2 在此清晰分离）
-- `width` / `width_ns` —— 同为「起点→终点跨度」，对 μ 子被记录长度饱和，区分力弱
+- `width` —— 「起点→终点跨度」，对 μ 子被记录长度饱和，区分力弱

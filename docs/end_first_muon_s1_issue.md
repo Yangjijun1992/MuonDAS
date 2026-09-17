@@ -113,9 +113,9 @@ peak level 新增参数中：
 
 ```
 S1    : width_20_50area < 100 ns  AND  width_90area < 1000 ns
-muon  : n_ch >= 2  AND  height > 1.5e4 ADC  AND  width_ns > 2000 ns
+muon  : n_ch >= 2  AND  height > 1.5e4 ADC  AND  width > 2000 ns
         AND  width_90area > 1000 ns  AND  anode_sum_area > 300 PE
-S2    : width_90area > 1000 ns  AND  width_ns > 2000 ns
+S2    : width_90area > 1000 ns  AND  width > 2000 ns
         AND  anode_sum_area > 300 PE  AND  height < 1.5e4 ADC
 other : 其余（或未通过可选门控 long_wave_min_samples）
 ```
@@ -132,13 +132,13 @@ signal_id:
   s2:
     n_channels: null
     w90area_min_ns: 1000.0
-    width_ns_min_ns: 2000.0
+    width_min_ns: 2000.0
     anode_sum_area_min_pe: 300.0
     height_max_adc: 15000.0
   muon:
     n_channels_min: 2
     height_min_adc: 15000.0
-    width_ns_min_ns: 2000.0
+    width_min_ns: 2000.0
     w90area_min_ns: 1000.0
     anode_sum_area_min_pe: 300.0
 ```

@@ -9,9 +9,9 @@
 
 ```
 S1    : width_20_50area < 100 ns  AND  width_90area < 1000 ns
-muon  : n_ch >= 2  AND  height > 1.5e4 ADC  AND  width_ns > 2000 ns
+muon  : n_ch >= 2  AND  height > 1.5e4 ADC  AND  width > 2000 ns
         AND  width_90area > 1000 ns  AND  anode_sum_area > 300 PE
-S2    : width_90area > 1000 ns  AND  width_ns > 2000 ns
+S2    : width_90area > 1000 ns  AND  width > 2000 ns
         AND  anode_sum_area > 300 PE  AND  height < 1.5e4 ADC
 other : 其余
 ```
@@ -39,9 +39,9 @@ other : 其余
 
 ---
 
-## 1. 事例数（`width_ns > 2000 ∧ width_90area > 1000` 基础 cut）
+## 1. 事例数（`width > 2000 ∧ width_90area > 1000` 基础 cut）
 
-**Cut**：`width_ns > 2000 ns` **AND** `width_90area > 1000 ns`
+**Cut**：`width > 2000 ns` **AND** `width_90area > 1000 ns`
 
 | 选择 | 事例数 N |
 |---|---|
@@ -50,7 +50,7 @@ other : 其余
 | 其中 `n_ch == 1` | 30,723 |
 | 其中 `2 ≤ n_ch ≤ 6` | 8,931 |
 
-- 全部满足 cut 的事例**全部为 S2**（`width_ns>2000 ∧ width_90area>1000` 与 S1 判据互斥）
+- 全部满足 cut 的事例**全部为 S2**（`width>2000 ∧ width_90area>1000` 与 S1 判据互斥）
 - `height` 中位 7,797 ADC；`anode_sum_area` 中位 11,703.7 PE
 - 逐 run 计数 1,829（run 590）～ 2,980（run 602），分布均匀
 
@@ -94,7 +94,7 @@ R_geom = Φ × A = 167 × 1.963×10⁻³ = 0.328 s⁻¹
 
 ## 5. 对比
 
-### 5a. 无 height cut：`width_ns > 2000 ∧ width_90area > 1000`
+### 5a. 无 height cut：`width > 2000 ∧ width_90area > 1000`
 
 | 选择 | N | R_meas [s⁻¹] | **ε = R_meas/R_geom** | 隐含通量 [m⁻²s⁻¹] |
 |---|---|---|---|---|
@@ -130,7 +130,7 @@ R_geom = Φ × A = 167 × 1.963×10⁻³ = 0.328 s⁻¹
 > `n_ch >= 2` 只剔除 112 个单通道事例（已被 height cut 压到 0.5%），
 > 故 4-cut 与 3-cut 几乎等价（ε 73.6% → 73.1%）。
 
-### 5d. 低高度侧：`width_ns > 2000 ∧ width_90area > 1000 ∧ height < 1.5×10⁴ ADC`
+### 5d. 低高度侧：`width > 2000 ∧ width_90area > 1000 ∧ height < 1.5×10⁴ ADC`
 
 | 选择 | N | R_meas [s⁻¹] | **ε = R_meas/R_geom** | 隐含通量 [m⁻²s⁻¹] |
 |---|---|---|---|---|
@@ -162,7 +162,7 @@ R_geom = Φ × A = 167 × 1.963×10⁻³ = 0.328 s⁻¹
 ### 与早期 No-Field 分析的一致性
 
 `docs/muon_algorithm_architecture.md` 的早期分析使用**相同的 5 cm 直径截面**、
-更严的 cut（`n_ch≥7 ∧ height>15000 ∧ anode_sum_area>10000 PE ∧ width_ns>5000`）：
+更严的 cut（`n_ch≥7 ∧ height>15000 ∧ anode_sum_area>10000 PE ∧ width>5000`）：
 
 ```
 R_meas = 48 / 18,000 s = 2.67×10⁻³ s⁻¹
@@ -170,7 +170,7 @@ R_geom = 167 × 1.963×10⁻³ = 0.328 s⁻¹
 ε = 0.81%
 ```
 
-本次 `n_ch==7` 组（height>15k 下 9,781 个）cut 更宽松（`width_ns>2000` vs `>5000`，
+本次 `n_ch==7` 组（height>15k 下 9,781 个）cut 更宽松（`width>2000` vs `>5000`，
 无 `anode_sum_area` 阈值），ε 从 0.81% → 46.0%——放宽宽度阈值后效率大幅提升，
 量级递进合理。
 
