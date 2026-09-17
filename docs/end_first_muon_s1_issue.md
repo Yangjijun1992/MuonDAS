@@ -1,6 +1,6 @@
 # 问题记录：`end_first` 落在波形末端 —— muon S1/S2 宽度分解失效
 
-> 状态：**待解决（阻塞信号鉴别）**
+> 状态：**已解决（2024，见 §7）** —— S1 改用 width cut 判别，`end_first` 宽度分解作废
 > 发现于：Co60 590+ v2 重跑（18 run，新 clustering：pulse-start 参考 + 320ns 窗口）
 > 相关代码：`src/muon_analysis/pulsefinding.py`（`find_sum_pulse_bounds` / `find_pulse_boundaries`）、
 > `src/muon_analysis/features.py`（`compute_peak_features`）、`src/muon_analysis/signal_id.py`
@@ -103,3 +103,45 @@ peak level 新增参数中：
 2. 用 `scripts/check_sum_baseline.py` 在长波形样本上统计新 S1-end 的分布；
 3. 更新 `signal_id.py` 判据 → 重跑 18 run → 打印新鉴别算法与 signal_type 分布；
 4. 更新 example 波形（lowright/upright）与 2D 图。
+
+## 7. 解决（S1 改用 width cut 判别）
+
+`end_first`-based 的 `muon_s1_width` / `muon_s2_width` **判据作废**（参数仍保留用于诊断）。
+新判别（`src/muon_analysis/signal_id.py`）：
+
+```
+muon_s1 : width_20_50area < 100 ns  AND  width_90area < 1000 ns
+muon_s2 : 超出上述任一 cut（muon_s1 的补集）
+other   : 仅当启用可选门控（long_wave_min_samples / n_channels）且未通过时
+```
+
+配置（`config/analysis.yaml`）：
+
+```yaml
+signal_id:
+  long_wave_min_samples: null # 可选门控，null = 关闭
+  muon_s1:
+    n_channels: null
+    w20_50area_max_ns: 100.0
+    w90area_max_ns: 1000.0
+  muon_s2:
+    n_channels: null
+```
+
+### Co60 590+ v2 应用结果（736,408 peaks）
+
+| signal_type | 数量 | 占比 |
+|---|---|---|
+| **muon_s1** | **685,024** | 93.0% |
+| **muon_s2** | **51,384** | 7.0% |
+| other | 0 | 0% |
+
+对应 2D 图：`docs/figures/co60_590_v2_s1_2d_panels.png`（S1）、
+`docs/figures/co60_590_v2_nons1_2d_panels.png`（non-S1）。
+
+### 验证
+- `tests/test_signal_id.py`（7 例：窄事例→S1、超 cut→S2、边界互斥、两个可选门控）
+- 参考波形（run **00595**, peak_id=20791）：`w20_50area=10,673.5ns`、`w90area=24,479.2ns`
+  → **muon_s2** ✓（宽事例，符合预期）
+- 全量测试 114 passed
+- 注意：`peaks_id` 是 **per-run** 的（每个 run 从 0 重新编号），跨 run 引用需带 `run_id`
