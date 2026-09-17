@@ -27,6 +27,7 @@ plt.rcParams.update({
 })
 
 CSV = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/co60_590_peak_level_v2.csv"
+HEIGHT_AN_MAX = 2.0e5
 DOCS = "/home/yjj/MuonDAS/docs/figures"
 TMP = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 
@@ -80,8 +81,10 @@ panels2 = [
 fig, axes = plt.subplots(2, 2, figsize=(24, 20))
 for ax, (xc, yc, xlab, ylab) in zip(axes.ravel(), panels2):
     v = m[(m[xc] > 0) & (m[yc] > 0)]
-    xlo, xhi = 10 ** np.floor(np.log10(v[xc].min())), 10 ** np.ceil(np.log10(v[xc].max()))
-    ylo, yhi = 10 ** np.floor(np.log10(v[yc].min())), 10 ** np.ceil(np.log10(v[yc].max()))
+    xlo = 10 ** np.floor(np.log10(v[xc].min()))
+    ylo = 10 ** np.floor(np.log10(v[yc].min()))
+    xhi = HEIGHT_AN_MAX if xc == "muon_s1_height_an" else 10 ** np.ceil(np.log10(v[xc].max()))
+    yhi = HEIGHT_AN_MAX if yc == "muon_s1_height_an" else 10 ** np.ceil(np.log10(v[yc].max()))
     hb = ax.hist2d(v[xc], v[yc],
                    bins=[np.logspace(np.log10(xlo), np.log10(xhi), 100),
                          np.logspace(np.log10(ylo), np.log10(yhi), 100)],
