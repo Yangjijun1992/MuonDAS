@@ -57,16 +57,20 @@ for ax, (pk, pf) in zip(axes, rows):
     a_st = b["anode"][0] if "anode" in b else 0
     t = (np.arange(len(s)) - a_st) * 4 / 1000.0
     ax.plot(t, s, "b-", lw=0.6, label="anode_sum")
-    if pf.dynode_sum is not None and len(pf.dynode_sum) == len(s):
-        ax.plot(t, pf.dynode_sum, "r-", lw=0.5, alpha=0.6, label="dynode_sum")
+    if pf.dynode_sum is not None:
+        d = np.asarray(pf.dynode_sum, dtype=float)
+        d_st = b["dynode"][0] if "dynode" in b else 0
+        ax.plot((np.arange(len(d)) - d_st) * 4 / 1000.0, d, "r-", lw=0.6,
+                alpha=0.75, label="dynode_sum")
     ax.axvline(0, color="g", ls="--", lw=0.8)
     ax.axhline(0, color="gray", lw=0.5)
     ax.set_title(f"id={pk.peaks_id} nch={len(pk.anode_records)} h={pf.height:.0f} "
                  f"wns={pf.width_ns:.0f} w90a={pf.width_90area:.0f} "
-                 f"asa={pf.anode_sum_area:.0f}", fontsize=7)
+                 f"asa={pf.anode_sum_area:.0f} dsa={pf.dynode_sum_area:.0f}", fontsize=7)
     ax.tick_params(labelsize=7)
-    ax.set_xlabel("t rel. start [us]", fontsize=8)
+    ax.set_xlabel("t rel. pulse start [us]", fontsize=8)
     ax.set_ylabel("ADC", fontsize=8)
+    ax.legend(fontsize=6, loc="upper right")
 for ax in axes[len(rows):]:
     ax.axis("off")
 fig.suptitle(f"run {RUN}: height<1.5e4 & width_90area>1000 & anode_sum_area>300 "
