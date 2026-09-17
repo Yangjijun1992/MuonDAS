@@ -114,3 +114,31 @@ fig.savefig(f"{DOCS}/co60_590_v2_muon_s1s2_2d.png", dpi=150)
 fig.savefig(f"{TMP}/co60_590_v2_muon_s1s2_2d.png", dpi=150)
 plt.close(fig)
 print("saved 2D")
+
+# --- Figure 3: light intensity (area / width) histograms ---
+intensity = [
+    ("muon_s1", "muon_s1_area_an", "muon_s1_width_ns", "royalblue"),
+    ("muon_s2", "muon_s2_area_an", "muon_s2_width_ns", "crimson"),
+]
+fig, axes = plt.subplots(1, 2, figsize=(26, 10))
+for ax, (lbl, ac, wc, color) in zip(axes, intensity):
+    v = (m[ac] / m[wc]).replace([np.inf, -np.inf], np.nan).dropna()
+    v = v[v > 0]
+    bins = np.logspace(np.log10(v.min()), np.log10(v.max()), 90)
+    ax.hist(v, bins=bins, color=color, alpha=0.85)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.axvline(v.median(), color="black", ls="--", lw=2.0,
+               label=f"median = {v.median():.3f} PE/ns")
+    ax.set_xlabel(f"{lbl} intensity [PE/ns]  (area_an / width_ns)")
+    ax.set_ylabel("counts (log)")
+    ax.set_title(f"{lbl}: light intensity = {ac} / {wc}  (n={len(v)})")
+    ax.grid(True, axis="y", alpha=0.25)
+    ax.legend(framealpha=0.9)
+fig.suptitle(f"Co60 590+ v2 muon peaks: S1/S2 light intensity "
+             f"(area_an / width_ns), n={len(m)}", fontsize=26, fontweight="bold")
+fig.tight_layout(rect=(0, 0, 1, 0.95))
+fig.savefig(f"{DOCS}/co60_590_v2_muon_s1s2_intensity.png", dpi=150)
+fig.savefig(f"{TMP}/co60_590_v2_muon_s1s2_intensity.png", dpi=150)
+plt.close(fig)
+print("saved intensity")
