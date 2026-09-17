@@ -109,12 +109,15 @@ peak level 新增参数中：
 ## 7. 解决（S1 改用 width cut 判别）
 
 `end_first`-based 的 `muon_s1_width` / `muon_s2_width` **判据作废**（参数仍保留用于诊断）。
-新判别（`src/muon_analysis/signal_id.py`）：
+最终判别（`src/muon_analysis/signal_id.py`，四类判据互斥）：
 
 ```
 S1    : width_20_50area < 100 ns  AND  width_90area < 1000 ns
-S2    : 超出上述任一 cut（S1 的补集）
-other : 仅当启用可选门控（long_wave_min_samples / n_channels）且未通过时
+muon  : n_ch >= 2  AND  height > 1.5e4 ADC  AND  width_ns > 2000 ns
+        AND  width_90area > 1000 ns  AND  anode_sum_area > 300 PE
+S2    : width_90area > 1000 ns  AND  width_ns > 2000 ns
+        AND  anode_sum_area > 300 PE  AND  height < 1.5e4 ADC
+other : 其余（或未通过可选门控 long_wave_min_samples）
 ```
 
 配置（`config/analysis.yaml`）：
@@ -128,15 +131,30 @@ signal_id:
     w90area_max_ns: 1000.0
   s2:
     n_channels: null
+    w90area_min_ns: 1000.0
+    width_ns_min_ns: 2000.0
+    anode_sum_area_min_pe: 300.0
+    height_max_adc: 15000.0
+  muon:
+    n_channels_min: 2
+    height_min_adc: 15000.0
+    width_ns_min_ns: 2000.0
+    w90area_min_ns: 1000.0
+    anode_sum_area_min_pe: 300.0
 ```
 
-### Co60 590+ v2 应用结果（736,408 peaks）
+### Co60 590+ v2 应用结果（736,408 peaks，T = 64,800 s）
 
-| signal_type | 数量 | 占比 |
-|---|---|---|
-| **S1** | **685,024** | 93.0% |
-| **S2** | **51,384** | 7.0% |
-| other | 0 | 0% |
+| signal_type | 数量 | R [min⁻¹] | ε vs R_geom | 通量 [m⁻²s⁻¹] |
+|---|---|---|---|---|
+| **S1** | 685,024 | 634.28 | 3,223.9% | 5,383.9 |
+| **muon** | **15,524** | **14.37** | **73.1%** | **122.0** |
+| **S2** | 33,608 | 31.12 | 158.2% | 264.1 |
+| other | 2,252 | 2.09 | 10.6% | 17.7 |
+| 几何期望 | — | 19.67 | 100% | 167 |
+
+> `muon` 组通量为几何期望的 73.1% → 与 μ 子通量量级一致。
+> 详见 `docs/muon_rate_vs_flux.md`、`docs/other_muon_candidates_params.md`。
 
 对应 2D 图：`docs/figures/co60_590_v2_s1_2d_panels.png`（S1）、
 `docs/figures/co60_590_v2_nons1_2d_panels.png`（non-S1）。

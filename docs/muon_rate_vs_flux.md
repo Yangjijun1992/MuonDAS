@@ -3,7 +3,43 @@
 > 数据：`/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/co60_590_peak_level_v2_with_signal.csv`
 > （18 run，新 clustering：pulse-start 参考 + 320ns 窗口）
 
-## 1. 事例数
+## 0. 最终分类与 μ 子选择（结论）
+
+### 分类算法（`src/muon_analysis/signal_id.py`，判据互斥）
+
+```
+S1    : width_20_50area < 100 ns  AND  width_90area < 1000 ns
+muon  : n_ch >= 2  AND  height > 1.5e4 ADC  AND  width_ns > 2000 ns
+        AND  width_90area > 1000 ns  AND  anode_sum_area > 300 PE
+S2    : width_90area > 1000 ns  AND  width_ns > 2000 ns
+        AND  anode_sum_area > 300 PE  AND  height < 1.5e4 ADC
+other : 其余
+```
+
+### 分类结果与率（T = 64,800 s = 18.0 h，A = 19.63 cm²，R_geom = 0.328 s⁻¹）
+
+| signal_type | N | R [s⁻¹] | R [min⁻¹] | R [h⁻¹] | ε = R/R_geom | 通量 [m⁻²s⁻¹] |
+|---|---|---|---|---|---|---|
+| S1 | 685,024 | 10.5714 | 634.28 | 38,057 | 3,223.9% | 5,383.9 |
+| **muon（μ 子选择）** | **15,524** | **0.2396** | **14.37** | **862** | **73.1%** | **122.0** |
+| S2 | 33,608 | 0.5186 | 31.12 | 1,867 | 158.2% | 264.1 |
+| other | 2,252 | 0.0348 | 2.09 | 125 | 10.6% | 17.7 |
+| **合计** | **736,408** | 11.364 | 681.9 | 40,912 | 3,465.7% | 5,787.8 |
+| **几何期望** | — | **0.3279** | **19.67** | **1,180** | 100% | 167 |
+
+**结论**：`muon` 组 **R = 0.240 s⁻¹ = 14.37 min⁻¹ = 862 h⁻¹**，
+通量 **122.0 m⁻²s⁻¹**，为海平面几何期望 **167 m⁻²s⁻¹ 的 73.1%** ——
+与 μ 子通量量级一致（剩余 ~27% 来自几何接收度、self-trigger 触发效率、
+宽脉冲/高度判据、未扣除的 DAQ 死时间）。
+
+`S1`（ε=3,224%）与 `S2`（ε=158%）**远超几何期望** → 主体为低能 γ / 噪声，
+**不能与 μ 子通量对比**。
+
+详细参数范围见 `docs/other_muon_candidates_params.md`。
+
+---
+
+## 1. 事例数（`width_ns > 2000 ∧ width_90area > 1000` 基础 cut）
 
 **Cut**：`width_ns > 2000 ns` **AND** `width_90area > 1000 ns`
 
