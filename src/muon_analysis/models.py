@@ -134,10 +134,10 @@ class PeakFeatures:
     muon_s2_height_an: float = 0.0  # max |anode_sum| in S2 window
     muon_s1_height_dy: float = 0.0  # max |dynode_sum| in S1 window
     muon_s2_height_dy: float = 0.0  # max |dynode_sum| in S2 window
-    muon_s1_area_ano: float = 0.0   # anode_sum integral over S1 window, PE
-    muon_s1_area_dyn: float = 0.0   # dynode_sum integral over S1 window, PE
-    muon_s2_area_ano: float = 0.0   # anode_sum integral over S2 window, PE
-    muon_s2_area_dyn: float = 0.0   # dynode_sum integral over S2 window, PE
+    muon_s1_area_an: float = 0.0   # anode_sum integral over S1 window, PE
+    muon_s1_area_dy: float = 0.0   # dynode_sum integral over S1 window, PE
+    muon_s2_area_an: float = 0.0   # anode_sum integral over S2 window, PE
+    muon_s2_area_dy: float = 0.0   # dynode_sum integral over S2 window, PE
     wave_len_samples: int = 0     # length of the peak sum waveform [samples]
     # aligned (by pulse start) summed waveforms over all channels, in npz only
     anode_sum: Optional[np.ndarray] = field(default=None, repr=False)
@@ -177,10 +177,10 @@ class PeakFeatures:
             "muon_s2_height_an": self.muon_s2_height_an,
             "muon_s1_height_dy": self.muon_s1_height_dy,
             "muon_s2_height_dy": self.muon_s2_height_dy,
-            "muon_s1_area_ano": self.muon_s1_area_ano,
-            "muon_s1_area_dyn": self.muon_s1_area_dyn,
-            "muon_s2_area_ano": self.muon_s2_area_ano,
-            "muon_s2_area_dyn": self.muon_s2_area_dyn,
+            "muon_s1_area_an": self.muon_s1_area_an,
+            "muon_s1_area_dy": self.muon_s1_area_dy,
+            "muon_s2_area_an": self.muon_s2_area_an,
+            "muon_s2_area_dy": self.muon_s2_area_dy,
             "wave_len_samples": self.wave_len_samples,
             "anode_sum_area": self.anode_sum_area,
             "dynode_sum_area": self.dynode_sum_area,

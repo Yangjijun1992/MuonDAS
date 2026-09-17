@@ -27,7 +27,7 @@ PARAMS = ['height','width','rise_time','width_90area','width_50area',
           'end_first_sample','end_final_sample',
           'muon_s1_start_sample','muon_s1_end_sample','muon_s2_end_sample',
           'muon_s1_width_ns','muon_s2_width_ns','muon_s1_height_an','muon_s2_height_an','muon_s1_height_dy','muon_s2_height_dy',
-          'muon_s1_area_ano','muon_s1_area_dyn','muon_s2_area_ano','muon_s2_area_dyn',
+          'muon_s1_area_an','muon_s1_area_dy','muon_s2_area_an','muon_s2_area_dy',
           'wave_len_samples']
 for rid in runs:
     done = os.path.join(OUT, f"run_{rid}.csv")

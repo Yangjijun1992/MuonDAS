@@ -334,6 +334,54 @@ def _max_ignore_nan(values: List[float], default: float = 0.0) -> float:
     return float(max(finite)) if finite else default
 
 
+def _fill_muon_segments(feats, peak_sum_a, peak_sum_d, a_st, end_final_sample,
+                        interval_ns, cal_a, cal_d, config) -> None:
+    """Fill the muon S1/S2 segment parameters of ``feats`` in place.
+
+    The cut point is the S1 end found on the anode sum by
+    :func:`find_s1_endpoint_from_peak`, giving ``S1 = [a_st, s1_end]`` and
+    ``S2 = [s1_end, end_final]``.  width / height / area are computed per
+    segment on both the anode_sum and the dynode_sum (anode areas take the
+    absolute value; dynode areas keep the sign of the positive pulse).
+    """
+    from muon_analysis.pulsefinding import find_s1_endpoint_from_peak
+
+    cfg = (config or {}).get("muon_s1_s2", {}) or {}
+    s1_peak = (int(np.argmin(peak_sum_a))
+               if peak_sum_a is not None and len(peak_sum_a) else int(a_st))
+    s1_end = find_s1_endpoint_from_peak(
+        peak_sum_a if peak_sum_a is not None else np.zeros(1), s1_peak,
+        min_decay=int(cfg.get("min_decay", 20)),
+        max_decay=int(cfg.get("max_decay", 500)),
+        polarity="negative",
+        method=cfg.get("method", "second_derivative"))
+
+    def seg_stats(wf, lo, hi, abs_sum=False):
+        if wf is None or hi <= lo:
+            return 0.0, 0.0
+        w = np.asarray(wf, dtype=float)
+        seg = w[max(0, lo):min(len(w), hi)]
+        if len(seg) == 0:
+            return 0.0, 0.0
+        total = float(np.sum(np.abs(seg))) if abs_sum else float(np.sum(seg))
+        return float(np.max(np.abs(seg))), total
+
+    lo, mid, hi = int(a_st), int(s1_end), int(end_final_sample)
+    feats.muon_s1_start_sample = lo
+    feats.muon_s1_end_sample = mid
+    feats.muon_s2_end_sample = hi
+    feats.muon_s1_width_ns = float(max(0, mid - lo)) * interval_ns
+    feats.muon_s2_width_ns = float(max(0, hi - mid)) * interval_ns
+    feats.muon_s1_height_an, a1 = seg_stats(peak_sum_a, lo, mid, True)
+    feats.muon_s2_height_an, a2 = seg_stats(peak_sum_a, mid, hi, True)
+    feats.muon_s1_height_dy, d1 = seg_stats(peak_sum_d, lo, mid)
+    feats.muon_s2_height_dy, d2 = seg_stats(peak_sum_d, mid, hi)
+    feats.muon_s1_area_an = a1 * cal_a
+    feats.muon_s2_area_an = a2 * cal_a
+    feats.muon_s1_area_dy = d1 * cal_d
+    feats.muon_s2_area_dy = d2 * cal_d
+
+
 def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures:
     """Per-record + aggregate features for a peak.
 
@@ -594,55 +642,21 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         w50 = width_to_fraction_area(w, bl, a_st, end_final_sample, 0.5)
         width_20_50area = (w50 - w20) * interval_ns if (w20 == w20 and w50 == w50) else 0.0
 
-    # muon S1 / S2 decomposition (separate muon parameters): the cut point is
-    # the S1 end found on the anode sum by find_s1_endpoint_from_peak, giving
-    # S1 = [a_st, s1_end] and S2 = [s1_end, end_final].  width/height/area are
-    # computed per segment on both the anode_sum and the dynode_sum.
-    from muon_analysis.pulsefinding import find_s1_endpoint_from_peak
-
-    s1_cfg = config.get("muon_s1_s2", {}) or {}
-    s1_peak_sample = (int(np.argmin(peak_sum_a))
-                      if peak_sum_a is not None and len(peak_sum_a) else a_st)
-    s1_end_sample = find_s1_endpoint_from_peak(
-        peak_sum_a if peak_sum_a is not None else np.zeros(1),
-        s1_peak_sample,
-        min_decay=int(s1_cfg.get("min_decay", 20)),
-        max_decay=int(s1_cfg.get("max_decay", 500)),
-        polarity="negative",
-        method=s1_cfg.get("method", "second_derivative"),
-    )
-    muon_s1_start_sample = int(a_st)
-    muon_s1_end_sample = int(s1_end_sample)
-    muon_s2_end_sample = int(end_final_sample)
-    muon_s1_width_ns = (float(max(0, muon_s1_end_sample - muon_s1_start_sample))
-                        * interval_ns if muon_s1_end_sample > muon_s1_start_sample
-                        else 0.0)
-    muon_s2_width_ns = (float(max(0, muon_s2_end_sample - muon_s1_end_sample))
-                        * interval_ns if muon_s2_end_sample > muon_s1_end_sample
-                        else 0.0)
-
-    def seg_stats(wf, lo, hi, abs_sum=False):
-        if wf is None or hi <= lo:
-            return 0.0, 0.0
-        w = np.asarray(wf, dtype=float)
-        seg = w[max(0, lo):min(len(w), hi)]
-        if len(seg) == 0:
-            return 0.0, 0.0
-        total = float(np.sum(np.abs(seg))) if abs_sum else float(np.sum(seg))
-        return float(np.max(np.abs(seg))), total
-
-    a_s1_h, a_s1_area = seg_stats(peak_sum_a, muon_s1_start_sample, muon_s1_end_sample, True)
-    a_s2_h, a_s2_area = seg_stats(peak_sum_a, muon_s1_end_sample, muon_s2_end_sample, True)
-    d_s1_h, d_s1_area = seg_stats(peak_sum_d, muon_s1_start_sample, muon_s1_end_sample)
-    d_s2_h, d_s2_area = seg_stats(peak_sum_d, muon_s1_end_sample, muon_s2_end_sample)
-    muon_s1_height_an = a_s1_h
-    muon_s2_height_an = a_s2_h
-    muon_s1_height_dy = d_s1_h
-    muon_s2_height_dy = d_s2_h
-    muon_s1_area_ano = a_s1_area * cal_a
-    muon_s1_area_dyn = d_s1_area * cal_d
-    muon_s2_area_ano = a_s2_area * cal_a
-    muon_s2_area_dyn = d_s2_area * cal_d
+    # muon S1/S2 parameters are filled in after the classification, only for
+    # peaks labelled "muon" (S1 / S2 / other peaks keep the zero defaults).
+    muon_s1_start_sample = 0
+    muon_s1_end_sample = 0
+    muon_s2_end_sample = 0
+    muon_s1_width_ns = 0.0
+    muon_s2_width_ns = 0.0
+    muon_s1_height_an = 0.0
+    muon_s2_height_an = 0.0
+    muon_s1_height_dy = 0.0
+    muon_s2_height_dy = 0.0
+    muon_s1_area_an = 0.0
+    muon_s1_area_dy = 0.0
+    muon_s2_area_an = 0.0
+    muon_s2_area_dy = 0.0
 
     wave_len_samples = int(max(len(peak_sum_a) if peak_sum_a is not None else 0,
                               len(peak_sum_d) if peak_sum_d is not None else 0))
@@ -743,12 +757,15 @@ def compute_peak_features(peak: Peak, run_data, gain_db, config) -> PeakFeatures
         muon_s2_height_an=muon_s2_height_an,
         muon_s1_height_dy=muon_s1_height_dy,
         muon_s2_height_dy=muon_s2_height_dy,
-        muon_s1_area_ano=muon_s1_area_ano,
-        muon_s1_area_dyn=muon_s1_area_dyn,
-        muon_s2_area_ano=muon_s2_area_ano,
-        muon_s2_area_dyn=muon_s2_area_dyn,
+        muon_s1_area_an=muon_s1_area_an,
+        muon_s1_area_dy=muon_s1_area_dy,
+        muon_s2_area_an=muon_s2_area_an,
+        muon_s2_area_dy=muon_s2_area_dy,
         wave_len_samples=wave_len_samples,
     )
     from muon_analysis.signal_id import classify_signal
     feats.signal_type = classify_signal(feats, len(peak.channels), config)
+    if feats.signal_type == "muon":
+        _fill_muon_segments(feats, peak_sum_a, peak_sum_d, a_st, end_final_sample,
+                            interval_ns, cal_a, cal_d, config)
     return feats
