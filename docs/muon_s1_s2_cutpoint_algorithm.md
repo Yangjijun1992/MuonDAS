@@ -121,6 +121,7 @@ muon_s1_s2:
 | `muon_s1_start_sample` / `muon_s1_end_sample` / `muon_s2_end_sample` | 三个切分样本 |
 | `muon_s1_width_ns` / `muon_s2_width_ns` | `(end − start) × 4 ns` |
 | `muon_s1_height` / `muon_s2_height` | `max(|anode_sum|, |dynode_sum|)` 在各自窗口内 |
+| `muon_s1_height_dyn` / `muon_s2_height_dyn` | **仅 dynode_sum** 在各自窗口内的 `max|·|` |
 | `muon_s1_area_ano` / `muon_s1_area_dyn` | anode_sum / dynode_sum 在 S1 窗口的积分（PE）|
 | `muon_s2_area_ano` / `muon_s2_area_dyn` | 同上，S2 窗口 |
 
@@ -136,6 +137,14 @@ muon_s1_s2:
 | `muon_s1_area_dyn` | 1,766 PE | 653 | 2,643 |
 | `muon_s2_area_ano` | 21,621 PE | 13,512 | 32,115 |
 | `muon_s2_area_dyn` | 286 PE | 71 | 480 |
+
+新增（dynode-only 高度）：
+| 参数 | 中位 | q25 | q75 |
+|---|---|---|---|
+| `muon_s1_height_dyn` | 21,357 ADC | 8,701 | 31,640 |
+| `muon_s2_height_dyn` | 3,277 ADC | 1,695 | 4,859 |
+
+> dynode-only 的 S1/S2 高度比中位 **6.16**（S1 前沿在 dynode 上同样远高于 S2 拖尾）。
 
 切分样本中位：`muon_s1_start_sample=50`、`muon_s1_end_sample=75`、`muon_s2_end_sample=6,738`
 
