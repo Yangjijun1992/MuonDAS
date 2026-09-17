@@ -127,3 +127,6 @@ draw_single(df, "width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 100.0,
 draw_single(df, "width_ns", "width_ns [ns]", (40.0, 1e5), 2000.0,
             f"Co60 590+ v2: width_ns vs anode_sum_area (n={len(df)})",
             "width_ns_vs_anodesum_area_v2.png")
+draw_single(df, "height", "height [ADC]", (400.0, 1e6), 1.5e4,
+            f"Co60 590+ v2: height vs anode_sum_area (n={len(df)})",
+            "height_vs_anodesum_area_v2.png")
