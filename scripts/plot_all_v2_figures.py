@@ -130,3 +130,7 @@ draw_single(df, "width_ns", "width_ns [ns]", (40.0, 1e5), 2000.0,
 draw_single(df, "height", "height [ADC]", (400.0, 1e6), 1.5e4,
             f"Co60 590+ v2: height vs anode_sum_area (n={len(df)})",
             "height_vs_anodesum_area_v2.png")
+s2 = df[df.signal_type == "S2"]
+draw_single(s2, "height", "height [ADC]", (400.0, 1e6), 1.5e4,
+            f"Co60 590+ v2 S2 (S1 excluded): height vs anode_sum_area (n={len(s2)})",
+            "height_vs_anodesum_area_v2_S2.png")
