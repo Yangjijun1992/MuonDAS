@@ -67,14 +67,14 @@ print("saved 1D")
 
 # --- Figure 2: 2D histograms ---
 panels2 = [
-    ("muon_s1_height_an", "muon_s1_area_an",
-     "muon_s1_height_an [ADC]", "muon_s1_area_an [PE]"),
-    ("muon_s2_width_ns", "muon_s2_area_an",
-     "muon_s2_width_ns [ns]", "muon_s2_area_an [PE]"),
+    ("muon_s1_area_an", "muon_s1_height_an",
+     "muon_s1_area_an [PE]", "muon_s1_height_an [ADC]"),
+    ("muon_s2_area_an", "muon_s2_width_ns",
+     "muon_s2_area_an [PE]", "muon_s2_width_ns [ns]"),
     ("muon_s1_height_an", "muon_s1_height_dy",
      "muon_s1_height_an [ADC]", "muon_s1_height_dy [ADC]"),
-    ("muon_s1_area_an", "muon_s1_area_dy",
-     "muon_s1_area_an [PE]", "muon_s1_area_dy [PE]"),
+    ("muon_s1_area_dy", "muon_s1_area_an",
+     "muon_s1_area_dy [PE]", "muon_s1_area_an [PE]"),
 ]
 fig, axes = plt.subplots(2, 2, figsize=(24, 20))
 for ax, (xc, yc, xlab, ylab) in zip(axes.ravel(), panels2):
