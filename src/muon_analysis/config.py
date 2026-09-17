@@ -82,6 +82,10 @@ _DEFAULTS: Dict[str, Any] = {
         },
         "s2": {
             "n_channels": None,
+            "w90area_min_ns": 1000.0,
+            "width_ns_min_ns": 2000.0,
+            "anode_sum_area_min_pe": 300.0,
+            "height_max_adc": 15000.0,
         },
     },
     "features": {
