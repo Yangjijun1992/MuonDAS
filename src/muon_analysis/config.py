@@ -87,6 +87,13 @@ _DEFAULTS: Dict[str, Any] = {
             "anode_sum_area_min_pe": 300.0,
             "height_max_adc": 15000.0,
         },
+        "muon": {
+            "n_channels_min": 2,
+            "height_min_adc": 15000.0,
+            "width_ns_min_ns": 2000.0,
+            "w90area_min_ns": 1000.0,
+            "anode_sum_area_min_pe": 300.0,
+        },
     },
     "features": {
         "integral_window_mode": "fixed",
