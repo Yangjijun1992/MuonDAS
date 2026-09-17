@@ -120,10 +120,10 @@ muon_s1_s2:
 |---|---|
 | `muon_s1_start_sample` / `muon_s1_end_sample` / `muon_s2_end_sample` | 三个切分样本 |
 | `muon_s1_width_ns` / `muon_s2_width_ns` | `(end − start) × 4 ns` |
-| `muon_s1_height` / `muon_s2_height` | `max(|anode_sum|, |dynode_sum|)` 在各自窗口内 |
-| `muon_s1_height_dyn` / `muon_s2_height_dyn` | **仅 dynode_sum** 在各自窗口内的 `max|·|` |
-| `muon_s1_area_ano` / `muon_s1_area_dyn` | anode_sum / dynode_sum 在 S1 窗口的积分（PE）|
-| `muon_s2_area_ano` / `muon_s2_area_dyn` | 同上，S2 窗口 |
+| `muon_s1_height_an` / `muon_s2_height_an` | **anode_sum** 在各自窗口内的 `max|·|` |
+| `muon_s1_height_dy` / `muon_s2_height_dy` | **dynode_sum** 在各自窗口内的 `max|·|` |
+| `muon_s1_area_an` / `muon_s1_area_dy` | anode_sum / dynode_sum 在 S1 窗口的积分（PE）|
+| `muon_s2_area_an` / `muon_s2_area_dy` | 同上，S2 窗口 |
 
 ### Co60 590+ v2 应用结果（muon 组，n=15,524）
 
@@ -131,20 +131,22 @@ muon_s1_s2:
 |---|---|---|---|
 | `muon_s1_width_ns` | 104 ns | 100 | 108 |
 | `muon_s2_width_ns` | 26,648 ns | 25,776 | 27,412 |
-| `muon_s1_height` | 52,258 ADC | 26,318 | 67,896 |
-| `muon_s2_height` | 7,221 ADC | 4,143 | 9,699 |
-| `muon_s1_area_ano` | 3,649 PE | 1,834 | 4,734 |
-| `muon_s1_area_dyn` | 1,766 PE | 653 | 2,643 |
-| `muon_s2_area_ano` | 21,621 PE | 13,512 | 32,115 |
-| `muon_s2_area_dyn` | 286 PE | 71 | 480 |
-
-新增（dynode-only 高度）：
-| 参数 | 中位 | q25 | q75 |
-|---|---|---|---|
-| `muon_s1_height_dyn` | 21,357 ADC | 8,701 | 31,640 |
-| `muon_s2_height_dyn` | 3,277 ADC | 1,695 | 4,859 |
+| `muon_s1_height_an` | 52,252 ADC | 26,318 | 67,896 |
+| `muon_s1_height_dy` | 21,357 ADC | 8,701 | 31,640 |
+| `muon_s2_height_an` | 7,221 ADC | 4,143 | 9,699 |
+| `muon_s2_height_dy` | 3,277 ADC | 1,695 | 4,859 |
+| `muon_s1_area_an` | 3,649 PE | 1,834 | 4,734 |
+| `muon_s1_area_dy` | 1,766 PE | 653 | 2,643 |
+| `muon_s2_area_an` | 21,621 PE | 13,512 | 32,115 |
+| `muon_s2_area_dy` | 286 PE | 71 | 480 |
 
 > dynode-only 的 S1/S2 高度比中位 **6.16**（S1 前沿在 dynode 上同样远高于 S2 拖尾）。
+
+### 计算范围
+
+**muon_s1/s2 全部参数只对 `signal_type == "muon"` 的 peak 计算**；S1 / S2 / other
+事例这些字段保持默认 0（`compute_peak_features` 在分类后调用
+`_fill_muon_segments`）。验证：720,884 个非 muon peak 的全部 muon_* 字段均为 0。
 
 切分样本中位：`muon_s1_start_sample=50`、`muon_s1_end_sample=75`、`muon_s2_end_sample=6,738`
 
