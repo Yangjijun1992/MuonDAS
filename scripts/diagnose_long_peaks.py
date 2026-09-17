@@ -26,17 +26,19 @@ peaks = list(cluster_peaks(matched, rd, cfg))
 compute_peak_start_end(peaks, rd, cfg)
 g = build_gain_db(cfg, run_id="00595")
 
+import pandas as pd
+
 rows = []
+csv = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/run_00595.csv"
+want = pd.read_csv(csv)
+want = want[(want.wave_len_samples > 5000) & (want.n_ch == 7)]
+want_ids = set(int(i) for i in want.peaks_id)
+print(f"CSV long 7ch ids={len(want_ids)}")
 for pk in peaks:
-    if len(pk.anode_records) != 7:
-        continue
-    st = [r.pulse_start_sample for r in pk.anode_records if r.pulse_start_sample is not None]
-    ed = [r.pulse_end_sample for r in pk.anode_records if r.pulse_end_sample is not None]
-    if not st or not ed or max(ed) - min(st) <= 5000:
+    if pk.peaks_id not in want_ids:
         continue
     pf = compute_peak_features(pk, rd, g, cfg)
-    if pf.wave_len_samples > 5000:
-        rows.append((pk, pf))
+    rows.append((pk, pf))
 rows.sort(key=lambda r: -r[1].wave_len_samples)
 print(f"total peaks={len(peaks)}  long 7ch (>5000)={len(rows)}")
 
@@ -50,7 +52,7 @@ for ax, (pk, pf) in zip(axes, picks):
     a_st = b["anode"][0] if "anode" in b else 0
     t = (np.arange(len(s)) - a_st) * 4 / 1000.0
     ax.plot(t, s, "b-", lw=0.7, label="anode_sum")
-    if pf.dynode_sum is not None:
+    if pf.dynode_sum is not None and len(pf.dynode_sum) == len(s):
         ax.plot(t, pf.dynode_sum, "r-", lw=0.7, alpha=0.6, label="dynode_sum")
     for x, c, lb in [(a_st, "g", "a_st"), (pf.end_first_sample, "m", "end_first"),
                      (pf.end_final_sample, "k", "end_final")]:
