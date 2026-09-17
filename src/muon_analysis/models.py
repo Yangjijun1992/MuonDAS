@@ -130,10 +130,10 @@ class PeakFeatures:
     muon_s2_end_sample: int = 0     # = end_final
     muon_s1_width_ns: float = 0.0   # (s1_end - a_st) * 4
     muon_s2_width_ns: float = 0.0   # (end_final - s1_end) * 4
-    muon_s1_height: float = 0.0     # max |anode_sum| / |dynode_sum| in S1 window
-    muon_s2_height: float = 0.0     # max |anode_sum| / |dynode_sum| in S2 window
-    muon_s1_height_dyn: float = 0.0 # max |dynode_sum| only, in S1 window
-    muon_s2_height_dyn: float = 0.0 # max |dynode_sum| only, in S2 window
+    muon_s1_height_an: float = 0.0  # max |anode_sum| in S1 window
+    muon_s2_height_an: float = 0.0  # max |anode_sum| in S2 window
+    muon_s1_height_dy: float = 0.0  # max |dynode_sum| in S1 window
+    muon_s2_height_dy: float = 0.0  # max |dynode_sum| in S2 window
     muon_s1_area_ano: float = 0.0   # anode_sum integral over S1 window, PE
     muon_s1_area_dyn: float = 0.0   # dynode_sum integral over S1 window, PE
     muon_s2_area_ano: float = 0.0   # anode_sum integral over S2 window, PE
@@ -173,10 +173,10 @@ class PeakFeatures:
             "muon_s2_end_sample": self.muon_s2_end_sample,
             "muon_s1_width_ns": self.muon_s1_width_ns,
             "muon_s2_width_ns": self.muon_s2_width_ns,
-            "muon_s1_height": self.muon_s1_height,
-            "muon_s2_height": self.muon_s2_height,
-            "muon_s1_height_dyn": self.muon_s1_height_dyn,
-            "muon_s2_height_dyn": self.muon_s2_height_dyn,
+            "muon_s1_height_an": self.muon_s1_height_an,
+            "muon_s2_height_an": self.muon_s2_height_an,
+            "muon_s1_height_dy": self.muon_s1_height_dy,
+            "muon_s2_height_dy": self.muon_s2_height_dy,
             "muon_s1_area_ano": self.muon_s1_area_ano,
             "muon_s1_area_dyn": self.muon_s1_area_dyn,
             "muon_s2_area_ano": self.muon_s2_area_ano,

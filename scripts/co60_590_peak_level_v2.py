@@ -26,7 +26,7 @@ PARAMS = ['height','width','rise_time','width_90area','width_50area',
           'anode_area_pe','dynode_area_pe','anode_sum_area','dynode_sum_area',
           'end_first_sample','end_final_sample',
           'muon_s1_start_sample','muon_s1_end_sample','muon_s2_end_sample',
-          'muon_s1_width_ns','muon_s2_width_ns','muon_s1_height','muon_s2_height','muon_s1_height_dyn','muon_s2_height_dyn',
+          'muon_s1_width_ns','muon_s2_width_ns','muon_s1_height_an','muon_s2_height_an','muon_s1_height_dy','muon_s2_height_dy',
           'muon_s1_area_ano','muon_s1_area_dyn','muon_s2_area_ano','muon_s2_area_dyn',
           'wave_len_samples']
 for rid in runs:
