@@ -13,18 +13,23 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from muon_analysis.sum_store import load_sum_npz
 
-AREA_MAX = 2.5e3
+AREA_CUT = 2.5e3
 N_EX = 30
-ZOOM_US = float(sys.argv[1]) if len(sys.argv) > 1 else None
-ZOOM_START = float(sys.argv[2]) if len(sys.argv) > 2 else -0.5
+SIDE = sys.argv[1] if len(sys.argv) > 1 else "low"      # low | high
+ZOOM_US = float(sys.argv[2]) if len(sys.argv) > 2 else None
+ZOOM_START = float(sys.argv[3]) if len(sys.argv) > 3 else -0.5
 TMP = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 DOCS = "/home/yjj/MuonDAS/docs/figures"
-OUT = (f"{TMP}/muon_lowarea_examples_zoom{ZOOM_US:g}us.png" if ZOOM_US
-       else f"{TMP}/muon_lowarea_examples.png")
+SIDE_TAG = "lowarea" if SIDE == "low" else "higharea"
+AREA_LABEL = f"muon_s1_area_an < {AREA_CUT:g} PE" if SIDE == "low" \
+    else f"muon_s1_area_an >= {AREA_CUT:g} PE"
+OUT = (f"{TMP}/muon_{SIDE_TAG}_examples_zoom{ZOOM_US:g}us.png" if ZOOM_US
+       else f"{TMP}/muon_{SIDE_TAG}_examples.png")
 
 df = pd.read_csv(f"{TMP}/co60_590_peak_level_v2.csv")
+_area = df.muon_s1_area_an
 sel = df[(df.signal_type == "muon") & (df.muon_s1_height_an < 2e5)
-         & (df.muon_s1_area_an < AREA_MAX)]
+         & ((_area < AREA_CUT) if SIDE == "low" else (_area >= AREA_CUT))]
 print(f"matching muon peaks = {len(sel)}")
 step = max(1, len(sel) // N_EX)
 picks = sel.iloc[::step].head(N_EX)
@@ -76,7 +81,7 @@ for ax, (_, row) in zip(axes, picks.iterrows()):
     plotted += 1
 for ax in axes[plotted:]:
     ax.axis("off")
-fig.suptitle(f"muon peaks with muon_s1_area_an < {AREA_MAX:g} PE "
+fig.suptitle(f"muon peaks with {AREA_LABEL} "
              f"(n={plotted} shown)"
              + (f", x zoom = {ZOOM_US:g} us from {ZOOM_START:+.1f} us"
                 if ZOOM_US else ""), fontsize=13)
