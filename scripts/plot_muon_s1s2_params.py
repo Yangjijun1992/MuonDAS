@@ -84,36 +84,44 @@ panels_row2 = [
     ("muon_s2_area_an", "muon_s2_height_an",
      "muon_s2_area_an [PE]", "muon_s2_height_an [ADC]"),
 ]
-fig, axes = plt.subplots(2, 3, figsize=(36, 20))
-grid = [(axes[0, k], spec) for k, spec in enumerate(panels_s1)]
-grid += [(axes[1, k], spec) for k, spec in enumerate(panels_row2)]
-for ax, (xc, yc, xlab, ylab) in grid:
-    v = m[(m[xc] > 0) & (m[yc] > 0)]
-    xlo = 10 ** np.floor(np.log10(v[xc].min()))
-    ylo = 10 ** np.floor(np.log10(v[yc].min()))
-    xhi = HEIGHT_AN_MAX if xc == "muon_s1_height_an" else 10 ** np.ceil(np.log10(v[xc].max()))
-    yhi = HEIGHT_AN_MAX if yc == "muon_s1_height_an" else 10 ** np.ceil(np.log10(v[yc].max()))
-    hb = ax.hist2d(v[xc], v[yc],
-                   bins=[np.logspace(np.log10(xlo), np.log10(xhi), 100),
-                         np.logspace(np.log10(ylo), np.log10(yhi), 100)],
-                   cmap="jet", cmin=1, norm=LogNorm())
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlim(xlo, xhi)
-    ax.set_ylim(ylo, yhi)
-    ax.set_xlabel(xlab)
-    ax.set_ylabel(ylab)
-    ax.grid(True, alpha=0.15)
-    cb = fig.colorbar(hb[3], ax=ax)
-    cb.set_label("counts (log)", fontsize=22, fontweight="bold")
-    cb.ax.tick_params(labelsize=16)
-fig.suptitle(f"Co60 590+ v2 muon peaks: S1/S2 parameter correlations (n={len(m)})",
-             fontsize=26, fontweight="bold")
-fig.tight_layout(rect=(0, 0, 1, 0.98))
-fig.savefig(f"{DOCS}/co60_590_v2_muon_s1s2_2d.png", dpi=150)
-fig.savefig(f"{TMP}/co60_590_v2_muon_s1s2_2d.png", dpi=150)
-plt.close(fig)
-print("saved 2D")
+def draw_2d(data, name, title):
+    fig, axes = plt.subplots(2, 3, figsize=(36, 20))
+    grid = [(axes[0, k], spec) for k, spec in enumerate(panels_s1)]
+    grid += [(axes[1, k], spec) for k, spec in enumerate(panels_row2)]
+    for ax, (xc, yc, xlab, ylab) in grid:
+        v = data[(data[xc] > 0) & (data[yc] > 0)]
+        xlo = 10 ** np.floor(np.log10(v[xc].min()))
+        ylo = 10 ** np.floor(np.log10(v[yc].min()))
+        xhi = HEIGHT_AN_MAX if xc == "muon_s1_height_an" else 10 ** np.ceil(np.log10(v[xc].max()))
+        yhi = HEIGHT_AN_MAX if yc == "muon_s1_height_an" else 10 ** np.ceil(np.log10(v[yc].max()))
+        hb = ax.hist2d(v[xc], v[yc],
+                       bins=[np.logspace(np.log10(xlo), np.log10(xhi), 100),
+                             np.logspace(np.log10(ylo), np.log10(yhi), 100)],
+                       cmap="jet", cmin=1, norm=LogNorm())
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlim(xlo, xhi)
+        ax.set_ylim(ylo, yhi)
+        ax.set_xlabel(xlab)
+        ax.set_ylabel(ylab)
+        ax.grid(True, alpha=0.15)
+        cb = fig.colorbar(hb[3], ax=ax)
+        cb.set_label("counts (log)", fontsize=22, fontweight="bold")
+        cb.ax.tick_params(labelsize=16)
+    fig.suptitle(title, fontsize=26, fontweight="bold")
+    fig.tight_layout(rect=(0, 0, 1, 0.98))
+    fig.savefig(f"{DOCS}/{name}", dpi=150)
+    fig.savefig(f"{TMP}/{name}", dpi=150)
+    plt.close(fig)
+    print(f"saved {name}")
+
+
+draw_2d(m, "co60_590_v2_muon_s1s2_2d.png",
+        f"Co60 590+ v2 muon peaks: S1/S2 parameter correlations (n={len(m)})")
+lo = m[m.muon_s1_area_an < 2.5e3]
+draw_2d(lo, "co60_590_v2_muon_s1s2_2d_lowarea.png",
+        f"Co60 590+ v2 muon peaks with muon_s1_area_an < 2.5e3: "
+        f"S1/S2 parameter correlations (n={len(lo)})")
 
 # --- Figure 3: light intensity (area / width) histograms ---
 intensity = [
