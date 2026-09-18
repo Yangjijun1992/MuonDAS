@@ -15,9 +15,11 @@ from muon_analysis.sum_store import load_sum_npz
 
 AREA_MAX = 2.5e3
 N_EX = 30
+ZOOM_US = float(sys.argv[1]) if len(sys.argv) > 1 else None
 TMP = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 DOCS = "/home/yjj/MuonDAS/docs/figures"
-OUT = f"{TMP}/muon_lowarea_examples.png"
+OUT = (f"{TMP}/muon_lowarea_examples_zoom{ZOOM_US:g}us.png" if ZOOM_US
+       else f"{TMP}/muon_lowarea_examples.png")
 
 df = pd.read_csv(f"{TMP}/co60_590_peak_level_v2.csv")
 sel = df[(df.signal_type == "muon") & (df.muon_s1_height_an < 2e5)
@@ -64,6 +66,9 @@ for ax, (_, row) in zip(axes, picks.iterrows()):
                  f"h_an={row.muon_s1_height_an:.0f} h_dy={row.muon_s1_height_dy:.0f}",
                  fontsize=7)
     ax.tick_params(labelsize=7)
+    if ZOOM_US:
+        tpk = (s1_peak - ref) * 4 / 1000.0
+        ax.set_xlim(tpk - 0.5, tpk - 0.5 + ZOOM_US)
     ax.set_xlabel("t from alignment ref [us]", fontsize=8)
     ax.set_ylabel("ADC", fontsize=8)
     ax.legend(fontsize=6, loc="upper right")
@@ -71,7 +76,8 @@ for ax, (_, row) in zip(axes, picks.iterrows()):
 for ax in axes[plotted:]:
     ax.axis("off")
 fig.suptitle(f"muon peaks with muon_s1_area_an < {AREA_MAX:g} PE "
-             f"(n={plotted} shown)", fontsize=13)
+             f"(n={plotted} shown)"
+             + (f", x zoom = {ZOOM_US:g} us" if ZOOM_US else ""), fontsize=13)
 fig.tight_layout(rect=(0, 0, 1, 0.98))
 fig.savefig(OUT, dpi=130)
 plt.close(fig)
