@@ -121,19 +121,29 @@ intensity = [
     ("muon_s2", "muon_s2_area_an", "muon_s2_width_ns", "crimson"),
 ]
 fig, ax = plt.subplots(figsize=(18, 11))
-for lbl, ac, wc, color in intensity:
-    v = (m[ac] / m[wc]).replace([np.inf, -np.inf], np.nan).dropna()
-    v = v[v > 0]
+s1_int = (m["muon_s1_area_an"] / m["muon_s1_width_ns"])
+s1_int = s1_int.replace([np.inf, -np.inf], np.nan).dropna()
+s1_int = s1_int[s1_int > 0]
+s2_int = (m["muon_s2_area_an"] / m["muon_s2_width_ns"])
+s2_int = s2_int.replace([np.inf, -np.inf], np.nan).dropna()
+s2_int = s2_int[s2_int > 0]
+curves = [
+    (s1_int, "royalblue", f"muon_s1 (n={len(s1_int)})", "stepfilled", 0.55),
+    (s2_int, "crimson", f"muon_s2 (n={len(s2_int)})", "stepfilled", 0.55),
+    (s2_int * 6.0, "orange", f"muon_s2 x 6 (median {s2_int.median()*6:.3f})",
+     "step", 1.0),
+    (s2_int * 10.0, "green", f"muon_s2 x 10 (median {s2_int.median()*10:.3f})",
+     "step", 1.0),
+]
+for v, color, lab, htype, alpha in curves:
     bins = np.logspace(np.log10(v.min()), np.log10(v.max()), 90)
-    ax.hist(v, bins=bins, color=color, alpha=0.55, label=f"{lbl} (n={len(v)})")
-    ax.axvline(v.median(), color=color, ls="--", lw=2.4,
-               label=f"{lbl} median = {v.median():.3f}")
+    ax.hist(v, bins=bins, color=color, alpha=alpha, histtype=htype, lw=2.4,
+            label=lab)
+    ax.axvline(v.median(), color=color, ls="--", lw=2.4)
 ax.set_xscale("log")
 ax.set_yscale("log")
 ax.set_xlabel("intensity [PE/ns]")
 ax.set_ylabel("counts (log)")
-ax.set_title(f"Co60 590+ v2 muon peaks: S1 vs S2 light intensity "
-             f"(area_an / width_ns), n={len(m)}")
 ax.grid(True, axis="y", alpha=0.25)
 ax.legend(framealpha=0.9)
 fig.tight_layout()
