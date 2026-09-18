@@ -42,10 +42,19 @@ ax.set_yscale("log")
 ax.set_xlim(xlo, xhi)
 ax.set_ylim(ylo, yhi)
 
+FIT_LO, FIT_HI = 1e3, 4e3
 ratio = (v.muon_s1_area_dy / v.muon_s1_area_an).median()
+fit = v[(v.muon_s1_area_dy >= FIT_LO) & (v.muon_s1_area_dy <= FIT_HI)]
+k = 10 ** np.mean(np.log10(fit.muon_s1_area_an / fit.muon_s1_area_dy))
+print(f"y=kx fit on muon_s1_area_dy in [{FIT_LO:g},{FIT_HI:g}]: n={len(fit)}  k={k:.4f} "
+      f"(median y/x={np.median(fit.muon_s1_area_an / fit.muon_s1_area_dy):.4f})")
+
 gx = np.logspace(np.log10(xlo), np.log10(xhi), 200)
 ax.plot(gx, gx, "k--", lw=2.4, label="y = x")
-ax.plot(gx, gx / ratio, "w--", lw=2.6, label=f"y = x / {ratio:.3f} (median)")
+ax.plot(gx, gx / ratio, "w:", lw=2.4, label=f"y = x / {ratio:.3f} (all, median)")
+ax.plot(gx, k * gx, "k-", lw=3.2,
+        label=f"y = {k:.3f} x  (fit: x in [{FIT_LO:g}, {FIT_HI:g}], n={len(fit)})")
+ax.axvspan(FIT_LO, FIT_HI, color="w", alpha=0.12, zorder=0)
 ax.set_xlabel("muon_s1_area_dy [PE]")
 ax.set_ylabel("muon_s1_area_an [PE]")
 ax.set_title(f"muon peaks with ALL 7/7 channels triggered (n={len(v)}), "
