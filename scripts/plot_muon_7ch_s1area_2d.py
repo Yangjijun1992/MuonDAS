@@ -30,8 +30,8 @@ m = df.merge(r[(r.n_an_pulse == 7) & (r.n_dy_pulse == 7)][["run_id", "peaks_id"]
 v = m[(m.muon_s1_area_an > 0) & (m.muon_s1_area_dy > 0)]
 print(f"7ch/7ch muon peaks={len(m)}  plotted={len(v)}")
 
-xlo, xhi = 5e2, 3e5
-ylo, yhi = 2e3, 4e4
+xlo, xhi = 7e2, 3e5
+ylo, yhi = 3e3, 4e4
 fig, ax = plt.subplots(figsize=(18, 15))
 hb = ax.hist2d(v.muon_s1_area_dy, v.muon_s1_area_an,
                bins=[np.logspace(np.log10(xlo), np.log10(xhi), 120),
