@@ -133,21 +133,27 @@ curves = [
     (s2_int * 6.0, "orange", "x6 scale", "step", 1.0),
     (s2_int * 10.0, "green", "x10 scale", "step", 1.0),
 ]
-for v, color, lab, htype, alpha in curves:
-    bins = np.logspace(np.log10(v.min()), np.log10(v.max()), 90)
-    ax.hist(v, bins=bins, color=color, alpha=alpha, histtype=htype, lw=2.4,
-            label=lab)
-for x, color in [(10.0, "black"), (500.0, "magenta"), (1000.0, "red")]:
-    ax.axvline(x, color=color, ls="--", lw=2.6, label=f"{x:g} PE/ns")
-ax.set_xscale("log")
-ax.set_yscale("log")
-ax.set_xlim(5e-2, 1.5e3)
-ax.set_xlabel("intensity [PE/ns]")
-ax.set_ylabel("counts (log)")
-ax.grid(True, axis="y", alpha=0.25)
-ax.legend(framealpha=0.9)
-fig.tight_layout()
-fig.savefig(f"{DOCS}/co60_590_v2_muon_s1s2_intensity.png", dpi=150)
-fig.savefig(f"{TMP}/co60_590_v2_muon_s1s2_intensity.png", dpi=150)
-plt.close(fig)
-print("saved intensity")
+def draw_intensity(yscale, name):
+    fig, ax = plt.subplots(figsize=(18, 11))
+    for v, color, lab, htype, alpha in curves:
+        bins = np.logspace(np.log10(v.min()), np.log10(v.max()), 90)
+        ax.hist(v, bins=bins, color=color, alpha=alpha, histtype=htype, lw=2.4,
+                label=lab)
+    for x, color in [(10.0, "black"), (500.0, "magenta"), (1000.0, "red")]:
+        ax.axvline(x, color=color, ls="--", lw=2.6, label=f"{x:g} PE/ns")
+    ax.set_xscale("log")
+    ax.set_yscale(yscale)
+    ax.set_xlim(5e-2, 1.5e3)
+    ax.set_xlabel("intensity [PE/ns]")
+    ax.set_ylabel(f"counts ({yscale})")
+    ax.grid(True, axis="y", alpha=0.25)
+    ax.legend(framealpha=0.9)
+    fig.tight_layout()
+    fig.savefig(f"{DOCS}/{name}", dpi=150)
+    fig.savefig(f"{TMP}/{name}", dpi=150)
+    plt.close(fig)
+    print(f"saved {name}")
+
+
+draw_intensity("log", "co60_590_v2_muon_s1s2_intensity.png")
+draw_intensity("linear", "co60_590_v2_muon_s1s2_intensity_liny.png")
