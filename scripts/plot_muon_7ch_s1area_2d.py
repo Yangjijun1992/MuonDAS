@@ -51,9 +51,7 @@ print(f"y=kx fit on muon_s1_area_dy in [{FIT_LO:g},{FIT_HI:g}]: n={len(fit)}  k=
 gx = np.logspace(np.log10(xlo), np.log10(xhi), 200)
 ax.plot(gx, gx, color="0.5", ls=":", lw=2.0, label="y = x (reference)")
 gxf = np.logspace(np.log10(FIT_LO), np.log10(FIT_HI), 50)
-ax.plot(gxf, k * gxf, "k--", lw=3.4,
-        label=f"y = {k:.3f} x  (fit: x in [{FIT_LO:g}, {FIT_HI:g}], n={len(fit)})")
-ax.axvspan(FIT_LO, FIT_HI, color="w", alpha=0.12, zorder=0)
+ax.plot(gxf, k * gxf, "k--", lw=3.4, label=f"y = {k:.3f} x")
 ax.set_xlabel("muon_s1_area_dy [PE]")
 ax.set_ylabel("muon_s1_area_an [PE]")
 ax.set_title(f"muon peaks with ALL 7/7 channels triggered (n={len(v)}), "
