@@ -58,6 +58,9 @@ ax.set_ylabel("muon_s1_area_an [PE]")
 ax.set_title(f"muon peaks with ALL 7/7 channels triggered (n={len(v)}), "
              f"log-log r = {np.corrcoef(np.log10(v.muon_s1_area_an), np.log10(v.muon_s1_area_dy))[0, 1]:.3f}")
 ax.grid(True, alpha=0.15)
+for sp in ax.spines.values():
+    sp.set_linewidth(3.0)
+ax.tick_params(width=3.0, length=10)
 ax.legend(loc="upper left", framealpha=0.85)
 cb = fig.colorbar(hb[3], ax=ax)
 cb.set_label("counts (log)", fontsize=22, fontweight="bold")
