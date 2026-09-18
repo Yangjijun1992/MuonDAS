@@ -130,8 +130,8 @@ s2_int = s2_int[s2_int > 0]
 curves = [
     (s1_int, "royalblue", "muon_s1", "stepfilled", 0.55),
     (s2_int, "crimson", "muon_s2", "stepfilled", 0.55),
-    (s2_int * 6.0, "orange", "muon_s2 x 6", "step", 1.0),
-    (s2_int * 10.0, "green", "muon_s2 x 10", "step", 1.0),
+    (s2_int * 6.0, "orange", "x6 scale", "step", 1.0),
+    (s2_int * 10.0, "green", "x10 scale", "step", 1.0),
 ]
 for v, color, lab, htype, alpha in curves:
     bins = np.logspace(np.log10(v.min()), np.log10(v.max()), 90)
