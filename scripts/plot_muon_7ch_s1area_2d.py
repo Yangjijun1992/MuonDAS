@@ -30,8 +30,8 @@ m = df.merge(r[(r.n_an_pulse == 7) & (r.n_dy_pulse == 7)][["run_id", "peaks_id"]
 v = m[(m.muon_s1_area_an > 0) & (m.muon_s1_area_dy > 0)]
 print(f"7ch/7ch muon peaks={len(m)}  plotted={len(v)}")
 
-xlo, xhi = 7e2, 3e5
-ylo, yhi = 3e3, 4e4
+xlo, xhi = 1e3, 3e5
+ylo, yhi = 3.5e3, 4e4
 fig, ax = plt.subplots(figsize=(18, 15))
 hb = ax.hist2d(v.muon_s1_area_dy, v.muon_s1_area_an,
                bins=[np.logspace(np.log10(xlo), np.log10(xhi), 120),
@@ -50,7 +50,8 @@ print(f"y=kx fit on muon_s1_area_dy in [{FIT_LO:g},{FIT_HI:g}]: n={len(fit)}  k=
 
 gx = np.logspace(np.log10(xlo), np.log10(xhi), 200)
 ax.plot(gx, gx, color="0.5", ls=":", lw=2.0, label="y = x (reference)")
-ax.plot(gx, k * gx, "k--", lw=3.4,
+gxf = np.logspace(np.log10(FIT_LO), np.log10(FIT_HI), 50)
+ax.plot(gxf, k * gxf, "k--", lw=3.4,
         label=f"y = {k:.3f} x  (fit: x in [{FIT_LO:g}, {FIT_HI:g}], n={len(fit)})")
 ax.axvspan(FIT_LO, FIT_HI, color="w", alpha=0.12, zorder=0)
 ax.set_xlabel("muon_s1_area_dy [PE]")
