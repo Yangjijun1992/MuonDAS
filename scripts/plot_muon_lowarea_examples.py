@@ -59,7 +59,7 @@ for ax, (_, row) in zip(axes, picks.iterrows()):
                          (lo, "green", "S1 start", "--"),
                          (mid, "orange", "S1 end / S2 start", "-."),
                          (hi, "black", "S2 end", "--")]:
-        ax.axvline((x - ref) * 4 / 1000.0, color=c, ls=ls, lw=1.2, label=lb)
+        ax.axvline((x - ref) * 4 / 1000.0, color=c, ls=ls, lw=0.5, label=lb)
     ax.axhline(0, color="black", ls="--", alpha=0.3, lw=0.5)
     ax.set_title(f"run{rid} id={pid} nch={int(row.n_ch)} "
                  f"asa={row.muon_s1_area_an:.0f} asd={row.muon_s1_area_dy:.0f} "
