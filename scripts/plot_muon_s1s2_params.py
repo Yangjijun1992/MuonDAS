@@ -124,35 +124,30 @@ draw_2d(lo, "co60_590_v2_muon_s1s2_2d_lowarea.png",
         f"S1/S2 parameter correlations (n={len(lo)})")
 
 # --- Figure 3: light intensity (area / width) histograms ---
-intensity = [
-    ("muon_s1", "muon_s1_area_an", "muon_s1_width_ns", "royalblue"),
-    ("muon_s2", "muon_s2_area_an", "muon_s2_width_ns", "crimson"),
-]
-fig, ax = plt.subplots(figsize=(18, 11))
+N_PMT = 7.0
+SCALE_S1, SCALE_S2 = 1.56, 46.9
 s1_int = (m["muon_s1_area_an"] / m["muon_s1_width_ns"])
 s1_int = s1_int.replace([np.inf, -np.inf], np.nan).dropna()
-s1_int = s1_int[s1_int > 0]
+s1_int = s1_int[s1_int > 0] / N_PMT * SCALE_S1
 s2_int = (m["muon_s2_area_an"] / m["muon_s2_width_ns"])
 s2_int = s2_int.replace([np.inf, -np.inf], np.nan).dropna()
-s2_int = s2_int[s2_int > 0]
-scales_log = [(6.0, "orange"), (10.0, "green")]
-scales_lin = [(30.0, "orange")]
-def draw_intensity(yscale, name, scales):
+s2_int = s2_int[s2_int > 0] / N_PMT * SCALE_S2
+def draw_intensity(yscale, name):
     fig, ax = plt.subplots(figsize=(18, 11))
     curves = [
-        (s1_int, "royalblue", "muon_s1", "stepfilled", 0.55),
-        (s2_int, "crimson", "muon_s2", "stepfilled", 0.55),
-    ] + [(s2_int * f, color, f"x{f:g} scale", "step", 1.0) for f, color in scales]
+        (s1_int, "royalblue", f"muon_s1 (/7 x{SCALE_S1:g})", "stepfilled", 0.55),
+        (s2_int, "crimson", f"muon_s2 (/7 x{SCALE_S2:g})", "stepfilled", 0.55),
+    ]
     for v, color, lab, htype, alpha in curves:
         bins = np.logspace(np.log10(v.min()), np.log10(v.max()), 90)
         ax.hist(v, bins=bins, color=color, alpha=alpha, histtype=htype, lw=2.4,
                 label=lab)
     for x, color in [(10.0, "black"), (500.0, "magenta"), (1000.0, "red")]:
-        ax.axvline(x, color=color, ls="--", lw=2.6, label=f"{x:g} PE/ns")
+        ax.axvline(x, color=color, ls="--", lw=2.6, label=f"{x:g} PE/ns/PMT")
     ax.set_xscale("log")
     ax.set_yscale(yscale)
-    ax.set_xlim(5e-2, 1.5e3)
-    ax.set_xlabel("intensity [PE/ns]")
+    ax.set_xlim(2e-1, 1.5e3)
+    ax.set_xlabel("intensity [PE/ns/PMT]")
     ax.set_ylabel(f"counts ({yscale})")
     ax.grid(True, axis="y", alpha=0.25)
     ax.legend(framealpha=0.9)
@@ -163,5 +158,5 @@ def draw_intensity(yscale, name, scales):
     print(f"saved {name}")
 
 
-draw_intensity("log", "co60_590_v2_muon_s1s2_intensity.png", scales_log)
-draw_intensity("linear", "co60_590_v2_muon_s1s2_intensity_liny.png", scales_lin)
+draw_intensity("log", "co60_590_v2_muon_s1s2_intensity.png")
+draw_intensity("linear", "co60_590_v2_muon_s1s2_intensity_liny.png")
