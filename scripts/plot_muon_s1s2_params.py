@@ -148,7 +148,7 @@ def draw_intensity(yscale, name):
         ax.axvline(x, color=color, ls="--", lw=2.6, label=f"{x:g} PE/ns/PMT")
     ax.set_xscale("log")
     ax.set_yscale(yscale)
-    ax.set_xlim(2e-1, 1.5e3)
+    ax.set_xlim(1e-2, 1.5e3)
     ax.set_xlabel("Intensity [PE/ns/PMT]")
     ax.set_ylabel(f"counts ({yscale})")
     ax.grid(True, axis="y", alpha=0.25)
