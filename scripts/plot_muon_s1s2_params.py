@@ -135,14 +135,14 @@ s1_int = s1_int[s1_int > 0]
 s2_int = (m["muon_s2_area_an"] / m["muon_s2_width_ns"])
 s2_int = s2_int.replace([np.inf, -np.inf], np.nan).dropna()
 s2_int = s2_int[s2_int > 0]
-curves = [
-    (s1_int, "royalblue", "muon_s1", "stepfilled", 0.55),
-    (s2_int, "crimson", "muon_s2", "stepfilled", 0.55),
-    (s2_int * 6.0, "orange", "x6 scale", "step", 1.0),
-    (s2_int * 10.0, "green", "x10 scale", "step", 1.0),
-]
-def draw_intensity(yscale, name):
+scales_log = [(6.0, "orange"), (10.0, "green")]
+scales_lin = [(30.0, "orange")]
+def draw_intensity(yscale, name, scales):
     fig, ax = plt.subplots(figsize=(18, 11))
+    curves = [
+        (s1_int, "royalblue", "muon_s1", "stepfilled", 0.55),
+        (s2_int, "crimson", "muon_s2", "stepfilled", 0.55),
+    ] + [(s2_int * f, color, f"x{f:g} scale", "step", 1.0) for f, color in scales]
     for v, color, lab, htype, alpha in curves:
         bins = np.logspace(np.log10(v.min()), np.log10(v.max()), 90)
         ax.hist(v, bins=bins, color=color, alpha=alpha, histtype=htype, lw=2.4,
@@ -163,5 +163,5 @@ def draw_intensity(yscale, name):
     print(f"saved {name}")
 
 
-draw_intensity("log", "co60_590_v2_muon_s1s2_intensity.png")
-draw_intensity("linear", "co60_590_v2_muon_s1s2_intensity_liny.png")
+draw_intensity("log", "co60_590_v2_muon_s1s2_intensity.png", scales_log)
+draw_intensity("linear", "co60_590_v2_muon_s1s2_intensity_liny.png", scales_lin)
