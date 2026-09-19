@@ -125,21 +125,19 @@ draw_2d(lo, "co60_590_v2_muon_s1s2_2d_lowarea.png",
 
 # --- Figure 3: light intensity (area / width) histograms ---
 N_PMT = 7.0
-SCALE_S1, SCALE_S2 = 1.56, 46.9
+SCALE_S2 = 46.9
 s1_raw = (m["muon_s1_area_an"] / m["muon_s1_width_ns"])
 s1_raw = s1_raw.replace([np.inf, -np.inf], np.nan).dropna()
 s1_raw = s1_raw[s1_raw > 0]
 s2_raw = (m["muon_s2_area_an"] / m["muon_s2_width_ns"])
 s2_raw = s2_raw.replace([np.inf, -np.inf], np.nan).dropna()
 s2_raw = s2_raw[s2_raw > 0]
-s1_int = s1_raw / N_PMT * SCALE_S1
 s2_int = s2_raw / N_PMT * SCALE_S2
 def draw_intensity(yscale, name):
     fig, ax = plt.subplots(figsize=(18, 11))
     curves = [
         (s1_raw, "royalblue", "muon_s1", "stepfilled", 0.55),
         (s2_raw, "crimson", "muon_s2", "stepfilled", 0.55),
-        (s1_int, "navy", f"muon_s1 /7 x{SCALE_S1:g}", "step", 1.0),
         (s2_int, "darkorange", f"muon_s2 /7 x{SCALE_S2:g}", "step", 1.0),
     ]
     for v, color, lab, htype, alpha in curves:
