@@ -20,7 +20,8 @@ DOCS = "/home/yjj/MuonDAS/docs/figures"
 NAME = "co60_590_v2_muon_7ch_s2_over1695.png"
 SCALE = 30.0
 THRESH = 1695.0
-BINS = np.logspace(0, 7, 160)
+NBINS = 500
+X_LO, X_HI = 100.0, 1e5
 
 ratio = pd.read_csv(f"{TMP}/muon_an_dy_channel_ratio.csv")
 df = pd.read_csv(f"{TMP}/co60_590_peak_level_v2.csv")
@@ -28,10 +29,12 @@ m = df.merge(ratio[(ratio.n_an_pulse == 7) & (ratio.n_dy_pulse == 7)][["run_id",
              on=["run_id", "peaks_id"])
 print(f"7ch/7ch muon peaks = {len(m)}")
 
-ha_raw = np.zeros(BINS.size - 1)
-ha_sc = np.zeros(BINS.size - 1)
-hd_raw = np.zeros(BINS.size - 1)
-hd_sc = np.zeros(BINS.size - 1)
+ha_raw = np.zeros(NBINS)
+ha_sc = np.zeros(NBINS)
+hd_raw = np.zeros(NBINS)
+hd_sc = np.zeros(NBINS)
+seg_an = []
+seg_dy = []
 rows = []
 cache = {}
 for _, row in m.iterrows():
@@ -47,14 +50,19 @@ for _, row in m.iterrows():
     dy = np.asarray(store["dynode_sums"].get(pid, np.zeros(0)), dtype=float)[lo:hi]
     if a.size == 0:
         continue
-    ha_raw += np.histogram(a, bins=BINS)[0]
-    ha_sc += np.histogram(a * SCALE, bins=BINS)[0]
-    if dy.size:
-        hd_raw += np.histogram(dy, bins=BINS)[0]
-        hd_sc += np.histogram(dy * SCALE, bins=BINS)[0]
+    seg_an.append(a)
+    seg_dy.append(dy)
     rows.append({"run_id": rid, "peaks_id": pid,
                  "n_points_an": a.size, "n_over_an": int((a * SCALE > THRESH).sum()),
                  "n_points_dy": dy.size, "n_over_dy": int((dy * SCALE > THRESH).sum())})
+BA = np.linspace(X_LO, X_HI, NBINS + 1)
+BD = np.linspace(X_LO, X_HI, NBINS + 1)
+for a, dy in zip(seg_an, seg_dy):
+    ha_raw += np.histogram(a, bins=BA)[0]
+    ha_sc += np.histogram(a * SCALE, bins=BA)[0]
+    if dy.size:
+        hd_raw += np.histogram(dy, bins=BD)[0]
+        hd_sc += np.histogram(dy * SCALE, bins=BD)[0]
 d = pd.DataFrame(rows)
 d["frac_over_an"] = d.n_over_an / d.n_points_an
 d.to_csv(f"{TMP}/muon_7ch_s2_over1695.csv", index=False)
@@ -70,25 +78,28 @@ print(f"anode n_over  : min={d.n_over_an.min()} median={d.n_over_an.median():.0f
 print(f"anode frac    : median={d.frac_over_an.median():.4f} max={d.frac_over_an.max():.4f}")
 print(f"dynode n_points: min={d.n_points_dy.min()} median={d.n_points_dy.median():.0f} max={d.n_points_dy.max()}")
 
-c = BINS[:-1] + np.diff(BINS) / 2
+c = BA[:-1] + np.diff(BA) / 2
+cd = BD[:-1] + np.diff(BD) / 2
 fig, axes = plt.subplots(1, 3, figsize=(31, 9))
 
-for ax, hraw, hsc, tag in [(axes[0], ha_raw, ha_sc, "anode_sum"),
-                           (axes[2], hd_raw, hd_sc, "dynode_sum")]:
-    ax.step(c, hraw, where="mid", color="royalblue", lw=2.2, label="original [ADC]")
-    ax.step(c, hsc, where="mid", color="darkorange", lw=2.2, label=f"x{SCALE:g} scale [ADC]")
+for ax, xs, hraw, hsc, tag in [(axes[0], c, ha_raw, ha_sc, "anode_sum"),
+                               (axes[2], cd, hd_raw, hd_sc, "dynode_sum")]:
+    ax.step(xs, hraw, where="mid", color="royalblue", lw=2.2, label="original [ADC]")
+    ax.step(xs, hsc, where="mid", color="darkorange", lw=2.2, label=f"x{SCALE:g} scale [ADC]")
     ax.axvline(THRESH, color="darkviolet", ls="--", lw=2.8, label=f"threshold {THRESH:g}")
-    ax.set_xscale("log")
     ax.set_xlabel(f"S2 amplitude ({tag}) [ADC]", fontsize=22, fontweight="bold")
     ax.legend(framealpha=0.9, fontsize=16)
+    ax.set_xlim(X_LO, X_HI)
+    nz = hsc[hsc > 0]
+    ax.set_ylim(0, np.quantile(nz, 0.99) * 1.15)
 
 axes[1].hist(d.frac_over_an * 100, bins=120, color="seagreen", alpha=0.8)
 axes[1].set_xlabel(f"fraction over {THRESH:g} [%]", fontsize=22, fontweight="bold")
+axes[1].set_xlim(0, 100)
 for ax in axes:
     ax.set_ylabel("Counts", fontsize=22, fontweight="bold")
-    ax.grid(True, axis="y", alpha=0.25)
+    ax.grid(True, alpha=0.25)
     ax.tick_params(labelsize=15)
-    ax.set_yscale("log")
 fig.suptitle(f"muon 7/7 peaks: S2 (anode_sum / dynode_sum) amplitude and over-threshold "
              f"statistics (n={len(d)}, baseline subtracted)\n"
              f"anode: {tot_pts} points, {tot_over} over threshold after x{SCALE:g} "
