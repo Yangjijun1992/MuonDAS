@@ -144,7 +144,7 @@ def draw_intensity(yscale, name):
         bins = np.logspace(np.log10(v.min()), np.log10(v.max()), 90)
         ax.hist(v, bins=bins, color=color, alpha=alpha, histtype=htype, lw=2.4,
                 label=lab)
-    for x, color in [(10.0, "black"), (500.0, "magenta"), (1000.0, "red")]:
+    for x, color in [(10.0, "darkviolet"), (500.0, "red"), (1000.0, "darkgreen")]:
         ax.axvline(x, color=color, ls="--", lw=2.6, label=f"{x:g} PE/ns/PMT")
     ax.set_xscale("log")
     ax.set_yscale(yscale)
