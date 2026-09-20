@@ -136,8 +136,8 @@ s2_int = s2_raw / N_PMT * SCALE_S2
 def draw_intensity(yscale, name):
     fig, ax = plt.subplots(figsize=(18, 11))
     curves = [
-        (s1_raw, "royalblue", "muon_s1", "stepfilled", 0.55),
-        (s2_raw, "crimson", "muon_s2", "stepfilled", 0.55),
+        (s1_raw / N_PMT, "royalblue", "muon_s1 /7", "stepfilled", 0.55),
+        (s2_raw / N_PMT, "crimson", "muon_s2 /7", "stepfilled", 0.55),
         (s2_int, "darkorange", f"muon_s2 /7 x{SCALE_S2:g}", "step", 1.0),
     ]
     for v, color, lab, htype, alpha in curves:
