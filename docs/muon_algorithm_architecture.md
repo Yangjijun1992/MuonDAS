@@ -268,6 +268,10 @@ vs `anode_sum_area` 等）：
 
 ![S2 类 peak 参数 2D 面板](figures/co60_590_v2_s2_2d_panels.png)
 
+**S2 类中 `width > 10 µs` 的子集**（n = 17,337 / 33,608；灰色虚线标出各项 cut）：
+
+![S2 且 width > 10 µs 的 peak 参数 2D 面板](figures/co60_590_v2_s2_w10us_2d_panels.png)
+
 **muon 类**（非 S1 **且** `height > 1.5×10⁴` ADC **且** `n_ch ≥ 2`）：
 
 ![muon 类 peak 参数 2D 面板](figures/co60_590_v2_muon_2d_panels.png)

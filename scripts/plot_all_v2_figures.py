@@ -6,6 +6,7 @@ Outputs to docs/figures/ and /mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/
   - co60_590_v2_s1_2d_panels.png     (S1 class, 4 panels)
   - co60_590_v2_s2_2d_panels.png     (S2 class, 4 panels)
   - co60_590_v2_muon_2d_panels.png   (muon class, 4 panels)
+  - co60_590_v2_s2_w10us_2d_panels.png (S2 class with width > 10 us)
   - w2050area_vs_anodesum_area_v2.png
   - width_vs_anodesum_area_v2.png
 """
@@ -115,6 +116,13 @@ draw_panels(s2, f"Co60 590+ v2 S2 (non-S1 & height<1.5e4 ADC): n={len(s2)}",
             "co60_590_v2_s2_2d_panels.png", guides={"height": 1.5e4})
 draw_panels(muon, f"Co60 590+ v2 muon (non-S1 & height>1.5e4 ADC & n_ch>=2): n={len(muon)}",
             "co60_590_v2_muon_2d_panels.png", guides={"height": 1.5e4})
+s2_w10 = s2[s2.width > 1e4]
+print(f"S2 with width > 10us = {len(s2_w10)}")
+draw_panels(s2_w10,
+            f"Co60 590+ v2 S2 with width > 10000 ns (n={len(s2_w10)} of {len(s2)})",
+            "co60_590_v2_s2_w10us_2d_panels.png",
+            guides={"height": 1.5e4, "width": 1e4,
+                    "width_90area": 1000.0, "width_20_50area": 100.0})
 draw_single(df, "width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 100.0,
             f"Co60 590+ v2: width_20_50area vs anode_sum_area (n={len(df)})",
             "w2050area_vs_anodesum_area_v2.png")
