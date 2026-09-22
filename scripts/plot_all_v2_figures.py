@@ -7,6 +7,7 @@ Outputs to docs/figures/ and /mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/
   - co60_590_v2_s2_2d_panels.png     (S2 class, 4 panels)
   - co60_590_v2_muon_2d_panels.png   (muon class, 4 panels)
   - co60_590_v2_s2_w10us_2d_panels.png (S2 class with width > 10 us)
+  - co60_590_v2_s2_w10us_nch.png      (n_ch for S2 / long S2 / muon)
   - w2050area_vs_anodesum_area_v2.png
   - width_vs_anodesum_area_v2.png
 """
@@ -117,6 +118,31 @@ draw_panels(s2, f"Co60 590+ v2 S2 (non-S1 & height<1.5e4 ADC): n={len(s2)}",
 draw_panels(muon, f"Co60 590+ v2 muon (non-S1 & height>1.5e4 ADC & n_ch>=2): n={len(muon)}",
             "co60_590_v2_muon_2d_panels.png", guides={"height": 1.5e4})
 s2_w10 = s2[s2.width > 1e4]
+CH = np.arange(1, 8)
+cnt = {
+    "S2 (all)": [int((s2.n_ch == c).sum()) for c in CH],
+    "S2, width>10us": [int((s2_w10.n_ch == c).sum()) for c in CH],
+    "muon": [int((muon.n_ch == c).sum()) for c in CH],
+}
+fig, ax = plt.subplots(figsize=(16, 10))
+w = 0.27
+for i, (lab, v) in enumerate(cnt.items()):
+    frac = np.asarray(v) / max(sum(v), 1) * 100
+    ax.bar(CH + (i - 1) * w, frac, w, label=f"{lab} (n={sum(v)})")
+ax.set_yscale("log")
+ax.set_xticks(CH)
+ax.set_xlabel("n_ch")
+ax.set_ylabel("fraction [%] (log)")
+ax.grid(True, axis="y", alpha=0.25)
+ax.legend(framealpha=0.9)
+fig.suptitle("Co60 590+ v2: channel multiplicity of the S2 / long-S2 / muon classes",
+             fontsize=24, fontweight="bold")
+fig.tight_layout(rect=(0, 0, 1, 0.96))
+for out in (f"{DOCS}/co60_590_v2_s2_w10us_nch.png",
+            f"{TMP}/co60_590_v2_s2_w10us_nch.png"):
+    fig.savefig(out, dpi=150)
+plt.close(fig)
+print("saved: co60_590_v2_s2_w10us_nch.png")
 print(f"S2 with width > 10us = {len(s2_w10)}")
 draw_panels(s2_w10,
             f"Co60 590+ v2 S2 with width > 10000 ns (n={len(s2_w10)} of {len(s2)})",

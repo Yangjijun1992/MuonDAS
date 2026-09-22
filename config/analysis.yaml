@@ -103,6 +103,14 @@ muon_s1_s2:
   max_decay: 500 # search window end [samples]
   method: second_derivative # second_derivative (3B) | min_derivative (3A)
 
+# --- long-S2 <-> S1 muon pairing (runs right after signal_id) ---
+# Every S2 with width > s2_width_min_ns is paired with the largest unpaired S1
+# inside the window_ns window before it; both members of a successful pair are
+# flagged is_muon_event = True.
+muon_pair:
+  window_ns: 25000.0 # look-back window [ns]
+  s2_width_min_ns: 10000.0 # only S2 wider than this take part
+
 # --- features / integration ---
 features:
   # Integration window strategy:
