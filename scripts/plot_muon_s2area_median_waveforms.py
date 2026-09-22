@@ -16,9 +16,11 @@ from muon_analysis.sum_store import load_sum_npz
 MED = 25969.0
 TOL = 0.03
 N_EX = 30
+YSCALE = sys.argv[1] if len(sys.argv) > 1 else "log"
 TMP = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 DOCS = "/home/yjj/MuonDAS/docs/figures"
-NAME = "co60_590_v2_muon_s2area25969_peak_waveforms.png"
+NAME = ("co60_590_v2_muon_s2area25969_peak_waveforms.png" if YSCALE == "log"
+        else f"co60_590_v2_muon_s2area25969_peak_waveforms_{YSCALE}.png")
 
 df = pd.read_csv(f"{TMP}/co60_590_peak_level_v2.csv")
 sel = df[(df.signal_type == "muon") & (df.n_ch == 7)].copy()
@@ -49,17 +51,17 @@ for ax, (_, row) in zip(axes, picks.iterrows()):
     if dy.size:
         ax.plot((np.arange(len(dy)) - ref) * 4 / 1000.0, dy, "crimson", ls="--",
                 lw=1.0, alpha=0.85, label="|dynode_sum|")
-    ax.set_yscale("log")
+    ax.set_yscale(YSCALE)
     ax.set_title(f"run{rid} id={pid} area_an={row.muon_s2_area_an:.0f} "
                  f"area_dy={row.muon_s2_area_dy:.0f}", fontsize=7)
     ax.tick_params(labelsize=7)
     ax.set_xlabel("t from alignment ref [us]", fontsize=8)
-    ax.set_ylabel("|ADC| (log)", fontsize=8)
-    ax.grid(True, which="both", alpha=0.2)
+    ax.set_ylabel(f"|ADC| ({YSCALE})", fontsize=8)
+    ax.grid(True, alpha=0.2)
     ax.legend(fontsize=6, loc="lower right")
 
 fig.suptitle(f"muon n_ch=7 peaks with muon_s2_area_an within +-{TOL:.0%} of "
-             f"{MED:g} PE (n={len(sel)} matching, {N_EX} shown): peak-level waveforms",
+             f"{MED:g} PE (n={len(sel)} matching, {N_EX} shown): peak-level waveforms, y {YSCALE}",
              fontsize=14)
 fig.tight_layout(rect=(0, 0, 1, 0.98))
 for out in (f"{DOCS}/{NAME}", f"{TMP}/{NAME}"):
