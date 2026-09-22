@@ -1,265 +1,470 @@
 # Muon 分析算法架构（Pipeline 逐步图解）
 
-> 本文档按数据处理 Pipeline 的**关键步骤**组织，每一步给出算法说明、关键参数与
-> 对应的**数据验证图片**（No-Field / 00183 实测）。
+> 本文档按数据处理 Pipeline 的**关键步骤**组织：每一步给出**算法说明、关键参数、
+> 对应代码、实测验证图**（特征图 / 参数图 / 代表性波形）。
 >
-> 配套：[架构总览](muon_analysis_architecture.md) / [需求](muon_dynode_analysis_requirements.md) /
-> [实施计划](muon_dynode_analysis_implementation_plan.md) / [批量结果](muon_batch_selection_report.md)
+> 当前版本对应 **Co60 590+ 18 run（run 00590-00607，T = 64,800 s）v2 处理**
+> —— 数据目录 `/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/`，
+> 共 **736,408 peaks**。
+>
+> 配套：[架构总览](muon_analysis_architecture.md) / [需求 §6.1-6.2](muon_dynode_analysis_requirements.md) /
+> [开发进展 §0](muon_development_progress.md) / [peak 宽度算法](peak_width_algorithms.md) /
+> [muon S1/S2 切点算法](muon_s1_s2_cutpoint_algorithm.md) / [S2 过阈统计](muon_s2_over_threshold.md) /
+> [muon 率与通量](muon_rate_vs_flux.md)
 
 ---
 
 ## Pipeline 总览
 
 ```
-runinfo 发现 → 读取波形 → 时间匹配(anode↔dynode) → 聚类成 peak → 逐通道特征/PE
-    → sum 波形(anode_sum/dynode_sum) → peak 级参数(sum 基准) → 筛选(muon 候选)
-    → 输出(CSV/npz/PNG)
+runinfo 发现 → 读取波形(anode/dynode 分 board) → 时间匹配(anode↔dynode, dt∈[0,40]ns)
+   → 聚类成 peak(pulse-start 参考, 320ns 窗口) → 脉冲边界/终点寻峰(pulsefinding)
+   → sum 波形(anode_sum/dynode_sum, 按 pulse_start 对齐逐点求和)
+   → peak 级参数(height/width/rise/width_*area/面积/PE)
+   → 信号鉴别(S1 → S2 → muon → other)
+   → muon 专属 S1/S2 切割(S1=[a_st,s1_end], S2=[s1_end,end_final])
+   → 输出(CSV / npz / PNG)
 ```
 
-| 步骤 | 模块 | 产物 |
+| 步骤 | 模块 | 产物 | 本文档 |
+|---|---|---|---|
+| 1 | `io/runinfo.py` + `io/readers*` | RunData（board 分离 anode=0 / dynode=1）| [§1](#步骤-1数据读取io) |
+| 2 | `matching.py` | 匹配对（dt 分布）| [§2](#步骤-2时间匹配anode↔dynodematching) |
+| 3 | `clustering.py` | `Peak`（多 anode + 多 dynode）| [§3](#步骤-3聚类成-peakclustering) |
+| 4 | `pulsefinding.py` | 脉冲起止、S1 终点、波形最终终点 | [§4](#步骤-4脉冲边界与终点pulsefinding) |
+| 5 | `features.compute_peak_summed_waveforms` | `anode_sum` / `dynode_sum` | [§5](#步骤-5sum-波形compute_peak_summed_waveforms) |
+| 6 | `features.compute_peak_features` | peak 级参数（sum 基准）| [§6](#步骤-6peak-级参数compute_peak_features) |
+| 7 | `signal_id.classify_signal` | `signal_type`（S1/S2/muon/other）| [§7](#步骤-7信号鉴别s1--s2--muon--other) |
+| 8 | `features._fill_muon_segments` | `muon_s1_*` / `muon_s2_*` 共 12 项 | [§8](#步骤-8muon-s1s2-切割) |
+| 9 | `output.py` + `sum_store.py` | CSV / npz / PNG | [§9](#步骤-9输出与持久化) |
+
+---
+
+## 步骤 1：数据读取（io）
+
+**算法**：`get_runinfo()` 发现并解析 `runinfo.json`（runtype 自动探测），
+`read_data()` 用 `waveform_analysis` / `npy` / `hdf5` 后端读取，按 **board** 分离
+（anode=board 0，dynode=board 1）组装为 `RunData`。波形**已在读取层扣除基线**
+（`processed == waveform`）。
+
+**关键参数**：`data_source.data_root`、`data_source.data_format`（`waveform_analysis` | `npy` | `hdf5`）。
+
+**代码**：`src/muon_analysis/io/runinfo.py`、`io/readers.py`、`io/data.py`
+
+---
+
+## 步骤 2：时间匹配（anode↔dynode，matching）
+
+**算法**：dynode 全局时间迁移 `+dynode_shift_ns`（修正通道延迟），再按 **channel**
+用 pandas `merge_asof(direction="backward")` 做最近匹配，保留
+`dt = t_dynode − t_anode ∈ [min_diff_ns, max_diff_ns]` 的配对。
+
+```
+t_dynode' = t_dynode + dynode_shift_ns          # 全局迁移
+pair = merge_asof(dynode, anode, by="channel", direction="backward")
+keep if min_diff_ns <= dt <= max_diff_ns
+```
+
+**关键参数**：
+
+| 参数 | 值 | 说明 |
 |---|---|---|
-| 1 | `io/runinfo.py` + `io/readers*` | RunData（board 分离 anode=0/dynode=1）|
-| 2 | `matching.py` | 匹配对（dt 分布）|
-| 3 | `clustering.py` | Peak（多 anode + 多 dynode）|
-| 4 | `features.py` | 逐通道 Features + PE |
-| 5 | `features.py` `compute_peak_summed_waveforms` | anode_sum / dynode_sum |
-| 6 | `features.py` `compute_peak_features` | peak 级参数（height/width/rise_time/面积/PE）|
-| 7 | `filtering.py` | MuonCandidate |
+| `matching.sample_interval_ns` | 4 | 4 ns/样本 |
+| `matching.dynode_shift_ns` | 16（配置默认）| No-Field 实测 dt 中位 ≈16 ns |
+| | **−16** | **Co60 590+ / run7_Xe 使用值** |
+| `matching.min_diff_ns` / `max_diff_ns` | 0 / **40** | 匹配窗 [0, 40] ns |
+| `matching.channel_delay_ns` | {} | 逐通道延迟校准（可空）|
 
----
+**实测验证**：
 
-## 步骤 1：时间匹配（matching）
+![匹配前后 dt 分布](figures/matching_dt_before_after.png)
 
-**算法**：dynode 全局时间迁移 `+dynode_shift_ns`（No-Field 实测原始 dynode−anode
-dt 中位数 ≈16ns → 移位后 dt∈[0,40ns]），按 **channel** 用 `merge_asof(backward)`
-最近匹配。
+> 移位前 dt 有一个非零偏置，移位后主峰落入 [0,40] ns 窗口。
 
-**关键参数**：`matching.dynode_shift_ns=16`（00183 为 4ns）、`sample_interval_ns=4`、
-匹配窗口 dt∈[0,40ns]。
+![run7_Xe 匹配后 dt 直方图](figures/tpc_run7_xe_matched_dt_histogram.png)
 
-![No-Field 匹配后 dt 分布](figures/matching_dt_nofield_histogram.png)
+![No-Field 匹配后 dt 直方图](figures/matching_dt_nofield_histogram.png)
 
-> No-Field 匹配后 dt 峰值位于 0-40ns 窗口内，主峰 ~16ns 迁移后归零，证实移位参数正确。
+**匹配对波形核对**（同一 channel、同一事例的 anode 与 dynode 叠加；`rawdyn` 版为
+dynode 原始 ×1 波形）：
 
----
+![run 00401 匹配对叠加（dynode ×113）](figures/matching_pairs_overlay_run401.png)
 
-## 步骤 2：匹配后波形对比（逐对）
+![run 00401 匹配对叠加（dynode 原始 ×1）](figures/matching_pairs_overlay_rawdyn_run401.png)
 
-**算法**：匹配对（同一 channel、同一事件的 anode 与 dynode 波形）按时间对齐后
-叠加对比；`rawdyn` 版本为 dynode 原始波形（无 ×113 放大），用于核对形状关系。
-
-![run 00401 匹配对叠加（anode vs dynode×113）](figures/matching_pairs_overlay_run401.png)
-
-![run 00401 匹配对叠加（dynode 原始）](figures/matching_pairs_overlay_rawdyn_run401.png)
+**代码**：`src/muon_analysis/matching.py::match_events` / `get_matched_indices_by_channel`
 
 ---
 
 ## 步骤 3：聚类成 peak（clustering）
 
-**算法**：100ns 时间窗口内聚合匹配对 → `Peak`（同一事例的多 anode + 多 dynode
-record）。窗口参数：`clustering.window_ns=100`。
+**算法**：把匹配对聚成 `Peak`。**聚类参考点是 pulse-start time 而非 record time**：
 
-**聚类结果示例**（本次新算法，No-Field run 00401）：聚类得到的 peak 级
-anode_sum / dynode_sum 波形对比：
+```
+ref(pair) = min( pulse_start_time(anode), pulse_start_time(dynode) )
+pulse_start_time = record.time + pulse_start_sample × 4 ns
+```
 
-![peak 级 anode_sum/dynode_sum 波形对比（run 00401）](figures/sum_compare_peak000_run00401.png)
+按 `ref` 升序扫描，若当前 pair 的 `ref` 超过当前 peak 的 anchor 超过
+**`clustering.window_ns`** 则开启新 peak（贪心、anchor 基准）。
 
-### 寻峰算法约定（pulsefinding）
+**关键参数**：`clustering.window_ns = 320`（= 80 样本）
 
-`find_pulse_boundaries`（`pulse_finder`）对每条 anode/dynode 波形定位脉冲边界：
+> 早期版本用 record time + 100 ns 窗口。改为 pulse-start 参考 + 320 ns 后，
+> 同一事例的通道归属更稳定（record time 受触发抖动影响，pulse-start 更接近物理时刻）。
 
-- **基线恒为 0**：reader 已返回**基线归零**的波形（`processed == waveform`），不再用
-  `global_median`/`first_mean` 二次减基线（对脉冲为主/截断记录会算错基线）。
-- **start**：从脉冲峰**向左找第一个回到 0 的点**（`|值| < start_baseline_tol(20 ADC)`）
-  即脉冲起点；若记录**开头就在脉冲中/截断**（无前基线，扫到样本 0 仍未回 0），
-  则 **start = 记录波形起点 (0)**。
-- **end**：向右回到基线并稳定 —— end 样本及后续 `end_consecutive` 个样本均须在
-  `end_baseline_tol` 内（anode 用 `end_consecutive=0`，dynode 用配置值）。
-- **rise_time**：`peak_index − rise_start`；若为负（对齐参考在峰后/截断），改用
-  `peak_index`（从波形起点算）→ **rise_time 恒 ≥0**（`features.py` `compute_features`）。
+**Peak 数据模型**：`peaks_id`、`start_time_ns`/`end_time_ns`、`anode_records`、
+`dynode_records`、`match_rows`、`channels`（`models.Peak`）。
 
-**关键参数**：`pulse_finder.start_baseline_tol=20`、`end_baseline_tol=20`、
-`end_consecutive=3`(dynode)/0(anode)。
+**代码**：`src/muon_analysis/clustering.py::cluster_peaks`、
+`_pulse_start_reference_times`
 
 ---
 
-## 步骤 4：逐通道特征与 PE（features/gain/pe）
+## 步骤 4：脉冲边界与终点（pulsefinding）
 
-**算法**：`compute_features` 对单条波形计算 baseline、height、charge、rise_time、
-width（FWHM）；dynode 侧特征**先 ×dynode_scale(113) 再计算**。PE 换算：
-`PE = charge × pe_fact / mean_gain`，`pe_fact=(2/16384)×4e-9/(50×1.6e-19)/1e6`。
+`pulse_finder()` 对每条波形定位脉冲起止（anode 负脉冲、dynode 先翻正），
+`compute_peak_start_end()` 把边界写回每条 `PeakRecord` 的
+`pulse_start_sample` / `pulse_end_sample`（供步骤 5 的对齐求和与步骤 7 的鉴别使用）。
 
-**关键参数**：`features.baseline_samples`、`rise_time_low/high=0.1/0.9`、
-`gain_db`（pmtdata/sqlite/csv）。
+在 peak 级 sum 波形上还有三个关键位置：
 
-> anode/dynode 共用同一套通道增益 → cal 相消；原始 ×1 面积比实测 ~230
-> （见步骤 7），但可读信号按 LED 标定采用 **dynode_scale=113**。
+| 函数 | 输出 | 说明 |
+|---|---|---|
+| `find_sum_pulse_bounds` | `a_st`（`muon_s1_start_sample`）| anode_sum 脉冲起点 |
+| `find_s1_endpoint_from_peak` | `s1_end`（`muon_s1_end_sample`）| **S1 终点 == S2 起点** |
+| `find_wave_final_end` | `end_final`（`muon_s2_end_sample`）| 波形最终终点 |
+
+**`find_s1_endpoint_from_peak(waveform, s1_peak_idx, min_decay, max_decay, polarity, method)`**
+
+```
+s1_peak = argmin(anode_sum)
+搜索窗 = [s1_peak + min_decay, s1_peak + max_decay]        # 默认 [20, 500] 样本
+
+3A  method="min_derivative"      : y'[i] = y[i+1] - y[i] → s1_end = argmin(y')
+3B  method="second_derivative"   : y''[i] = y'[i+1] - y'[i] → s1_end = 首个 y'' > 0
+```
+
+**关键参数**：`muon_s1_s2.min_decay=20`、`max_decay=500`、`method=second_derivative`（3B）
+
+> 3A/3B 的逐例对比与选型依据见
+> [`muon_s1_s2_cutpoint_algorithm.md`](muon_s1_s2_cutpoint_algorithm.md)。
+
+**代码**：`src/muon_analysis/pulsefinding.py`
 
 ---
 
 ## 步骤 5：sum 波形（compute_peak_summed_waveforms）
 
-**算法**：peak 内所有 anode（dynode）通道波形按各自 `pulse_start_sample` **对齐**
-（公共参考 `ref=50` 样本，保留基线）后**逐点求和** → `anode_sum` / `dynode_sum`。
-dynode 侧**每个通道先 ×dynode_scale(113) 再叠加**（`side_sum(records, scale)`）；
-原始 ×1 求和保留为 `dynode_sum_raw`（用于未放大面积）。
+**算法**：peak 内所有 anode（dynode）通道波形按**各自 `pulse_start_sample` 对齐**
+（公共参考 `SUMMED_REF = 50` 样本，保留峰前基线）后**逐点求和** →
+`anode_sum` / `dynode_sum`。
 
-**关键参数**：`plotting.dynode_scale=113`、`SUMMED_REF=50`。
+**dynode 侧每个通道先 ×`plotting.dynode_scale`(113) 再叠加**；原始 ×1 求和保留为
+`dynode_sum_raw`。由于各通道波形长度不同，sum 数组长度由宽度最大的通道决定。
 
-![peak 级 anode_sum/dynode_sum 对比（run 00401，dynode 翻转负极性，×113）](figures/sum_compare_peak10077_run00401.png)
+**关键参数**：`plotting.dynode_scale = 113`、`SUMMED_REF = 50`、
+`plotting.dynode_lp_cutoff_hz = null`（硬件 25 MHz 低通已内置，算法层不再滤波）
 
-> 放大后 dynode_sum 与 anode_sum 同尺度（高度比 ≈1-3），可直接对比形状。
+**代码**：`src/muon_analysis/features.py::compute_peak_summed_waveforms`、
+`side_sum`、`SideSummed`
 
-### sum 对齐一致性验证
+**peak 级 sum 波形对比示例**：
 
-**算法**：peak 内各通道 sum 起始点与参考脉冲起始点的差值分布
-（`sum_start_delta`），中位 0ns，86.8% 落在 |Δ|≤4ns。
+![peak 级 anode_sum / dynode_sum 对比（run 00401）](figures/sum_compare_peak10077_run00401.png)
+
+![peak 级 sum 波形（另一例）](figures/sum_compare_peak000_run00401.png)
+
+**对齐一致性验证**（各通道 sum 起始点与参考脉冲起点的差值分布）：
 
 ![sum 起始点差值分布](figures/sum_start_delta_histogram.png)
 
+> 中位 0 ns，86.8% 落在 |Δ| ≤ 4 ns —— 对齐方法可靠。
+
 ---
 
-## 步骤 6：peak 级参数（sum 波形基准）
+## 步骤 6：peak 级参数（compute_peak_features）
 
-**算法**（`compute_peak_features`，**全部由 sum 波形计算**）：
+**算法**：所有 peak 级参数**统一由 sum 波形计算**（单位 ns 的时间量均 ×4 ns）：
 
 | 参数 | 定义 | 单位 |
 |---|---|---|
-| `height` | max(anode_sum 高度, dynode_sum 高度) | ADC |
-| `width` | anode_sum FWHM ×4 | ns |
-| `rise_time` | anode_sum start→peak ×4 | ns |
-| `width_ns` | (anode_sum end − anode_sum start) ×4 | ns |
-| `width_90area/50area` | anode_sum 含 90%/50% 面积的宽度 ×4 | ns |
-| `area_ano`/`area_dyn` | **叠加前逐通道**原始（×1）面积——各 PMT 通道在物理窗口 [anode_sum start, dynode_sum end]（按 pulse_start+ref 映射到该通道）上积分后求和 | raw ADC·samples |
-| `anode_area_pe`/`dynode_area_pe` | area_ano/area_dyn × mean-gain PE 标定（无放大） | PE |
-| `anode_sum_area`/`dynode_sum_area` | 全波形面积 × PE 标定（dynode 含 ×113） | PE |
+| `height` | max(\|anode_sum\|, \|dynode_sum\|) 高度 | ADC |
+| **`width`** | **脉冲跨度** `(end_final_sample − a_st) × 4` | ns |
+| `rise_time` | anode_sum 的 start → peak × 4 | ns |
+| `width_90area` | anode_sum 上含 **90% 面积**的宽度 × 4 | ns |
+| `width_50area` | 含 50% 面积的宽度 × 4 | ns |
+| `width_20_50area` | 从 20% 到 50% 面积的宽度 × 4 | ns |
+| `area_ano` / `area_dyn` | **叠加前逐通道**原始（×1）面积之和 | raw ADC·samples |
+| `anode_area_pe` / `dynode_area_pe` | 同上 × mean-gain 的 PE（**无放大**）| PE |
+| `anode_sum_area` / `dynode_sum_area` | sum 波形**全波形**积分 × mean-gain（dynode 含 ×113）| PE |
+| `wave_len_samples` | sum 数组长度 | 样本 |
+| `n_anode_saturated` | 触到 ADC 削顶上限的 anode 通道数 | — |
 
-![No-Field 7ch peak 参数分布（n=4682）](figures/peak_params_distributions.png)
+> ⚠️ **`width_ns` 已废弃**：旧名 `width_ns` 与 per-record `Features.width`（半高计数）
+> 易混淆，现已统一为 **`width` = peak 级脉冲跨度**。
+> `width` / `width_90area` / `width_50area` / `width_20_50area` 的算法细节见
+> [`peak_width_algorithms.md`](peak_width_algorithms.md)。
 
-> 统计表见 `muon_peak_screening_results.md`；完整数据：`peak_params_all.csv`。
+**PE 换算**：`PE = charge × pe_fact / mean_gain`，
+`pe_fact = (2/16384) × 4e-9 / (50 × 1.6e-19) / 1e6`。
 
-### 逐 PMT 原始 anode/dynode 积分
+**逐 PMT 原始积分**：`anode_area_per_pmt` / `dynode_area_per_pmt`（×1）与
+`anode_area_pe_per_pmt` / `dynode_area_pe_per_pmt`（× 该通道自身 gain）。
 
-除 peak 级合成面积外，`PeakFeatures` 还暴露**每个 PMT 各自**的原始积分及 PE：
+**关键参数**：`features.baseline_samples=10`、`rise_time_low/high=0.1/0.9`、
+`features.saturation.anode_clip_adc=−14700`、`gain_db.backend`（`pmtdata`/`sqlite`/`csv`）
 
-- `anode_area_per_pmt` / `dynode_area_per_pmt`：各 PMT 通道在自身脉冲窗口（起始=该通道寻峰 start；anode 结束=同通道 dynode 的 pulse_end）上的原始（×1）积分（raw ADC·samples）
-- `anode_area_pe_per_pmt` / `dynode_area_pe_per_pmt`：各 PMT 积分 **× 该通道自身 gain** 的 PE 标定
+**代码**：`src/muon_analysis/features.py::compute_peak_features`、`gan`
 
-**No-Field 全部 anode/dynode 匹配对（n=74,702，00401-00405）逐 PMT 积分分布**：
+**Co60 590+ v2 全量 peak 参数 2D 面板**（height / width / width_90area / width_20_50area
+vs `anode_sum_area` 等）：
 
-![逐 PMT anode/dynode 积分 2D 直方图 + 比值（全部匹配对）](figures/perpmt_2dhist_all_pairs.png)
+![Co60 590+ v2 全量 peak 参数 2D 面板](figures/co60_590_v2_2d_panels.png)
 
-**发现 anode/dynode 比值呈双峰——对应不同 PMT**（ch9 低比值 vs ch10-15 高比值）：
+---
 
-- ch9：ratio 中位 ~114，拟合斜率 ~88
-- ch10-15：ratio 中位 ~300，拟合斜率 ~250-265
+## 步骤 7：信号鉴别（S1 → S2 → muon → other）
+
+**算法**：`classify_signal(peak_features, n_channels, config)` 判定信号类型。
+**检查顺序固定为 `S1 → S2 → muon → other`，不可更改**；三类判据**互斥**。
+
+| 顺序 | 类型 | 判据（AND）|
+|---|---|---|
+| 1 | **`S1`** | `width_20_50area < 100 ns` ∧ `width_90area < 1000 ns` |
+| 2 | **`S2`** | `width_90area > 1000 ns` ∧ `width > 2000 ns` ∧ `anode_sum_area > 300 PE` ∧ `height < 15000 ADC` |
+| 3 | **`muon`** | `n_ch ≥ 2` ∧ `height > 15000 ADC` ∧ `width > 2000 ns` ∧ `width_90area > 1000 ns` ∧ `anode_sum_area > 300 PE` |
+| 4 | **`other`** | 其余，或被可选门控 `long_wave_min_samples` 排除（当前 `null` = 关闭）|
+
+**关键参数**：`signal_id.long_wave_min_samples`、`signal_id.{s1,s2,muon}.*`
+（各自的 `n_channels` 门控 `null` = 不限制）
+
+**代码**：`src/muon_analysis/signal_id.py`（`_is_s1` / `_is_s2` / `_is_muon` /
+`_channel_gate_ok` / `classify_signal`）
+
+### 判别效果（Co60 590+ v2，736,408 peaks）
+
+| 类别 | 数量 | 占比 |
+|---|---|---|
+| `S1` | **685,024** | 93.02% |
+| `S2` | **33,608** | 4.56% |
+| `muon` | **15,524** | 2.11% |
+| `other` | 2,252 | 0.31% |
+
+### 各类的参数分布
+
+**S1 类**（`width_20_50area` / `width_90area` 双窄）：
+
+![S1 类 peak 参数 2D 面板](figures/co60_590_v2_s1_2d_panels.png)
+
+**非 S1 类**（S2 + muon + other）：
+
+![非 S1 类 peak 参数 2D 面板](figures/co60_590_v2_nons1_2d_panels.png)
+
+**逐步加 cut 的收紧过程**：
+
+![cut: width>2000 ∧ width_90area>1000 ∧ height>15000](figures/co60_590_v2_wn2000_w90a1000_h15000_2d_panels.png)
+
+![再加 n_ch ≥ 2](figures/co60_590_v2_wn2000_w90a1000_h15000_nch2_2d_panels.png)
+
+![height 反向 (<15000) 看 S2](figures/co60_590_v2_wn2000_w90a1000_hlt15000_2d_panels.png)
+
+**S1 与 S2 的通道多重度对比**：
+
+![n_ch: S1 vs S2](figures/co60_590_v2_nch_s1_vs_s2.png)
+
+**S1 / S2 的 anode-vs-dynode sum 面积**：
+
+![S1: anode_sum_area vs dynode_sum_area](figures/co60_590_v2_s1_anode_vs_dynode_sum_area.png)
+
+![S2: anode_sum_area vs dynode_sum_area](figures/co60_590_v2_s2_anode_vs_dynode_sum_area.png)
+
+**边界参数扫描**：
+
+![width_90area vs anode_sum_area](figures/w2050area_vs_anodesum_area_v2.png)
+
+![width vs anode_sum_area](figures/width_vs_anodesum_area_v2.png)
+
+![height vs anode_sum_area（含 S2）](figures/height_vs_anodesum_area_v2_S2.png)
+
+---
+
+## 步骤 8：muon S1/S2 切割
+
+**算法**：**仅对 `signal_type == "muon"` 的 peak** 计算 `muon_s1_*` / `muon_s2_*`
+字段（`features._fill_muon_segments()`，其它类型一律保持 0 —— 已校验 720,884 个
+非 muon peak 的 12 个字段全为 0）。
+
+```
+S1 = [a_st, s1_end]          a_st      = muon_s1_start_sample
+S2 = [s1_end, end_final]     s1_end    = muon_s1_end_sample   (S1 终点 == S2 起点)
+                             end_final = muon_s2_end_sample
+```
+
+每个区段在阳极与打拿极两侧分别给出 **width / height / area**，共 **12 个字段**：
+
+| 字段 | 含义 |
+|---|---|
+| `muon_s1_width_ns` / `muon_s2_width_ns` | 段宽 = Δsample × 4 ns |
+| `muon_s1_height_an` / `muon_s2_height_an` | anode_sum 段内最大 \|幅度\| |
+| `muon_s1_height_dy` / `muon_s2_height_dy` | dynode_sum 段内最大 \|幅度\| |
+| `muon_s1_area_an` / `muon_s2_area_an` | anode_sum 段内积分 × gain → PE |
+| `muon_s1_area_dy` / `muon_s2_area_dy` | dynode_sum 段内积分 × gain → PE |
+
+**关键参数**：`muon_s1_s2.min_decay=20`、`max_decay=500`、`method=second_derivative`
+
+**代码**：`src/muon_analysis/features.py::_fill_muon_segments`
+
+### S1/S2 参数分布（n = 15,524 muon）
+
+![muon S1/S2 参数 1D 分布](figures/co60_590_v2_muon_s1s2_1d.png)
+
+![muon S1/S2 参数 2D 相关](figures/co60_590_v2_muon_s1s2_2d.png)
+
+![低面积组（area_an < 2.5e3 PE）的 2D 相关](figures/co60_590_v2_muon_s1s2_2d_lowarea.png)
+
+**光强（area/width，单位 PE/ns/PMT）**：`muon_s1` 中位 **34.568 PE/ns**、
+`muon_s2` 中位 **0.826 PE/ns**（差 **41.82 倍**）；归一 ×46.9 后两条分布大体重合，
+但 S2 更宽、更偏软。
+
+![muon S1/S2 光强分布（linear y）](figures/co60_590_v2_muon_s1s2_intensity_liny.png)
+
+![muon S1/S2 光强分布（log y）](figures/co60_590_v2_muon_s1s2_intensity.png)
+
+**S1 上升时间**（`muon_s1_rise = (S1 peak − muon_s1_start) × 4`，
+n_ch=7 子集）：中位 **20 ns**（q25 16 / q75 24 / q95 28 / q99 372 / max 4516）——
+100–3000 ns 的慢上升尾部仅出现在高面积组。
+
+![muon_s1 上升时间分布](figures/co60_590_v2_muon_s1_rise.png)
+
+### 代表性波形
+
+**7/7 全触发事例的 S1 波形**（30 例，x = −0.2 → +1.8 µs）：
+
+![7/7 全触发 muon 的 S1 波形 30 例](figures/co60_590_v2_muon_7ch_s1_examples.png)
+
+**低面积组（`muon_s1_area_an < 2.5e3 PE`，低多重度）**：
+
+![低面积组示例波形](figures/co60_590_v2_muon_lowarea_examples.png)
+
+![低面积组缩放 1 µs](figures/muon_lowarea_examples_zoom1us.png)
+
+**高面积组（`area_an ≥ 2.5e3 PE`，92.9% 为 7 通道）**：
+
+![高面积组示例波形](figures/muon_higharea_examples.png)
+
+![高面积组缩放 1 µs](figures/muon_higharea_examples_zoom1us.png)
+
+**`muon_s1_area_an` 中位附近（25,969 PE）的 peak 级波形 30 例**：
+
+![中位附近 peak 级波形（log y）](figures/co60_590_v2_muon_s2area25969_peak_waveforms.png)
+
+![中位附近 peak 级波形（linear y）](figures/co60_590_v2_muon_s2area25969_peak_waveforms_linear.png)
+
+**S2 低高度事例**：
+
+![S2 低高度示例（run 595）](figures/s2_lowheight_examples_run595.png)
+
+### muon 专属参数的专题分析
+
+| 专题 | 图 | 结论 |
+|---|---|---|
+| `area_dy` vs `area_an`（7/7 子集 n=5,808）| ![子集 2D](figures/co60_590_v2_muon_7ch_s1area_dy_vs_an.png) | log-log r = 0.957；`[10³,4×10³]` 区间 `y = 1.782x`；更高面积脊线下折（**阳极饱和**）|
+| `muon_s2_width_ns` vs `muon_s1_area_an` | ![s2width vs s1area](figures/co60_590_v2_muon_s2width_vs_s1area.png) | 无相关；宽度被记录长度饱和主导 |
+| an/dy 触发通道数比 | ![an/dy ratio](figures/co60_590_v2_muon_an_dy_ratio.png) | 阳极 63.0% 满 7 通道，打拿极仅 37.4%；比值中位 1.167，49.6% 为 1 |
+| S2 采样值分布与过阈统计 | ![S2 过阈](figures/co60_590_v2_muon_7ch_s2_over1695.png) | ×30 后 1695 ADC 阈值：**91.04% 采样点过阈** |
+| S2 面积（n_ch=7）| ![S2 面积](figures/co60_590_v2_muon_s2_area_nch7.png) | anode 中位 25,969 PE（单峰，2.6 decade）；dynode 中位 374 PE（长尾，5.7 decade）|
+| S2 过阈 >80% 的 dynode 波形 | ![S2>80% dynode](figures/co60_590_v2_muon_s2over80_dynode_examples.png) | 27 例满足；打拿极仅覆盖 S1 尖峰 |
+
+---
+
+## 步骤 9：输出与持久化
+
+**CSV**（每 run 一份 + 合并）：`run_XXXXX.csv` → `co60_590_peak_level_v2.csv`
+（**736,408 行**），含 `run_id`/`peaks_id`/`n_ch`/`n_anode`/`n_dynode`/
+全部 peak 级参数 / `signal_type` / 12 个 `muon_*` 字段。
+
+**sum 波形持久化**：18 个 npz 存 `peak_level_v2/sum_waveforms/run_XXXXX.npz`
+（约 **523 MB**），`np.savez_compressed` 存储（float32 拼接 + offsets，无 pickle）。
+
+| 接口 | 说明 |
+|---|---|
+| `sum_store.save_sum_npz()` / `load_sum_npz()` | 读写 |
+| 返回内容 | `{peaks_id, sum_ref, anode_sums:{id: array}, dynode_sums:{id: array}}` |
+
+> 持久化后离线出图从 ~2 min/run 降到 **~10 s**（无需重读原始数据）。
+
+**代码**：`src/muon_analysis/output.py`、`sum_store.py`；
+批量脚本 `scripts/co60_590_peak_level_v2.py`、`scripts/save_sum_waveforms.py`
+
+---
+
+## 附录 A：已知系统性限制（解读结果必读）
+
+| # | 限制 | 影响 |
+|---|---|---|
+| 1 | **3B 的 `s1_end` 是削顶伪影** | 饱和削顶波形上 3B 落在峰值后 ~25 样本（~100 ns），目视 S1/S2 转折在 ~0.5–1.5 µs → S1 窗口偏窄（阳极侧 S1 面积仅占 ~14%，打拿极侧 ~87%）|
+| 2 | **`width` / `muon_s2_width_ns` 被记录长度饱和** | muon 在 ~27 µs 处形成水平带，不能当真实脉冲宽度 |
+| 3 | **`muon_s1_height_an` 被 ADC 削顶** | 上限 ~1.04×10⁵ ADC（487 例堆积在 103k–104k）|
+| 4 | **打拿极记录窗普遍很短** | 记录长度中位 **50 样本（0.2 µs）**；7/7 子集里 `dynode_sum` 中位 121 样本，对 S2 窗（中位 6,704 样本）覆盖率中位仅 **1.4%** → 打拿极侧 S2 统计不可与阳极侧直接比较 |
+| 5 | **阳极 S1 面积饱和** | `area_an` 在 `area_dy ≳ 10⁴ PE` 后被压缩，不能表征真实光量 |
+
+**对应诊断图**：
+
+![S1 终点（3B）伪影全景](figures/issue_end_first_full.png)
+
+![S1 终点（3B）伪影放大](figures/issue_end_first_zoom.png)
+
+![长 peak 的 a_st / s1_end / end_final 位置诊断](figures/long_peaks_diagnosis.png)
+
+> 详细分析见 [`end_first_muon_s1_issue.md`](end_first_muon_s1_issue.md)、
+> [`other_muon_candidates_params.md`](other_muon_candidates_params.md)、
+> [`muon_s2_over_threshold.md`](muon_s2_over_threshold.md)。
+
+---
+
+## 附录 B：逐 PMT 标定发现（No-Field 时期，仍然适用）
+
+**No-Field 全部 anode/dynode 匹配对（n=74,702，run 00401-00405）逐 PMT 积分分布**：
+
+![逐 PMT anode/dynode 积分 2D 直方图 + 比值](figures/perpmt_2dhist_all_pairs.png)
+
+**发现 anode/dynode 比值呈双峰——对应不同 PMT**：
 
 ![逐 PMT 比值双峰分离（ch9 vs ch10-15）](figures/perpmt_bimodal_ratio.png)
 
-> 逐 PMT 数据：`/mnt/data/tmp/muon_analysis/no_field_peaks/all_pairs_perpmt_pe.csv`。
+- ch9：ratio 中位 **~114**，拟合斜率 ~88
+- ch10-15：ratio 中位 **~300**，拟合斜率 ~250–265
 
-> 以上逐 PMT 积分/双峰分析取代了旧版"area_ano/area_dyn 全局比值~230 / 2D 拟合斜率147"
-> 的合成描述——该旧分析把所有 PMT 混在一起，掩盖了 ch9(≈107) vs ch10-15(≈300) 的真实分群。
+> `dynode_scale = 113`（LED 小信号标定）是全局平均取值；逐 PMT 存在真实分群。
+> 该分析取代了旧版「全局比值 ~230 / 2D 拟合斜率 147」的合成描述——后者把所有 PMT
+> 混在一起，掩盖了 ch9 vs ch10-15 的分群。
 
----
+**48 个 muon 候选（No-Field）的参数分布**（历史结果，筛选判据已由步骤 7 取代）：
 
-## 步骤 8：muon 候选筛选（filtering）
-
-**算法**：peak 级阈值判据（AND 交集）。No-Field 批量筛选（n=4,682 个 7ch peaks）：
-
-| cut | 通过数 |
-|---|---|
-| `n_channels ≥ 7` | 4,682 |
-| `height > 15000` ADC | 4,682 |
-| `anode_sum_area > 10000` PE | 879 |
-| `width_ns > 5000` ns | 48 |
-| **全部满足（AND）** | **48（1.03%）** |
-
-**关键参数**：`filtering.height_min/anode_sum_area_min/width_ns_min`
-（写入 `config/analysis.yaml` 时统一为 sum 基准命名）。
-
-**候选事例示例**（anode_sum / dynode_sum 波形，各 run 典型代表）：
-
-![候选示例 run 402 peak 10996（height=1.83M ADC, width_ns=18.6µs）](figures/candidate_example_peak10996_run402.png)
-
-![候选示例 run 403 peak 478（height=1.10M ADC, width_ns=12µs）](figures/candidate_example_peak478_run403.png)
-
-![候选示例 run 401 peak 252（height=749k ADC, width_ns=9.4µs）](figures/candidate_example_peak252_run401.png)
-
-> 48 个候选：run 401→10、402→12、403→15、404→11；height 146k-1.83M ADC、
-> anode_sum_area 14.8k-64.9k PE、width_ns 5.1k-18.6k ns。逐事例对比图见
-> `selected_48/sum_waveforms/`。
-
-### 48 个 muon 候选的 peak 级参数分布
-
-**筛选条件（AND）**：`n_channels ≥ 7`、`height > 15000` ADC、`anode_sum_area > 10000` PE、`width_ns > 5000` ns
-
-| param | median | q25 | q75 | mean | min | max |
-|---|---|---|---|---|---|---|
-| height [ADC] | 157,522 | 123,283 | 215,011 | 200,840 | 103,829 | 899,706 |
-| width [ns] | 92 | 83 | 105 | 98 | 56 | 216 |
-| rise_time [ns] | 20 | 16 | 24 | 20 | 12 | 32 |
-| width_ns [ns] | 5,700 | 5,399 | 6,653 | 6,586 | 5,040 | 18,636 |
-| width_90area [ns] | 742 | 648 | 860 | 815 | 492 | 2,124 |
-| width_50area [ns] | 84 | 76 | 93 | 89 | 60 | 208 |
-| area_ano | 3,176,828 | 2,801,916 | 3,676,989 | 3,416,885 | 1,985,282 | 7,946,273 |
-| area_dyn | 26,278 | 20,049 | 35,099 | 32,146 | 11,189 | 140,068 |
-| anode_area_pe [PE] | 20,904 | 18,437 | 24,195 | 22,484 | 13,063 | 52,287 |
-| dynode_area_pe [PE] | 173 | 132 | 231 | 212 | 74 | 922 |
-| anode_sum_area [PE] | 24,305 | 21,332 | 27,679 | 26,141 | 14,842 | 64,945 |
-| dynode_sum_area [PE] | 20,274 | 15,838 | 27,037 | 24,554 | 8,857 | 104,136 |
+![No-Field 7ch peak 参数分布](figures/peak_params_distributions.png)
 
 ![48 候选 peak 级参数分布](figures/selected48_params_distributions.png)
 
-> 与全体 7ch peaks（n=4,682）对比：候选 height 中位 157k（全体 70k）、width_ns 5.7µs（2.5µs）、
-> anode_sum_area 24.3k PE（6.9k PE）——候选显著更"高能 + 宽脉冲"。
-> 完整逐事例表：`/mnt/data/tmp/muon_analysis/no_field_peaks/selected_48/selected48_params_113.csv`。
-
-### muon 事例率：实测 vs 理论对比
-
-**实测率（48 个候选）**
-```
-观测时间 T = run 00401-00405 × 3600s = 18,000 s = 5.0 h
-R_meas = 48 / 18000 s = 2.67×10⁻³ s⁻¹ = 0.160 min⁻¹ = 9.6 h⁻¹
-```
-
-**理论值（海平面，5cm 直径探测器）**
-```
-海平面 muon 全角度通量 Φ ≈ 1 cm⁻² min⁻¹ = 167 m⁻² s⁻¹（pμ>1 GeV，向下 2π）
-探测器面积 A = πr² = π×(2.5cm)² = 19.6 cm² = 1.96×10⁻³ m²
-R_geom = Φ·A = 167 × 1.96×10⁻³ ≈ 0.33 s⁻¹ ≈ 19.6 min⁻¹ ≈ 1,178 h⁻¹
-```
-
-**对比**
-```
-ε = R_meas / R_geom = 2.67×10⁻³ / 0.327 = 0.81%  → 实测比几何期望低 ~123 倍
-```
-
-**压低推理（效率链分解，数据驱动）**
-
-| 环节 | 效率 | 说明 |
-|---|---|---|
-| 7ch 全符合 | 12.5% | 4,682/37,511 全部 peaks 为 7ch——muon 须同时命中全部 7 个 PMT（几何接收度大幅缩小）|
-| width_ns > 5µs | 1.03% | 48/4,682 个 7ch peaks——最强制约，只留宽脉冲（掠射/长径迹/多簇）事例 |
-| height>15k ∧ anode_sum_area>10k PE | ~100% | 48 个全部通过，不额外淘汰 |
-| 总效率（对全部 peaks）| ≈ 12.5% × 1.03% ≈ 0.13% | 与对几何通量的 0.81% 同量级 ✓ |
-
-**推理**：实测率显著低于几何期望的主因是 **7 通道符合的几何接收度**（~10⁻¹）与
-**宽脉冲判据**（~10⁻²）的联合压低；能标阈值（高度/面积 PE）在本数据集不额外损失。
-两条独立估算路径（对全 peaks 的效率链 0.13% vs 对几何通量的 0.81%）量级一致，交叉验证合理。
+![候选示例 run 402 peak 10996](figures/candidate_example_peak10996_run402.png)
 
 ---
 
-## 配置要点汇总（config/analysis.yaml）
+## 配置速查（`config/analysis.yaml`）
 
-| 配置组 | 关键键 | No-Field 值 |
+| 配置组 | 关键键 | 当前值 |
 |---|---|---|
-| matching | `dynode_shift_ns` / `sample_interval_ns` | 16 / 4 |
-| clustering | `window_ns` | 100 |
-| plotting | `dynode_scale` / `dynode_lp_cutoff_hz` | **113** / null（硬件 25MHz，无软件低通）|
-| filtering | peak 级阈值 | 见步骤 8（sum 基准命名）|
-| features | `baseline_samples` / `rise_time_low/high` | 0.1/0.9 |
-
-> 所有 peak 级参数均以 sum 波形为唯一基准；`dynode_scale` 仅作用于
-> `dynode_sum`/逐通道 dynode 特征/`dynode_sum_area`，**不作用于**
-> `area_ano/area_dyn/anode_area_pe/dynode_area_pe`。
+| `matching` | `sample_interval_ns` | 4 |
+| | `dynode_shift_ns` | 16（Co60 590+ 用 **−16**）|
+| | `min_diff_ns` / `max_diff_ns` | 0 / 40 |
+| `clustering` | `window_ns` | **320** |
+| `plotting` | `dynode_scale` | **113** |
+| | `dynode_lp_cutoff_hz` | null（硬件 25 MHz，无软件低通）|
+| `signal_id` | `long_wave_min_samples` | null（关闭）|
+| | `s1.w20_50area_max_ns` / `w90area_max_ns` | 100 / 1000 |
+| | `s2.w90area_min_ns` / `width_min_ns` / `anode_sum_area_min_pe` / `height_max_adc` | 1000 / 2000 / 300 / 15000 |
+| | `muon.n_channels_min` / `height_min_adc` / `width_min_ns` / `w90area_min_ns` / `anode_sum_area_min_pe` | 2 / 15000 / 2000 / 1000 / 300 |
+| `muon_s1_s2` | `min_decay` / `max_decay` / `method` | 20 / 500 / `second_derivative` |
+| `features` | `baseline_samples` / `rise_time_low` / `rise_time_high` | 10 / 0.1 / 0.9 |
+| | `saturation.anode_clip_adc` | −14700 |
+| `gain_db` | `backend` | `pmtdata` / `sqlite` / `csv` |
