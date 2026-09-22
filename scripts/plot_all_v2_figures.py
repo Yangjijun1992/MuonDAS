@@ -6,8 +6,9 @@ Outputs to docs/figures/ and /mnt/data/tmp/muon_analysis/co60_590/peak_level_v2/
   - co60_590_v2_s1_2d_panels.png     (S1 class, 4 panels)
   - co60_590_v2_s2_2d_panels.png     (S2 class, 4 panels)
   - co60_590_v2_muon_2d_panels.png   (muon class, 4 panels)
-  - co60_590_v2_s2_w10us_2d_panels.png (S2 class with width > 10 us)
-  - co60_590_v2_s2_w10us_nch.png      (n_ch for S2 / long S2 / muon)
+  - co60_590_v2_s2_w15us_2d_panels.png (S2 class with width > 15 us)
+  - co60_590_v2_s2_w15us_nch.png      (n_ch for S2 / long S2 / muon)
+  - co60_590_v2_s2_w15us_areas.png    (anode_sum_area / dynode_sum_area)
   - w2050area_vs_anodesum_area_v2.png
   - width_vs_anodesum_area_v2.png
 """
@@ -117,11 +118,12 @@ draw_panels(s2, f"Co60 590+ v2 S2 (non-S1 & height<1.5e4 ADC): n={len(s2)}",
             "co60_590_v2_s2_2d_panels.png", guides={"height": 1.5e4})
 draw_panels(muon, f"Co60 590+ v2 muon (non-S1 & height>1.5e4 ADC & n_ch>=2): n={len(muon)}",
             "co60_590_v2_muon_2d_panels.png", guides={"height": 1.5e4})
-s2_w10 = s2[s2.width > 1e4]
+S2_WIDTH_MIN_US = 15.0
+s2_wide = s2[s2.width > S2_WIDTH_MIN_US * 1000.0]
 CH = np.arange(1, 8)
 cnt = {
     "S2 (all)": [int((s2.n_ch == c).sum()) for c in CH],
-    "S2, width>10us": [int((s2_w10.n_ch == c).sum()) for c in CH],
+    f"S2, width>{S2_WIDTH_MIN_US:g}us": [int((s2_wide.n_ch == c).sum()) for c in CH],
     "muon": [int((muon.n_ch == c).sum()) for c in CH],
 }
 fig, ax = plt.subplots(figsize=(16, 10))
@@ -138,16 +140,41 @@ ax.legend(framealpha=0.9)
 fig.suptitle("Co60 590+ v2: channel multiplicity of the S2 / long-S2 / muon classes",
              fontsize=24, fontweight="bold")
 fig.tight_layout(rect=(0, 0, 1, 0.96))
-for out in (f"{DOCS}/co60_590_v2_s2_w10us_nch.png",
-            f"{TMP}/co60_590_v2_s2_w10us_nch.png"):
+for out in (f"{DOCS}/co60_590_v2_s2_w15us_nch.png",
+            f"{TMP}/co60_590_v2_s2_w15us_nch.png"):
     fig.savefig(out, dpi=150)
 plt.close(fig)
-print("saved: co60_590_v2_s2_w10us_nch.png")
-print(f"S2 with width > 10us = {len(s2_w10)}")
-draw_panels(s2_w10,
-            f"Co60 590+ v2 S2 with width > 10000 ns (n={len(s2_w10)} of {len(s2)})",
-            "co60_590_v2_s2_w10us_2d_panels.png",
-            guides={"height": 1.5e4, "width": 1e4,
+print("saved: co60_590_v2_s2_w15us_nch.png")
+
+fig, axes = plt.subplots(1, 2, figsize=(28, 10))
+for ax, col, color in [(axes[0], "anode_sum_area", "royalblue"),
+                       (axes[1], "dynode_sum_area", "crimson")]:
+    v = s2_wide[col][s2_wide[col] > 0]
+    med = v.median()
+    ax.hist(v, bins=np.logspace(np.log10(v.min()), np.log10(v.max()), 120),
+            color=color, alpha=0.85)
+    ax.axvline(med, color="black", ls="--", lw=3.0, label=f"median = {med:.0f} PE")
+    ax.set_xscale("log")
+    ax.set_xlabel(f"{col} [PE]")
+    ax.set_ylabel("counts")
+    ax.set_title(f"{col}  (n={len(v)})")
+    ax.grid(True, alpha=0.25)
+    ax.legend(loc="upper right")
+fig.suptitle(f"Co60 590+ v2 S2 with width > {S2_WIDTH_MIN_US:g} us "
+             f"(n={len(s2_wide)}): sum-area distributions",
+             fontsize=26, fontweight="bold")
+fig.tight_layout(rect=(0, 0, 1, 0.94))
+for out in (f"{DOCS}/co60_590_v2_s2_w15us_areas.png",
+            f"{TMP}/co60_590_v2_s2_w15us_areas.png"):
+    fig.savefig(out, dpi=150)
+plt.close(fig)
+print("saved: co60_590_v2_s2_w15us_areas.png")
+print(f"S2 with width > {S2_WIDTH_MIN_US:g}us = {len(s2_wide)}")
+draw_panels(s2_wide,
+            f"Co60 590+ v2 S2 with width > {S2_WIDTH_MIN_US * 1000:.0f} ns "
+            f"(n={len(s2_wide)} of {len(s2)})",
+            "co60_590_v2_s2_w15us_2d_panels.png",
+            guides={"height": 1.5e4, "width": S2_WIDTH_MIN_US * 1000.0,
                     "width_90area": 1000.0, "width_20_50area": 100.0})
 draw_single(df, "width_20_50area", "width_20_50area [ns]", (1.0, 1e5), 100.0,
             f"Co60 590+ v2: width_20_50area vs anode_sum_area (n={len(df)})",

@@ -109,7 +109,7 @@ muon_s1_s2:
 # flagged is_muon_event = True.
 muon_pair:
   window_ns: 25000.0 # look-back window [ns]
-  s2_width_min_ns: 10000.0 # only S2 wider than this take part
+  s2_width_min_ns: 15000.0 # only S2 wider than this take part
 
 # --- features / integration ---
 features:
