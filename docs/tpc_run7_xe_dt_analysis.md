@@ -4,6 +4,11 @@
 > 处理：**read → match（配对）→ cluster（peaks），不做 muon 候选筛选**
 > 配置：沿用 No-Field 参数（`dynode_shift_ns=16`、dt 窗口 `[0,40]`）
 > 状态：**完成 51/93 run（00406-00456）后暂停**（后台任务已在 tmux 会话中断）
+>
+> ⚠️ **历史归档**：本批 run 的 dt 标定问题已在 **Co60 590+ v2** 分析中重新测量，
+> 当前 dt 分布以
+> [muon_algorithm_architecture.md §2](muon_algorithm_architecture.md#步骤-2时间匹配anode↔dynodedmatching)
+> 的图为准；本文档中原有的 dt 分布图已退役删除。
 
 ## 一、处理规模（51 run）
 
@@ -18,7 +23,8 @@
 
 **合并 dt（n=605,335）**：中位 = **32.0 ns**，p16 = 24 ns，p84 = 40 ns，范围 [0, 40]
 
-![run7_Xe TPC Run 匹配 dt 分布](figures/tpc_run7_xe_matched_dt_histogram.png)
+> 原始 dt 数据仍保留在 `/mnt/data/tmp/muon_analysis/tpc_run7_xe/all_matched_dt.npy`
+> 与 `tpc_run7_xe_matched_summary.csv`（图已退役）。
 
 **逐 run dt 中位**：28-40 ns（多数 run = 40，部分 28/32）——详见
 `/mnt/data/tmp/muon_analysis/tpc_run7_xe/tpc_run7_xe_matched_summary.csv`
@@ -40,8 +46,7 @@
 ├── progress.log                          # 逐 run 进度（n_matched/n_peaks/dt_med）
 ├── {run_id}_matched_dt.npy               # 逐 run 匹配 dt（51 个）
 ├── all_matched_dt.npy                    # 合并 605,335 dt
-├── tpc_run7_xe_matched_summary.csv       # 51 run 匹配+peak 汇总
-└── tpc_run7_xe_matched_dt_histogram.png  # dt 分布 + 逐 run dt 中位
+└── tpc_run7_xe_matched_summary.csv       # 51 run 匹配+peak 汇总
 ```
 
 ## 五、后续可选项

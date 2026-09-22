@@ -157,7 +157,8 @@ signal_id:
 > 详见 `docs/muon_rate_vs_flux.md`、`docs/other_muon_candidates_params.md`。
 
 对应 2D 图：`docs/figures/co60_590_v2_s1_2d_panels.png`（S1）、
-`docs/figures/co60_590_v2_nons1_2d_panels.png`（non-S1）。
+`docs/figures/co60_590_v2_s2_2d_panels.png`（S2）、
+`docs/figures/co60_590_v2_muon_2d_panels.png`（muon）。
 
 ### 验证
 - `tests/test_signal_id.py`（7 例：窄事例→S1、超 cut→S2、边界互斥、两个可选门控）

@@ -49,13 +49,11 @@ src/muon_analysis/
 
 ### 3.1 时间匹配：对齐前后 dt 对比
 
-原始 dynode−anode 时间差（dt）中位数 ≈ **4 ns**（run 00183），对 **anode 施加 +4 ns** 后
-dt 中心回到 0，实现高精度时间对齐：
+**当前实测（Co60 590+ v2，18 run，876,885 匹配对）**：原始
+`dynode_time − anode_time` 中位 **32.0 ns**，对 dynode 施加 **−16 ns** 后中位
+**16.0 ns**，**100% 落入 `[0, 40]` ns 匹配窗**：
 
-![匹配前后 dt 分布](figures/matching_dt_before_after.png)
-
-- 左：移位前原始 `dynode_time − anode_time` 分布（中位数 ≈4ns，未对齐）
-- 右：**anode +4 ns** 对齐后 dt 分布（中心 ≈0，红色虚线=中位数）
+![Co60 590+ v2 匹配前后 dt 分布 + 逐通道](figures/co60_590_v2_matched_dt.png)
 
 ### 3.2 匹配后验证：anode/dynode 波形对
 

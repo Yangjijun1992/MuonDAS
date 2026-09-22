@@ -75,15 +75,22 @@ keep if min_diff_ns <= dt <= max_diff_ns
 | `matching.min_diff_ns` / `max_diff_ns` | 0 / **40** | 匹配窗 [0, 40] ns |
 | `matching.channel_delay_ns` | {} | 逐通道延迟校准（可空）|
 
-**实测验证**：
+**实测验证（Co60 590+ v2，18 run，876,885 匹配对）**：
 
-![匹配前后 dt 分布](figures/matching_dt_before_after.png)
+![Co60 590+ v2 匹配前后 dt 分布 + 逐通道](figures/co60_590_v2_matched_dt.png)
 
-> 移位前 dt 有一个非零偏置，移位后主峰落入 [0,40] ns 窗口。
+| 量 | 值 |
+|---|---|
+| 原始 dt 中位（未移位）| **32.00 ns** |
+| 移位（−16 ns）后中位 | **16.00 ns** |
+| 落在 `[0, 40]` ns 窗内 | **100.00%** |
+| 逐通道中位 | ch9 = 16 / ch10 = 12 / ch11 = 8 / ch12 = 8 / ch13 = 12 / ch14 = 12 / ch15 = 12 ns |
 
-![run7_Xe 匹配后 dt 直方图](figures/tpc_run7_xe_matched_dt_histogram.png)
+> 记录 `time` 字段以 4 ns 为步长，故移位后 dt 呈 4 ns 量化台阶；
+> 逐通道中位相差 ≤ 8 ns，说明全局移位后各通道一致性可接受。
 
-![No-Field 匹配后 dt 直方图](figures/matching_dt_nofield_histogram.png)
+数据：`co60_590/matched_dt_{raw,shifted}.npy`、`matched_dt_summary.csv`、
+`matched_dt_by_channel.csv`；脚本 `scripts/co60_590_dt_distribution.py`。
 
 **匹配对波形核对**（同一 channel、同一事例的 anode 与 dynode 叠加；`rawdyn` 版为
 dynode 原始 ×1 波形）：
@@ -257,17 +264,13 @@ vs `anode_sum_area` 等）：
 
 ![S1 类 peak 参数 2D 面板](figures/co60_590_v2_s1_2d_panels.png)
 
-**非 S1 类**（S2 + muon + other）：
+**S2 类**（非 S1 **且** `height < 1.5×10⁴` ADC）：
 
-![非 S1 类 peak 参数 2D 面板](figures/co60_590_v2_nons1_2d_panels.png)
+![S2 类 peak 参数 2D 面板](figures/co60_590_v2_s2_2d_panels.png)
 
-**逐步加 cut 的收紧过程**：
+**muon 类**（非 S1 **且** `height > 1.5×10⁴` ADC **且** `n_ch ≥ 2`）：
 
-![cut: width>2000 ∧ width_90area>1000 ∧ height>15000](figures/co60_590_v2_wn2000_w90a1000_h15000_2d_panels.png)
-
-![再加 n_ch ≥ 2](figures/co60_590_v2_wn2000_w90a1000_h15000_nch2_2d_panels.png)
-
-![height 反向 (<15000) 看 S2](figures/co60_590_v2_wn2000_w90a1000_hlt15000_2d_panels.png)
+![muon 类 peak 参数 2D 面板](figures/co60_590_v2_muon_2d_panels.png)
 
 **S1 与 S2 的通道多重度对比**：
 
@@ -284,8 +287,6 @@ vs `anode_sum_area` 等）：
 ![width_90area vs anode_sum_area](figures/w2050area_vs_anodesum_area_v2.png)
 
 ![width vs anode_sum_area](figures/width_vs_anodesum_area_v2.png)
-
-![height vs anode_sum_area（含 S2）](figures/height_vs_anodesum_area_v2_S2.png)
 
 ---
 
@@ -317,8 +318,6 @@ S2 = [s1_end, end_final]     s1_end    = muon_s1_end_sample   (S1 终点 == S2 �
 
 ### S1/S2 参数分布（n = 15,524 muon）
 
-![muon S1/S2 参数 1D 分布](figures/co60_590_v2_muon_s1s2_1d.png)
-
 ![muon S1/S2 参数 2D 相关](figures/co60_590_v2_muon_s1s2_2d.png)
 
 ![低面积组（area_an < 2.5e3 PE）的 2D 相关](figures/co60_590_v2_muon_s1s2_2d_lowarea.png)
@@ -327,15 +326,11 @@ S2 = [s1_end, end_final]     s1_end    = muon_s1_end_sample   (S1 终点 == S2 �
 `muon_s2` 中位 **0.826 PE/ns**（差 **41.82 倍**）；归一 ×46.9 后两条分布大体重合，
 但 S2 更宽、更偏软。
 
-![muon S1/S2 光强分布（linear y）](figures/co60_590_v2_muon_s1s2_intensity_liny.png)
+![muon S1/S2 光强分布](figures/co60_590_v2_muon_s1s2_intensity_liny.png)
 
-![muon S1/S2 光强分布（log y）](figures/co60_590_v2_muon_s1s2_intensity.png)
-
-**S1 上升时间**（`muon_s1_rise = (S1 peak − muon_s1_start) × 4`，
-n_ch=7 子集）：中位 **20 ns**（q25 16 / q75 24 / q95 28 / q99 372 / max 4516）——
-100–3000 ns 的慢上升尾部仅出现在高面积组。
-
-![muon_s1 上升时间分布](figures/co60_590_v2_muon_s1_rise.png)
+> `muon_s1_rise = (S1 peak − muon_s1_start) × 4`（n_ch=7 子集）：中位 **20 ns**
+> （q25 16 / q75 24 / q95 28 / q99 372 / max 4516）；100–3000 ns 的慢上升尾部
+> 仅出现在高面积组。逐事例数据：`peak_level_v2/muon_s1_rise.csv`。
 
 ### 代表性波形
 
@@ -344,8 +339,6 @@ n_ch=7 子集）：中位 **20 ns**（q25 16 / q75 24 / q95 28 / q99 372 / max 4
 ![7/7 全触发 muon 的 S1 波形 30 例](figures/co60_590_v2_muon_7ch_s1_examples.png)
 
 **低面积组（`muon_s1_area_an < 2.5e3 PE`，低多重度）**：
-
-![低面积组示例波形](figures/co60_590_v2_muon_lowarea_examples.png)
 
 ![低面积组缩放 1 µs](figures/muon_lowarea_examples_zoom1us.png)
 

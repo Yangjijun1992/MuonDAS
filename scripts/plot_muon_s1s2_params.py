@@ -36,37 +36,6 @@ m = df[df.signal_type == "muon"]
 m = m[m.muon_s1_height_an < 2.0e5]
 print(f"muon peaks = {len(m)} (after muon_s1_height_an < 2e5)")
 
-# --- Figure 1: 1D histograms ---
-panels1 = [
-    ("muon_s1_width_ns", "muon_s1_width_ns [ns]", None),
-    ("muon_s2_width_ns", "muon_s2_width_ns [ns]", None),
-    ("muon_s1_height_an", "muon_s1_height_an [ADC]", "log"),
-    ("muon_s1_height_dy", "muon_s1_height_dy [ADC]", "log"),
-]
-fig, axes = plt.subplots(2, 2, figsize=(22, 16))
-for ax, (col, lab, xlog) in zip(axes.ravel(), panels1):
-    v = m[col]
-    v = v[v > 0]
-    if xlog == "log":
-        bins = np.logspace(np.log10(max(v.min(), 1)), np.log10(v.max()), 80)
-    else:
-        bins = 80
-    ax.hist(v, bins=bins, color="royalblue", alpha=0.85)
-    if xlog == "log":
-        ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel(lab)
-    ax.set_ylabel("counts (log)")
-    ax.set_title(f"{col}  (n={len(v)}, median={v.median():,.1f})")
-    ax.grid(True, axis="y", alpha=0.25)
-fig.suptitle(f"Co60 590+ v2 muon peaks: S1/S2 width and height (n={len(m)})",
-             fontsize=26, fontweight="bold")
-fig.tight_layout(rect=(0, 0, 1, 0.97))
-fig.savefig(f"{DOCS}/co60_590_v2_muon_s1s2_1d.png", dpi=150)
-fig.savefig(f"{TMP}/co60_590_v2_muon_s1s2_1d.png", dpi=150)
-plt.close(fig)
-print("saved 1D")
-
 # --- Figure 2: 2D histograms ---
 panels_s1 = [
     ("muon_s1_area_an", "muon_s1_height_an",
@@ -133,7 +102,7 @@ s2_raw = (m["muon_s2_area_an"] / m["muon_s2_width_ns"])
 s2_raw = s2_raw.replace([np.inf, -np.inf], np.nan).dropna()
 s2_raw = s2_raw[s2_raw > 0]
 s2_int = s2_raw / N_PMT * SCALE_S2
-def draw_intensity(yscale, name):
+def draw_intensity(name):
     fig, ax = plt.subplots(figsize=(18, 11))
     curves = [
         (s1_raw / N_PMT, "royalblue", "muon_s1 /7", "stepfilled", 0.55),
@@ -147,10 +116,9 @@ def draw_intensity(yscale, name):
     for x, color in [(10.0, "darkviolet"), (500.0, "red"), (1000.0, "darkgreen")]:
         ax.axvline(x, color=color, ls="--", lw=2.6, label=f"{x:g} PE/ns/PMT")
     ax.set_xscale("log")
-    ax.set_yscale(yscale)
     ax.set_xlim(1e-2, 1.5e3)
     ax.set_xlabel("Intensity [PE/ns/PMT]")
-    ax.set_ylabel(f"counts ({yscale})")
+    ax.set_ylabel("counts")
     ax.grid(True, axis="y", alpha=0.25)
     ax.legend(framealpha=0.9)
     fig.tight_layout()
@@ -160,5 +128,4 @@ def draw_intensity(yscale, name):
     print(f"saved {name}")
 
 
-draw_intensity("log", "co60_590_v2_muon_s1s2_intensity.png")
-draw_intensity("linear", "co60_590_v2_muon_s1s2_intensity_liny.png")
+draw_intensity("co60_590_v2_muon_s1s2_intensity_liny.png")
