@@ -3,7 +3,7 @@
 high-energy events (width>2000 & width_90area>300)."""
 import sys, os
 sys.path.insert(0, "/home/yjj/MuonDAS/src")
-import numpy as np, pandas as pd
+import pandas as pd
 from muon_analysis.config import build_config
 from muon_analysis.io.runinfo import get_runinfo
 from muon_analysis.io.readers import read_data

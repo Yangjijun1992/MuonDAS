@@ -4,7 +4,7 @@ Processes only the runs involved; keeps peaks whose peaks_id is in the
 upright_n7 set.  Resumable (per-run CSV)."""
 import sys, os, glob
 sys.path.insert(0, "/home/yjj/MuonDAS/src")
-import numpy as np, pandas as pd
+import pandas as pd
 from muon_analysis.config import build_config
 from muon_analysis.io.runinfo import get_runinfo
 from muon_analysis.io.readers import read_data

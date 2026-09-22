@@ -5,7 +5,7 @@ import numpy as np, pandas as pd
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from scipy import stats
+
 from muon_analysis.config import build_config
 from muon_analysis.io.runinfo import get_runinfo
 from muon_analysis.io.readers import read_data

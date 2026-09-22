@@ -4,7 +4,7 @@ reference + 320 ns window) and peak-level parameters (S1/S2 widths, two end
 points).  Resumable: per-run CSV + skip completed; merges at the end."""
 import sys, os, glob
 sys.path.insert(0, "/home/yjj/MuonDAS/src")
-import numpy as np, pandas as pd
+import pandas as pd
 from muon_analysis.config import build_config
 from muon_analysis.io.runinfo import get_runinfo
 from muon_analysis.io.readers import read_data

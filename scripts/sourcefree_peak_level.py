@@ -3,7 +3,7 @@
 dynode_shift=-16 (raw dt center +16ns), baseline=0, sub-sample width interp."""
 import sys, os, glob
 sys.path.insert(0, "/home/yjj/MuonDAS/src")
-import numpy as np, pandas as pd
+import pandas as pd
 from muon_analysis.config import build_config
 from muon_analysis.io.runinfo import get_runinfo
 from muon_analysis.io.readers import read_data

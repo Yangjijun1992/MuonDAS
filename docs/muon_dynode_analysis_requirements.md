@@ -74,6 +74,86 @@
 - 所有筛选参数（阈值、窗口大小、形状判据等）集中存放于配置文件（YAML/JSON）。
 - 输出通过筛选的 muon 候选事例集合（按 peak）及其基本属性。
 
+### 6.1 peak 级信号鉴别（S1 / S2 / muon / other）
+
+> 实现：`src/muon_analysis/signal_id.py`；引入于 2026-09-20，取代早期基于
+> `end_first` 的 S1/S2 宽度分解判据（已作废，见
+> [end_first_muon_s1_issue.md](end_first_muon_s1_issue.md)）。
+
+- 每个 peak 在特征计算完成后判定为 **S1 / muon / S2 / other** 四类之一。
+- **判别量全部取自 sum 波形**：`width_20_50area`、`width_90area`、`width`、
+  `height`、`anode_sum_area`，外加通道数 `n_ch`。
+- 三类判据**互斥**，按 `S1 → muon → S2` 顺序检查，均不满足则为 `other`：
+
+  | 类型 | 判据（AND） |
+  |---|---|
+  | `S1` | `width_20_50area < 100 ns` 且 `width_90area < 1000 ns` |
+  | `muon` | `n_ch ≥ 2` 且 `height > 15000 ADC` 且 `width > 2000 ns` 且 `width_90area > 1000 ns` 且 `anode_sum_area > 300 PE` |
+  | `S2` | `width_90area > 1000 ns` 且 `width > 2000 ns` 且 `anode_sum_area > 300 PE` 且 `height < 15000 ADC` |
+  | `other` | 其余，或被可选门控 `long_wave_min_samples` 排除 |
+
+- 三类还可分别设置 `n_channels` 精确门控（`null` 表示不做通道数限制）。
+- **判据设计依据**：`end_first` 在 muon 慢尾上会落到波形末尾，无法分离 prompt 与
+  delayed 分量；`width` 对 muon 又受记录长度饱和限制。因此改用
+  `width_90area`（形状）+ `width_20_50area`（前沿陡度）+ `height`（区分 muon/S2）
+  + `anode_sum_area`（剔除小脉冲）+ `n_ch`（多重度）组合判别。
+- **阈值全部可配置**：`config/analysis.yaml` 的 `signal_id.{s1,s2,muon}` 分组，
+  代码内置默认值与 YAML 一致。
+- 判别结果写入 peak 级 CSV 的 `signal_type` 列。
+
+### 6.2 muon 专属的 S1/S2 分解
+
+> 实现：`features._fill_muon_segments()` + `pulsefinding.find_s1_endpoint_from_peak()`
+> + `pulsefinding.find_wave_final_end()`；引入于 2026-09-19/20。
+
+- **仅对 `signal_type == "muon"` 的 peak 计算** `muon_s1_*` / `muon_s2_*` 字段；
+  其它类型（S1/S2/other）这些字段保持 0（已校验 720,884 个非 muon 全为 0）。
+- 分段定义（样本索引，均为 `anode_sum` 上的绝对样本号）：
+
+  ```
+  S1 = [a_st, s1_end]        a_st      = anode_sum 脉冲起点
+  S2 = [s1_end, end_final]   s1_end    = S1 终点（== S2 起点）
+                             end_final = 波形最终终点
+  ```
+
+  - `a_st` 由 `find_sum_pulse_bounds()` 给出（`muon_s1_start_sample`）。
+  - `s1_end` 由 `find_s1_endpoint_from_peak()` 给出（`muon_s1_end_sample`），
+    搜索窗 `[s1_peak + min_decay, s1_peak + max_decay]`，`s1_peak = argmin(anode_sum)`。
+  - `end_final` 由 `find_wave_final_end()` 给出（`muon_s2_end_sample`）。
+- **`s1_end` 的两种算法（可配置 `muon_s1_s2.method`）**：
+
+  | 方法 | 名称 | 说明 |
+  |---|---|---|
+  | `min_derivative` | 3A | 从 S1 峰值向右求一阶差分，取**最小值**处 |
+  | `second_derivative` | **3B（默认）** | 在一阶差分基础上再求二阶差分，取**首个过零点** |
+
+- **每个区段输出 6×2 = 12 个字段**（阳极/打拿极两侧各一套）：
+
+  | 字段 | 含义 |
+  |---|---|
+  | `muon_s1_width_ns` / `muon_s2_width_ns` | 段宽 = Δsample × 4 ns |
+  | `muon_s1_height_an` / `muon_s2_height_an` | anode_sum 段内最大 \|幅度\| |
+  | `muon_s1_height_dy` / `muon_s2_height_dy` | dynode_sum 段内最大 \|幅度\| |
+  | `muon_s1_area_an` / `muon_s2_area_an` | anode_sum 段内积分 × gain → PE |
+  | `muon_s1_area_dy` / `muon_s2_area_dy` | dynode_sum 段内积分 × gain → PE |
+
+  另有 `muon_s1_start_sample` / `muon_s1_end_sample` / `muon_s2_end_sample` 三个
+  采样点位置字段用于追溯与复现。
+
+- **sum 波形持久化**：为支持离线重复分析，18 个 run 的 `anode_sum`/`dynode_sum`
+  以 `np.savez_compressed` 存入 `peak_level_v2/sum_waveforms/run_XXXXX.npz`
+  （约 523 MB，float32 拼接 + offsets，无 pickle），读写接口为
+  `muon_analysis.sum_store.save_sum_npz()/load_sum_npz()`。
+
+- **已知系统性限制（解读结果时必须留意）**：
+  1. **3B 的 `s1_end` 是削顶伪影**——在饱和削顶的 muon 波形上 3B 落在峰值后
+     ~25 样本（~100 ns），而目视 S1/S2 转折在 ~0.5–1.5 µs，故 S1 窗口偏窄
+     （阳极侧 S1 面积占比 ~14%，打拿极侧 ~87%）。
+  2. **`width` / `muon_s2_width_ns` 对 muon 被记录长度饱和**（~27 µs 水平带）。
+  3. **`muon_s1_height_an` 被 ADC 削顶**限制在 ~1.04×10⁵。
+  4. **打拿极记录窗普遍很短**（中位 121 样本 ≈0.48 µs，而 S2 窗中位 6,704 样本
+     ≈26.8 µs，覆盖率中位仅 1.4%），打拿极侧 S2 统计不可与阳极侧直接比较。
+
 ## 7. 结果输出
 
 - 最终筛选出的波形片段保存为 `.npy` 文件（NumPy 数组），可通过参数控制是否启用该功能。
