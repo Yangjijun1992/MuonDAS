@@ -80,26 +80,25 @@
 > `end_first` 的 S1/S2 宽度分解判据（已作废，见
 > [end_first_muon_s1_issue.md](end_first_muon_s1_issue.md)）。
 
-- 每个 peak 在特征计算完成后判定为 **S1 / muon / S2 / other** 四类之一。
+- 每个 peak 在特征计算完成后判定为 **S1 / S2 / muon / other** 四类之一。
 - **判别量全部取自 sum 波形**：`width_20_50area`、`width_90area`、`width`、
   `height`、`anode_sum_area`，外加通道数 `n_ch`。
-- 三类判据**互斥**，按 `S1 → muon → S2` 顺序检查，均不满足则为 `other`：
+- **检查顺序固定为 `S1 → S2 → muon → other`，不可更改**；三类判据**互斥**，
+  均不满足则为 `other`：
 
-  | 类型 | 判据（AND） |
-  |---|---|
-  | `S1` | `width_20_50area < 100 ns` 且 `width_90area < 1000 ns` |
-  | `muon` | `n_ch ≥ 2` 且 `height > 15000 ADC` 且 `width > 2000 ns` 且 `width_90area > 1000 ns` 且 `anode_sum_area > 300 PE` |
-  | `S2` | `width_90area > 1000 ns` 且 `width > 2000 ns` 且 `anode_sum_area > 300 PE` 且 `height < 15000 ADC` |
-  | `other` | 其余，或被可选门控 `long_wave_min_samples` 排除 |
+  | 顺序 | 类型 | 判据（AND） |
+  |---|---|---|
+  | 1 | `S1` | `width_20_50area < 100 ns` 且 `width_90area < 1000 ns` |
+  | 2 | `S2` | `width_90area > 1000 ns` 且 `width > 2000 ns` 且 `anode_sum_area > 300 PE` 且 `height < 15000 ADC` |
+  | 3 | `muon` | `n_ch ≥ 2` 且 `height > 15000 ADC` 且 `width > 2000 ns` 且 `width_90area > 1000 ns` 且 `anode_sum_area > 300 PE` |
+  | 4 | `other` | 其余，或被可选门控 `long_wave_min_samples` 排除 |
 
 - 三类还可分别设置 `n_channels` 精确门控（`null` 表示不做通道数限制）。
-- **判据设计依据**：`end_first` 在 muon 慢尾上会落到波形末尾，无法分离 prompt 与
-  delayed 分量；`width` 对 muon 又受记录长度饱和限制。因此改用
-  `width_90area`（形状）+ `width_20_50area`（前沿陡度）+ `height`（区分 muon/S2）
-  + `anode_sum_area`（剔除小脉冲）+ `n_ch`（多重度）组合判别。
 - **阈值全部可配置**：`config/analysis.yaml` 的 `signal_id.{s1,s2,muon}` 分组，
   代码内置默认值与 YAML 一致。
 - 判别结果写入 peak 级 CSV 的 `signal_type` 列。
+- 早期基于 `end_first` 的 `s1_width` / `s2_width` 判据已作废，见
+  [end_first_muon_s1_issue.md](end_first_muon_s1_issue.md)。
 
 ### 6.2 muon 专属的 S1/S2 分解
 

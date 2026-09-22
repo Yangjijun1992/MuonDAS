@@ -113,28 +113,23 @@ python scripts/run_analysis.py 00179 \
 ## peak 级信号鉴别（S1 / S2 / muon / other）
 
 每个 peak 在 `compute_peak_features()` 内完成特征计算后，由
-[`signal_id.classify_signal()`](src/muon_analysis/signal_id.py) 判定信号类型
-（三类判据**互斥**，按 S1 → muon → S2 顺序检查，均不满足则 `other`）。
+[`signal_id.classify_signal()`](src/muon_analysis/signal_id.py) 判定信号类型。
+**检查顺序固定为 `S1 → S2 → muon → other`，不可更改**；三类判据**互斥**，
+均不满足则为 `other`。
 所有判别量都取自 **sum 波形**（`anode_sum`/`dynode_sum`），阈值集中在
 `config/analysis.yaml` 的 `signal_id` 分组：
 
-| 类型 | 判据（AND） |
-|---|---|
-| **`S1`** | `width_20_50area < 100 ns` **且** `width_90area < 1000 ns` |
-| **`muon`** | `n_ch ≥ 2` **且** `height > 15000 ADC` **且** `width > 2000 ns` **且** `width_90area > 1000 ns` **且** `anode_sum_area > 300 PE` |
-| **`S2`** | `width_90area > 1000 ns` **且** `width > 2000 ns` **且** `anode_sum_area > 300 PE` **且** `height < 15000 ADC` |
-| **`other`** | 其余（或被可选门控 `long_wave_min_samples` 排除，当前 `null`=关闭） |
+| 顺序 | 类型 | 判据（AND） |
+|---|---|---|
+| 1 | **`S1`** | `width_20_50area < 100 ns` **且** `width_90area < 1000 ns` |
+| 2 | **`S2`** | `width_90area > 1000 ns` **且** `width > 2000 ns` **且** `anode_sum_area > 300 PE` **且** `height < 15000 ADC` |
+| 3 | **`muon`** | `n_ch ≥ 2` **且** `height > 15000 ADC` **且** `width > 2000 ns` **且** `width_90area > 1000 ns` **且** `anode_sum_area > 300 PE` |
+| 4 | **`other`** | 其余（或被可选门控 `long_wave_min_samples` 排除，当前 `null`=关闭） |
 
 `signal_id.{s1,s2,muon}` 下还可分别设置 `n_channels` 门控（`null`=不做通道数限制）。
 
-### 为什么用 width-cut 而不是 `end_first`
-
-早期用「`end_first` 宽度分解 S1/S2」的判据已**作废**：muon 慢尾使 sum 波形长期
-达不到「回到基线」判据，`end_first` 落到波形末尾，prompt 与 delayed 分量无法据此
-分离（详见 [`docs/end_first_muon_s1_issue.md`](docs/end_first_muon_s1_issue.md)）。
-改用 **`width_90area` / `width_20_50area` / `height` / `anode_sum_area` / `n_ch`**
-后，四类在高统计量样本上分离清晰：Co60 590+ 18 run（736,408 peaks）得到
-**S1=685,024 / muon=15,524 / S2=33,608 / other=2,252**。
+Co60 590+ 18 run（736,408 peaks）判别结果：
+**S1 = 685,024 / S2 = 33,608 / muon = 15,524 / other = 2,252**。
 
 ### muon 专属的 S1/S2 分解
 

@@ -18,9 +18,9 @@
 | 类别 | 数量 | 说明 |
 |---|---|---|
 | `S1` | **685,024** | 窄脉冲（prompt-like） |
-| `muon` | **15,524** | 贯穿 muon 候选 |
 | `S2` | **33,608** | 宽、低幅度（delayed-like） |
-| `other` | 2,252 | 其余 |
+| `muon` | **15,524** | 贯穿 muon 候选 |
+| `other` | 2,252 | 其余（默认类） |
 
 - muon 事例率 **R = 0.2396 s⁻¹ = 14.37 min⁻¹ = 862 h⁻¹**，通量 **122.0 m⁻²s⁻¹**
   （几何期望 167 m⁻²s⁻¹ 的 **73.1%**）——见 `muon_rate_vs_flux.md`
@@ -31,10 +31,10 @@
 | 决策 | 值 / 做法 | 依据 |
 |---|---|---|
 | **聚类参考点** | 由 record time 改为 **pulse-start time**，窗口 **320 ns** | 对齐更准，run 内一致性更好 |
+| **鉴别检查顺序** | **`S1 → S2 → muon → other`（固定，不可更改）** | 判据互斥，顺序写入需求/README/代码 |
 | **S1 判据** | `width_20_50area < 100 ns` ∧ `width_90area < 1000 ns` | 前沿陡度 + 形状双约束 |
-| **muon 判据** | `n_ch ≥ 2` ∧ `height > 15000 ADC` ∧ `width > 2000 ns` ∧ `width_90area > 1000 ns` ∧ `anode_sum_area > 300 PE` | `height` 把 muon 与 S2 分开 |
-| **S2 判据** | `width_90area > 1000 ns` ∧ `width > 2000 ns` ∧ `anode_sum_area > 300 PE` ∧ `height < 15000 ADC` | 与 muon 高度互斥 |
-| **作废判据** | 基于 `end_first` 的 `s1_width`/`s2_width` 分解 | muon 慢尾使 `end_first` 落到波形末尾 |
+| **S2 判据** | `width_90area > 1000 ns` ∧ `width > 2000 ns` ∧ `anode_sum_area > 300 PE` ∧ `height < 15000 ADC` | 与 muon 由 height 互补 |
+| **muon 判据** | `n_ch ≥ 2` ∧ `height > 15000 ADC` ∧ `width > 2000 ns` ∧ `width_90area > 1000 ns` ∧ `anode_sum_area > 300 PE` | 要求 `height > 15000` |
 | **peak 级 `width` 重定义** | 脉冲跨度 `(end_final − a_st) × 4 ns`（原 `width_ns` 全面废弃改名） | 统一命名，避免与 per-record `Features.width` 混淆 |
 | **S1 终点算法** | `find_s1_endpoint_from_peak`，方法可选 **3A(min_derivative) / 3B(second_derivative)**，**选定 3B** | 见 `muon_s1_s2_cutpoint_algorithm.md` |
 | **muon S1/S2 参数** | 仅对 `signal_type=="muon"` 计算 12 个分段字段 | 避免污染其它类型 |
@@ -117,7 +117,7 @@ python scripts/save_sum_waveforms.py          # 18 npz（523 MB）
 
 ```
 read → match(16ns No-Field/4ns 00183,[0,40]) → cluster(pulse-start, 320ns) → 验证图(逐对/叠加)
-     → features(sum 基准, dynode 逐通道×113, 无软件低通) → signal_id(S1/muon/S2/other)
+     → features(sum 基准, dynode 逐通道×113, 无软件低通) → signal_id(S1/S2/muon/other)
      → muon S1/S2 分解(3B) → filter(peak级) → 输出(CSV/npz/PNG)    [COG/径迹为独立后续阶段]
 ```
 
@@ -209,7 +209,7 @@ read → match(16ns No-Field/4ns 00183,[0,40]) → cluster(pulse-start, 320ns) �
 | 匹配移位/窗口 | dynode_shift_ns=16（No-Field）/ 4（00183）/ **-16（Co60 590+）**, dt∈[0,40] | 实测 dt 中位数 |
 | 聚类窗口/参考 | clustering.window_ns=**320**，参考点为 **pulse-start time** | 需求 §3 + 2026-09-18 重构 |
 | peak 级 `width` | 脉冲跨度 `(end_final − a_st) × 4 ns`（旧 `width_ns` 已废弃） | 2026-09-20 统一命名 |
-| peak 级鉴别 | `signal_id` 四类互斥：S1 / muon / S2 / other | 见 §0，取代旧 filter 判据 |
+| peak 级鉴别 | `signal_id` 四类互斥，**固定顺序 S1 → S2 → muon → other** | 见 §0，取代旧 filter 判据 |
 | muon S1/S2 切点 | `find_s1_endpoint_from_peak`，method=**second_derivative(3B)** | 3A/3B 对比见专用文档 |
 | muon S1/S2 参数 | 仅 `signal_type=="muon"` 计算，12 个字段 | 避免污染其它类型 |
 | sum 波形持久化 | `sum_store.save_sum_npz/load_sum_npz`，float32 拼接 + offsets | 离线复用 |

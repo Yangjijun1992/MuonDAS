@@ -1,20 +1,21 @@
 """Peak-level signal discrimination.
 
-Classification (checked in order; the three cuts are mutually exclusive):
+Classification order is fixed and must not change:
+**S1 -> S2 -> muon -> other**.  The three cuts are mutually exclusive.
 
   - ``"S1"``: a narrow, prompt-like peak -- **both** cuts satisfied:
     ``width_20_50area < w20_50area_max_ns`` (default 100 ns) **and**
     ``width_90area < w90area_max_ns`` (default 1000 ns).
+  - ``"S2"``: a wide, delayed-like peak at low height -- **all** cuts satisfied:
+    ``width_90area > w90area_min_ns``, ``width > width_min_ns``,
+    ``anode_sum_area > anode_sum_area_min_pe`` and
+    ``height < height_max_adc`` (default 15000 ADC).
   - ``"muon"``: a through-going muon candidate -- **all** cuts satisfied:
     ``n_channels >= n_channels_min`` (default 2),
     ``height > height_min_adc`` (default 15000 ADC),
     ``width > width_min_ns`` (default 2000 ns),
     ``width_90area > w90area_min_ns`` (default 1000 ns) and
     ``anode_sum_area > anode_sum_area_min_pe`` (default 300 PE).
-  - ``"S2"``: a wide, delayed-like peak at low height -- **all** cuts satisfied:
-    ``width_90area > w90area_min_ns``, ``width > width_min_ns``,
-    ``anode_sum_area > anode_sum_area_min_pe`` and
-    ``height < height_max_adc`` (default 15000 ADC).
   - ``"other"``: everything else (or excluded by an optional gate
     ``long_wave_min_samples``).
 
@@ -66,7 +67,10 @@ def classify_signal(
     n_channels: int,
     config: Dict[str, Any],
 ) -> str:
-    """Return the signal type of a peak (``S1`` / ``muon`` / ``S2`` / ``other``)."""
+    """Return the signal type of a peak (``S1`` / ``S2`` / ``muon`` / ``other``).
+
+    The check order is **S1 -> S2 -> muon -> other** and must not change.
+    """
     cfg = (config or {}).get("signal_id", {}) or {}
 
     long_min = cfg.get("long_wave_min_samples")
@@ -77,12 +81,12 @@ def classify_signal(
     if _channel_gate_ok(s1, n_channels) and _is_s1(peak_features, s1):
         return "S1"
 
-    muon = cfg.get("muon", {}) or {}
-    if _is_muon(peak_features, n_channels, muon):
-        return "muon"
-
     s2 = cfg.get("s2", {}) or {}
     if _channel_gate_ok(s2, n_channels) and _is_s2(peak_features, s2):
         return "S2"
+
+    muon = cfg.get("muon", {}) or {}
+    if _is_muon(peak_features, n_channels, muon):
+        return "muon"
 
     return "other"
