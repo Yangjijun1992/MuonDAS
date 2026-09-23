@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-"""Co60 590+ peak level v3: v2 + peak time stamp + long-S2 <-> S1 muon pairing.
+"""Co60 590+ peak level v3: v2 + peak time stamp + long-S2 <-> S1 pairing.
 
 Runs the full per-run pipeline (read -> match -> cluster -> features/signal_id),
 then -- as part of the same flow, right after the peak classification -- pairs
 every long S2 (width > muon_pair.s2_width_min_ns) with the largest unpaired S1
 inside the preceding muon_pair.window_ns window and flags both members of a
-successful pair as ``is_muon_event``.  Resumable per run."""
+successful pair as ``is_paired_event`` (paired events are NOT muon events).
+Resumable per run."""
 import sys, os, glob
 sys.path.insert(0, "/home/yjj/MuonDAS/src")
 import pandas as pd
@@ -17,7 +18,7 @@ from muon_analysis.clustering import cluster_peaks
 from muon_analysis.pulsefinding import compute_peak_start_end
 from muon_analysis.features import compute_peak_features
 from muon_analysis.gain import build_gain_db
-from muon_analysis.physical_pair import mark_paired_muon_events
+from muon_analysis.physical_pair import mark_paired_events
 
 cfg = build_config()
 cfg["matching"]["dynode_shift_ns"] = -16
@@ -63,8 +64,8 @@ for rid in runs:
                       'signal_type': pf.signal_type})
             rows.append(d)
         df = pd.DataFrame(rows)
-        df, res = mark_paired_muon_events(df, window_ns=WINDOW_NS,
-                                          s2_width_min_ns=S2_WIDTH_MIN)
+        df, res = mark_paired_events(df, window_ns=WINDOW_NS,
+                                     s2_width_min_ns=S2_WIDTH_MIN)
         df.to_csv(done, index=False)
         res["pairs"].to_csv(os.path.join(OUT, f"run_{rid}_pairs.csv"), index=False)
         n_pairs = len(res["pairs"])
@@ -85,6 +86,6 @@ pfiles = sorted(glob.glob(os.path.join(OUT, "run_*_pairs.csv")))
 pairs = pd.concat([pd.read_csv(f) for f in pfiles], ignore_index=True) if pfiles else pd.DataFrame()
 pairs.to_csv(os.path.join(OUT, "muon_long_s2_s1_pairs.csv"), index=False)
 print(f"\nDONE peaks={len(df)}  pairs={len(pairs)}  "
-      f"is_muon_event={int(df.is_muon_event.sum()) if len(df) else 0}")
+      f"is_paired_event={int(df.is_paired_event.sum()) if len(df) else 0}")
 print(df.signal_type.value_counts().to_dict() if len(df) else {})
 open(os.path.join(OUT, "done.flag"), "w").write("DONE")

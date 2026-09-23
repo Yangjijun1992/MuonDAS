@@ -297,19 +297,27 @@ vs `anode_sum_area` 等）：
 > **长 S2 子集与 muon 类的多重度完全不同**：前者 ~85% 为单通道，后者 63.0% 为七通道
 > 且**从不为单通道**（muon 判据要求 `n_ch ≥ 2`）——两者不是同一类物理事例。
 
-### 长 S2 ↔ S1 配对（`muon_pair`）
+### 长 S2 ↔ S1 配对（paired events，`muon_pair`）
 
 **算法**（在信号鉴别完成后同步开展，`physical_pair.pair_long_s2_with_s1`）：
 对每个长 S2，在其**之前 `muon_pair.window_ns`（默认 25 µs）**的时间窗内寻找
 **未被占用的最大 S1**（按 `anode_sum_area`），S1 至多用一次，配对按 run 进行；
-配对成功的 S2 与其 S1 双方都标记 **`is_muon_event = True`**。
+配对成功的 S2 与其 S1 双方都标记 **`is_paired_event = True`**。
+
+> ⚠️ **配对成功的事例被定义为 `paired event`，不是 muon event。**
+> 波形复核表明这些配对全部不是 muon 事例（部分还是错误的匹配），因此不能标记为
+> muon events。
 
 **实测结果（Co60 590+ v2，18 run）**：
 
-| long-S2 阈值 | long S2 数 | 配对成功 | 匹配率 | `is_muon_event` 标记数 | 配对 S1 面积中位 |
+| long-S2 阈值 | long S2 数 | 配对成功 | 匹配率 | `is_paired_event` 标记数 | 配对 S1 面积中位 |
 |---|---|---|---|---|---|
 | `width > 10 µs` | 17,337 | **5** | 0.029% | 10 | 112 PE |
 | `width > 15 µs` | 12,269 | **3** | 0.024% | 6 | 112 PE |
+
+**配对覆盖范围**：**全部 18 个 run（00590–00607）**，共 736,408 个 peak ——
+配对是逐 run 在后处理阶段进行的，与 peak-level 处理的范围一致。当前阈值
+（`width > 15 µs`）下命中的 3 例分布在 run **599 / 600 / 605**。
 
 **配对事例的 S1–S2 时间间隔（`dt = S2 start − S1 start`）**：
 
@@ -359,6 +367,14 @@ vs `anode_sum_area` 等）：
 | 604 | 19.86 | 107.0 | 0 | 23,621.4 | 9,944 | S2 大脉冲（带 dynode 镜像），S1 在 20 µs 外且极小 |
 | 605 | 15.95 | 112.0 | 0 | 2,387.9 | 12,348 | S2 为 12.3 kADC 尖峰 + 平噪声尾 |
 
+**波形复核结论（人工判读）**：
+
+- **全部 5 例都不是 muon 事例**，其中部分还是**错误的匹配**。
+- 其中 **3 例更像 gamma 事例**（宽展的 S2 平台 / 大而缓慢的脉冲形态）。
+- 关键观察：**部分 S2 本身在其起始处就携带了 S1**（即 prompt 分量与 delayed 分量
+  在同一个 peak 内），却被鉴别为 `S2`——**这类事例的起始部分很可能就是 muon**，
+  属于 `signal_id` 的已知边界情形（`height < 15000` 把带 prompt 的宽脉冲判成了 S2）。
+
 > **除 run593 外，5 例中 4 例的 S1 都无 dynode 信号、面积仅 86–143 PE，而 S2 是
 > 自带完整上升沿的独立脉冲**（run600/604 甚至是大脉冲），两者既无幅度关联也无形状
 > 上的因果衔接——印证是偶然符合。**run593 是唯一值得注意的一例**（dt = 0.64 µs、
@@ -387,7 +403,7 @@ vs `anode_sum_area` 等）：
 **几十 ms 量级**（独立物理事件），而不是 muon 事例应有的 µs 量级。配套证据：
 长 S2 有 ~85% 是**单通道**事例，而 muon 类 63% 是七通道且从不为单通道。
 
-产物：`peak_level_v3/co60_590_peak_level_v3.csv`（含 `peak_time_ns`、`is_muon_event`）、
+产物：`peak_level_v3/co60_590_peak_level_v3.csv`（含 `peak_time_ns`、`is_paired_event`）、
 `peak_level_v3/muon_long_s2_s1_pairs.csv`；
 脚本 `scripts/co60_590_peak_level_v3.py`；配置 `muon_pair.{window_ns, s2_width_min_ns}`。
 

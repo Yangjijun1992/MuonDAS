@@ -144,18 +144,20 @@ def pair_long_s2_with_s1(
     }
 
 
-def mark_paired_muon_events(
+def mark_paired_events(
     events: pd.DataFrame,
     window_ns: float = 25000.0,
     s2_width_min_ns: float = 10000.0,
-    mark_col: str = "is_muon_event",
+    mark_col: str = "is_paired_event",
     run_col: str = "run_id",
     id_col: str = "peaks_id",
 ) -> tuple:
-    """Flag peaks belonging to a long-S2 <-> S1 pair as muon events.
+    """Flag peaks belonging to a long-S2 <-> S1 pair as **paired events**.
 
-    Returns ``(events_with_flag, pairing_result)`` where the paired S2 and its
-    matched S1 both get ``mark_col = True``; every other peak keeps ``False``.
+    These are *not* muon events: the pairing is consistent with random
+    coincidence (see the pipeline doc).  Returns ``(events_with_flag,
+    pairing_result)`` where the paired S2 and its matched S1 both get
+    ``mark_col = True``; every other peak keeps ``False``.
     """
     out = events.copy()
     out[mark_col] = False

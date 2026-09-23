@@ -10,7 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from muon_analysis.physical_pair import mark_paired_muon_events
+from muon_analysis.physical_pair import mark_paired_events
 
 V3 = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v3"
 DOCS = "/home/yjj/MuonDAS/docs/figures"
@@ -19,7 +19,7 @@ NAME = "co60_590_v2_muon_pair_params.png"
 W_US = 10.0
 
 d = pd.read_csv(f"{V3}/co60_590_peak_level_v3.csv")
-out, res = mark_paired_muon_events(d, window_ns=25000.0,
+out, res = mark_paired_events(d, window_ns=25000.0,
                                    s2_width_min_ns=W_US * 1000.0)
 p = res["pairs"]
 idx = d.set_index(["run_id", "peaks_id"])
