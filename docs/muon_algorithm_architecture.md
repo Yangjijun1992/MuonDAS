@@ -339,6 +339,18 @@ vs `anode_sum_area` 等）：
 
 ![配对事例的参数位置（相对各类总体）](figures/co60_590_v2_muon_pair_params.png)
 
+**三个配对事例的波形**（每对一张图，两 peak 置于同一绝对时间轴，t=0 取 S1 脉冲起点）：
+
+![pair run599 S1 id=26889 + S2 id=26890](figures/co60_590_v2_muon_pair_waveforms_run599.png)
+
+![pair run600 S1 id=21272 + S2 id=21273](figures/co60_590_v2_muon_pair_waveforms_run600.png)
+
+![pair run605 S1 id=28818 + S2 id=28819](figures/co60_590_v2_muon_pair_waveforms_run605.png)
+
+> 图上可见：**S2 都是自带上升沿的独立脉冲**（run600 的 S2 甚至是一个形态完整的
+> 大脉冲），而「S1」只是远处一个 1–2.6 kADC 的小尖峰，两者既无幅度关联也无形状
+> 上的因果衔接——再次印证是偶然符合。
+
 > **配对到的 S1 全是「单通道 + 极小面积」的事例**：`n_ch = 1`、`anode_sum_area`
 > 仅 86–143 PE（中位 112），比 muon 的 S1 段（中位 3,649 PE）小 **~33 倍**，
 > 且 `dynode_sum_area` 多为 0——典型的小噪声/偶然脉冲，**不是 muon 的 prompt S1**。
