@@ -37,28 +37,28 @@ for rid, s1_id, s2_id in PAIRS:
     x2o = x2 + float(r2.peak_time_ns - t0) / 1000.0
 
     fig, ax = plt.subplots(figsize=(20, 11))
-    ax.plot(x1, -a1, "royalblue", lw=2.0,
+    ax.plot(x1, a1, "royalblue", lw=2.0,
             label=f"S1 id={s1_id}  area={r1.anode_sum_area:.0f} PE  "
                   f"height={r1.height:.0f} ADC  n_ch={int(r1.n_ch)}")
-    ax.plot(x2o, -a2, "crimson", lw=1.6,
+    ax.plot(x2o, a2, "royalblue", lw=1.4,
             label=f"S2 id={s2_id}  area={r2.anode_sum_area:.0f} PE  "
                   f"height={r2.height:.0f} ADC  n_ch={int(r2.n_ch)}  "
                   f"width={r2.width / 1000:.1f} us")
     if d1.size:
-        ax.plot((np.arange(len(d1)) - ref) * 4 / 1000.0, -d1, "navy", ls="--",
-                lw=1.1, alpha=0.75, label=f"S1 dynode_sum (len={len(d1)})")
+        ax.plot((np.arange(len(d1)) - ref) * 4 / 1000.0, -d1, "crimson", ls="--",
+                lw=1.1, alpha=0.75, label=f"S1 dynode_sum flipped (len={len(d1)})")
     if d2.size:
         ax.plot((np.arange(len(d2)) - ref) * 4 / 1000.0
-                + float(r2.peak_time_ns - t0) / 1000.0, -d2, "darkorange",
-                ls="--", lw=1.1, alpha=0.75, label=f"S2 dynode_sum (len={len(d2)})")
+                + float(r2.peak_time_ns - t0) / 1000.0, -d2, "crimson",
+                ls="--", lw=1.1, alpha=0.75, label=f"S2 dynode_sum flipped (len={len(d2)})")
     dt_us = float(r2.peak_time_ns - t0) / 1000.0
-    for x, c, lb in [(0.0, "royalblue", "S1 pulse start"), (dt_us, "crimson",
-                                                             f"S2 pulse start (dt={dt_us:.2f} us)")]:
-        ax.axvline(x, color=c, ls=":", lw=2.2, label=lb)
+    for x, c, ls, lb in [(0.0, "royalblue", ":", "S1 pulse start"),
+                         (dt_us, "gray", ":", f"S2 pulse start (dt={dt_us:.2f} us)")]:
+        ax.axvline(x, color=c, ls=ls, lw=2.2, label=lb)
     ax.axhline(0, color="k", lw=0.8, alpha=0.5)
     ax.set_xlabel("t relative to the S1 pulse start  [us]", fontsize=22,
                   fontweight="bold")
-    ax.set_ylabel("amplitude  [-anode_sum]  [ADC]", fontsize=22, fontweight="bold")
+    ax.set_ylabel("amplitude  [ADC]", fontsize=22, fontweight="bold")
     ax.grid(True, alpha=0.25)
     ax.legend(fontsize=14, loc="upper right")
     ax.tick_params(labelsize=15)
