@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Waveforms of the three matched S1 <-> long-S2 pairs (one figure per pair).
+"""Waveforms of the five matched S1 <-> long-S2 pairs (one figure per pair).
 
 Both peaks are placed on a common absolute time axis using
 ``peak_time_ns + (i - sum_ref) * 4 ns`` -- ``peak_time_ns`` is the peak's pulse
@@ -17,8 +17,8 @@ from muon_analysis.sum_store import load_sum_npz
 V2 = "/mnt/data/tmp/muon_analysis/co60_590/peak_level_v2"
 DOCS = "/home/yjj/MuonDAS/docs/figures"
 TMP = "/mnt/data/tmp/muon_analysis/co60_590"
-W_US = 15.0
-PAIRS = [(599, 26889, 26890), (600, 21272, 21273), (605, 28818, 28819)]
+PAIRS = [(593, 38507, 38508), (599, 26889, 26890), (600, 21272, 21273),
+         (604, 17266, 17267), (605, 28818, 28819)]
 
 df = pd.read_csv("/mnt/data/tmp/muon_analysis/co60_590/peak_level_v3/co60_590_peak_level_v3.csv")
 for rid, s1_id, s2_id in PAIRS:
