@@ -1,0 +1,325 @@
+====== MuonDAS: Muon Event Selection and Peak-Level Signal Classification in a 7-PMT LXe Detector ======
+
+===== Abstract =====
+
+This note summarises the **MuonDAS** analysis pipeline for a 7-PMT liquid-xenon (LXe) detector
+read out on both the **anode** and the **dynode** side. Starting from raw waveforms, the
+pipeline performs **anode/dynode time matching**, **pulse-start clustering into peaks**,
+**summed-waveform feature extraction**, **peak-level four-class signal discrimination**
+(``S1`` / ``S2`` / ``muon`` / ``other``) and, for ``muon`` peaks only, a **dedicated S1/S2
+segmentation** into ``muon_s1_*`` / ``muon_s2_*`` parameters.
+
+The reference dataset is **Co60 590+ (run 00590-00607, 18 runs, T = 64,800 s)** with
+**736,408 peaks**, of which **S1 = 685,024 (93.02 %)**, **S2 = 33,608 (4.56 %)**,
+**muon = 15,524 (2.11 %)** and **other = 2,252 (0.31 %)**. The muon rate is
+**0.2396 s^-1 = 14.37 min^-1 = 862 h^-1**, corresponding to a flux of
+**122.0 m^-2 s^-1 (73.1 % of the geometric expectation, 167 m^-2 s^-1)**.
+
+A separate scan that pairs every long S2 (``width`` > 15 us) with the largest S1 inside a
+25 us look-back window finds only **3 pairs in 12,269 long-S2 events (0.024 %)** — fully
+consistent with random coincidence (4.6 expected). **The long-S2 events are therefore not
+"S1 + delayed S2" muon events**, and the matched pairs are recorded as
+**paired events**, *not* muon events.
+
+===== Data and Processing Pipeline =====
+
+==== Workflow (config-driven) ====
+
+<code>
+run_id list (docs/run7_xe_calibration_run_590_plus.csv)
+        |
+        +--> config/analysis.yaml  (matching / clustering / signal_id / muon_s1_s2 / muon_pair)
+        |
+        v
+1. io            runinfo discovery + read (waveform_analysis | npy | hdf5), board split anode=0 / dynode=1
+2. matching      dynode global shift -> per-channel merge_asof(backward), dt in [0, 40] ns
+3. clustering    pulse-start reference, 320 ns greedy window -> Peak (multi anode + multi dynode)
+4. pulsefinding  per-record pulse bounds; sum-waveform a_st / s1_end (3A|3B) / end_final
+5. sum           per-channel align on pulse_start, point-wise sum -> anode_sum / dynode_sum (dynode x113)
+6. features      peak-level params (height / width / width_90area / width_20_50area / areas / PE)
+7. signal_id     peak-level discrimination -> signal_type in {S1, S2, muon, other}
+8. muon S1/S2    muon-only segmentation: S1 = [a_st, s1_end], S2 = [s1_end, end_final]
+9. muon_pair     long-S2 <-> S1 pairing -> is_paired_event  (paired events, NOT muon events)
+        |
+        v
+Output: CSV (peak level) + npz (sum waveforms) + PNG (diagnostics)
+</code>
+
+==== Stage Reference ====
+
+^ Stage ^ Module ^ Product ^
+| 1 io | io/runinfo.py, io/readers.py, io/data.py | RunData (board-split records) |
+| 2 matching | matching.py | matched anode/dynode pairs (dt distribution) |
+| 3 clustering | clustering.py | Peak (multi anode + multi dynode) |
+| 4 pulsefinding | pulsefinding.py | pulse bounds, S1 endpoint, final end |
+| 5 sum | features.compute_peak_summed_waveforms | anode_sum / dynode_sum |
+| 6 features | features.compute_peak_features | peak-level parameters (sum basis) |
+| 7 signal_id | signal_id.classify_signal | signal_type |
+| 8 muon S1/S2 | features._fill_muon_segments | muon_s1_* / muon_s2_* (12 fields) |
+| 9 muon_pair | physical_pair.mark_paired_events | is_paired_event (paired events) |
+
+===== Time Matching (anode <-> dynode) ====
+
+==== Algorithm ====
+
+<code>
+t_dynode' = t_dynode + dynode_shift_ns              # global channel-delay correction
+pair      = merge_asof(dynode, anode, by="channel", direction="backward")
+keep if min_diff_ns &lt;= dt &lt;= max_diff_ns
+</code>
+
+==== Measured Result (Co60 590+, 18 runs, 876,885 pairs) ====
+
+^ Quantity ^ Value ^
+| raw dt median (no shift) | **32.00 ns** |
+| after -16 ns shift | **16.00 ns** |
+| inside the [0, 40] ns window | **100.00 %** |
+| per-channel median | ch9 16 / ch10 12 / ch11 8 / ch12 8 / ch13 12 / ch14 12 / ch15 12 ns |
+
+  * The record ``time`` field is quantised in **4 ns steps**, so the shifted dt shows 4 ns
+    staircase structure.
+  * Per-channel medians span only 8 ns, i.e. the global shift leaves acceptable residual.
+
+===== Clustering into Peaks =====
+
+  * The clustering reference is the **pulse-start time**, not the record time:
+    ``ref = record.time + pulse_start_sample x 4 ns``.
+  * Pairs are scanned in ascending ``ref``; a new peak opens when ``ref`` exceeds the current
+    anchor by more than **``clustering.window_ns`` = 320 ns** (80 samples), greedy/anchor-based.
+  * Output model ``Peak``: ``peaks_id``, ``start_time_ns`` / ``end_time_ns``,
+    ``anode_records``, ``dynode_records``, ``match_rows``, ``channels``.
+  * Note: ``peak_time_ns`` is the **pulse start** (``record.time + pulse_start_sample x 4``),
+    and the sum array index ``sum_ref`` (50) sits exactly at that instant.
+
+===== Summed Waveforms and Peak-Level Parameters =====
+
+==== Sum Waveform ====
+
+  * All anode (dynode) channel waveforms of a peak are **aligned on their own
+    ``pulse_start_sample``** (common reference ``SUMMED_REF`` = 50 pre-pulse samples) and
+    **summed point-wise** into ``anode_sum`` / ``dynode_sum``.
+  * Dynode channels are multiplied by **``plotting.dynode_scale`` = 113 before summing**;
+    the x1 sum is kept as ``dynode_sum_raw``.
+  * ``plotting.dynode_lp_cutoff_hz = null``: the 25 MHz low-pass is in hardware, no software
+    filter is applied.
+  * Sum-array index mapping: ``t_abs(i) = peak_time_ns + (i - sum_ref) x 4 ns``
+    (indices before ``pulse_start_sample`` are zero-padded).
+
+==== Peak-Level Parameters (all from the sum waveform) ====
+
+^ Parameter ^ Definition ^ Unit ^
+| height | max(abs(anode_sum), abs(dynode_sum)) | ADC |
+| **width** | pulse span (end_final_sample - a_st) x 4 | ns |
+| rise_time | anode_sum start -> peak, x 4 | ns |
+| width_90area | width containing 90 % of the anode_sum area, x 4 | ns |
+| width_50area | width containing 50 % of the area, x 4 | ns |
+| width_20_50area | width from 20 % to 50 % of the area, x 4 | ns |
+| area_ano / area_dyn | per-channel raw (x1) area, summed before scaling | raw ADC.samples |
+| anode_sum_area / dynode_sum_area | full-waveform integral x gain (dynode includes x113) | PE |
+| wave_len_samples | sum array length | samples |
+
+  * The legacy name ``width_ns`` is **retired** and replaced by ``width`` (peak-level pulse span).
+
+===== Peak-Level Signal Discrimination (S1 -> S2 -> muon -> other) =====
+
+==== Rule Set (fixed order, mutually exclusive) ====
+
+^ Order ^ Class ^ Cuts (AND) ^
+| 1 | **S1** | width_20_50area &lt; 100 ns **and** width_90area &lt; 1000 ns |
+| 2 | **S2** | width_90area &gt; 1000 ns **and** width &gt; 2000 ns **and** anode_sum_area &gt; 300 PE **and** height &lt; 15000 ADC |
+| 3 | **muon** | n_ch &gt;= 2 **and** height &gt; 15000 ADC **and** width &gt; 2000 ns **and** width_90area &gt; 1000 ns **and** anode_sum_area &gt; 300 PE |
+| 4 | **other** | everything else (or excluded by the optional ``long_wave_min_samples`` gate) |
+
+  * The check order **S1 -> S2 -> muon -> other is fixed and must not change**.
+  * All discrimination variables come from the **sum waveform**.
+  * An optional ``n_channels`` gate can be set per class (``null`` = no multiplicity cut).
+
+==== Class Yields (Co60 590+ v2, 736,408 peaks) ====
+
+^ Class ^ Count ^ Fraction ^
+| S1 | 685,024 | 93.02 % |
+| S2 | 33,608 | 4.56 % |
+| muon | 15,524 | 2.11 % |
+| other | 2,252 | 0.31 % |
+
+==== Channel Multiplicity ====
+
+^ n_ch ^ S2 (33,608) ^ S2 with width &gt; 15 us (12,269) ^ muon (15,524) ^
+| 1 | 90.52 % | **84.60 %** | 0 % |
+| 2 | 7.45 % | 11.18 % | 7.85 % |
+| 3 | 1.87 % | 3.90 % | 11.80 % |
+| 4 | 0.16 % | 0.33 % | 8.21 % |
+| 5-6 | - | - | 4.28 % / 4.86 % |
+| **7** | - | - | **63.01 %** |
+
+  * **The long-S2 population is ~85 % single-channel, whereas the muon class is 63 %
+    seven-channel and never single-channel** (muon requires ``n_ch >= 2``).
+
+===== muon-Specific S1/S2 Segmentation =====
+
+==== Definition ====
+
+  * Computed **only for peaks with ``signal_type == "muon"``**
+    (``features._fill_muon_segments``); all other classes keep zeros
+    (verified: all 12 fields are 0 for the 720,884 non-muon peaks).
+
+<code>
+S1 = [a_st, s1_end]          a_st      = anode_sum pulse start  (muon_s1_start_sample)
+S2 = [s1_end, end_final]     s1_end    = S1 endpoint           (muon_s1_end_sample)
+                             end_final = waveform final end   (muon_s2_end_sample)
+</code>
+
+==== S1 Endpoint Algorithms ====
+
+^ Method ^ Name ^ Description ^
+| ``min_derivative`` | 3A | first derivative after the S1 peak, take its **minimum** |
+| **``second_derivative``** | **3B (default)** | second derivative, take the **first zero crossing** |
+
+  * Search window: ``[s1_peak + min_decay, s1_peak + max_decay]`` = [20, 500] samples,
+    with ``s1_peak = argmin(anode_sum)``.
+
+==== Output Fields (12) ====
+
+^ Field ^ Meaning ^
+| muon_s1_width_ns / muon_s2_width_ns | segment width = dSample x 4 ns |
+| muon_s1_height_an / muon_s2_height_an | max abs(anode_sum) inside the segment |
+| muon_s1_height_dy / muon_s2_height_dy | max abs(dynode_sum) inside the segment |
+| muon_s1_area_an / muon_s2_area_an | anode_sum integral x gain, in PE |
+| muon_s1_area_dy / muon_s2_area_dy | dynode_sum integral x gain, in PE |
+
+==== S1/S2 Area Distributions (n = 15,524 muon) ====
+
+^ Quantity ^ q1 ^ q25 ^ **Median** ^ q75 ^ q99 ^ max ^
+| muon_s2_area_an [PE] | 1,816 | 13,512 | **21,621** | 32,115 | 138,120 | 595,721 |
+| muon_s2_area_dy [PE] | 0 | 71 | **291** | 480 | 22,458 | 769,476 |
+| muon_s1_area_an [PE] | 932 | 1,834 | **3,649** | 4,734 | 13,764 | 126,772 |
+| muon_s1_area_dy [PE] | 0 | 653 | **1,766** | 2,643 | 11,278 | 223,051 |
+
+  * ``anode`` S2 area is **unimodal** (log-Gaussian, 10^3-10^5 PE); ``dynode`` S2 area is
+    **bimodal** (~6x10^1 and ~3x10^2 PE) with a long tail, its median being **1/74** of the
+    anode side - a direct consequence of the short dynode readout window.
+
+==== Light Intensity ====
+
+  * Intensity = segment area / segment width, expressed in **PE/ns/PMT** (divided by 7 PMTs).
+  * ``muon_s1`` median **34.568 PE/ns**, ``muon_s2`` median **0.826 PE/ns**
+    - a ratio of **41.82**; after normalising S2 by **x46.9** the two distributions largely
+    overlap, but the S2 distribution is **broader and softer**.
+  * ``muon_s1_rise`` = (S1 peak - muon_s1_start) x 4 (n_ch = 7 subset): median **20 ns**
+    (q25 16 / q75 24 / q95 28 / q99 372 / max 4516); the 100-3000 ns slow-rise tail appears
+    only in the high-area group.
+
+===== Long-S2 <-> S1 Pairing Scan (negative result) =====
+
+==== Algorithm ====
+
+  * Runs **right after** the peak-level discrimination, per run, over **all 18 runs**.
+  * For every long S2 (``width > muon_pair.s2_width_min_ns``, default 15 us) the **largest
+    unpaired S1** inside the preceding ``muon_pair.window_ns`` (25 us) is taken
+    (each S1 used at most once). Both members get ``is_paired_event = True``.
+
+==== Scan Result (18 runs, 736,408 peaks) ====
+
+^ long-S2 threshold ^ long S2 count ^ matched ^ match rate ^ flagged ^
+| width &gt; 10 us | 17,337 | 5 | 0.029 % | 10 |
+| width &gt; 15 us | 12,269 | 3 | 0.024 % | 6 |
+
+  * Hit pairs are spread over runs **599 / 600 / 605** (with the 10 us threshold additionally
+    593 / 604).
+  * dt = S2 start - S1 start: min **0.64 us**, median **8.90 us**, max **19.86 us**
+    (10 us threshold, n = 5).
+
+==== Consistency with Random Coincidence ====
+
+^ Quantity ^ Value ^
+| S1 rate | 25,952 / 2,427 s = **10.7 Hz** (median spacing 65.6 ms) |
+| long-S2 rate | 753 / 2,427 s = **0.45 Hz** (median spacing 2,219 ms) |
+| random-hit probability in 25 us | 25 us x 10.7 Hz = **0.027 %** |
+| expected matches | 17,337 x 0.027 % = **4.6** |
+| **observed** | **5** (agrees) |
+| dt to the nearest preceding S1 (all 12,269 long S2) | median **65,385 us (65.4 ms)**; only **0.0245 %** within 25 us |
+
+==== Parameter Features of the Matched Pairs ====
+
+^ Quantity ^ Paired S1 (n=5) ^ Paired S2 (n=5) ^ Reference ^
+| n_ch | **1 / 1 / 1** | 1 / 1 / 1 | muon S1 segment n_ch = 7 |
+| anode_sum_area [PE] | **86 / 112 / 143** | 2,388 / 8,829 / 23,621 | S1 class median 107; **muon S1 segment median 3,649**; long-S2 class median 10,086 |
+| dynode_sum_area [PE] | 0 / 0 / 144 | 0 / 341 / 29,674 | 4/5 of the S1 have **no dynode signal at all** |
+| height [ADC] | 1,151 / 1,972 / 2,599 | 2,346 / 9,944 / 12,430 | S2/muon cut = 15,000 |
+
+==== Waveform Review (manual) ====
+
+  * **None of the 5 matched pairs is a muon event**; some are even wrong matches.
+  * **Three of them look more like gamma events** (broad S2 plateau / large slow pulse shape).
+  * Key observation: **some S2 peaks already carry their own prompt at the start** (prompt and
+    delayed components inside one peak) yet were classified as ``S2`` - the start of such
+    events **may be a muon**. This is a known boundary case of ``signal_id``: the
+    ``height < 15000`` cut pushes broad pulses that carry a prompt into the S2 class.
+
+===== Key Physical Conclusions =====
+
+  1. **Peak-level four-class discrimination works**: the Co60 590+ dataset separates cleanly
+     into S1 (93.0 %), S2 (4.6 %), muon (2.1 %) and other (0.3 %) using only sum-waveform
+     variables (width_90area, width_20_50area, width, height, anode_sum_area, n_ch).
+  2. **Muon rate and flux agree with expectation**: 0.2396 s^-1 = 14.37 min^-1 = 862 h^-1,
+     flux 122.0 m^-2 s^-1 = **73.1 %** of the geometric expectation (167 m^-2 s^-1).
+  3. **Anode S1 area saturates**: vs dynode area the relation is a tight power law
+     (log-log r = 0.957) with y = 1.782 x over [10^3, 4x10^3] PE, bending over above that -
+     the anode S1 area cannot represent the true light yield in the high-charge region.
+  4. **S2/S1 intensity ratio is not a single constant**: medians 34.568 vs 0.826 PE/ns
+     (ratio 41.82); after x46.9 normalisation the S2 distribution is still broader and softer.
+  5. **The long-S2 events are not "S1 + delayed S2" muon events**: the S1 and long-S2
+     populations are separated by tens of milliseconds, and the 25 us matching yield is fully
+     consistent with random coincidence.
+  6. **Anode/dynode channel multiplicity differs strongly**: 7/7 fully triggered muon events
+     make up 37.4 % of the muon class (anode 63.0 % all-seven, dynode only 37.4 %).
+
+===== Systematic Limitations (read before interpreting results) =====
+
+^ # ^ Limitation ^ Impact ^
+| 1 | **3B s1_end is a clipping artefact** | On saturated/clipped muon waveforms 3B lands ~25 samples (~100 ns) after the peak, while the visual S1/S2 turnover is at ~0.5-1.5 us; the S1 window is therefore narrow (anode S1 ~14 % of the area, dynode ~87 %) |
+| 2 | **width / muon_s2_width_ns saturate with record length** | For muon peaks a horizontal band forms at ~27 us; it is not a true pulse width |
+| 3 | **muon_s1_height_an is ADC-clipped** | Ceiling ~1.04x10^5 ADC (487 events pile up at 103k-104k) |
+| 4 | **Dynode readout window is very short** | Median record length 50 samples (0.2 us); in the 7/7 subset the dynode_sum median is 121 samples against a 6,704-sample S2 window (median coverage 1.4 %) - dynode-side S2 statistics are not comparable to anode-side |
+| 5 | **Anode S1 area saturates** | area_an is compressed above area_dy ~ 10^4 PE and cannot represent the true charge |
+
+===== Figure List =====
+
+^ File ^ Content ^
+| co60_590_v2_matched_dt.png | anode/dynode dt before and after the shift + per channel |
+| co60_590_v2_2d_panels.png | all peaks: width_90area / width / width_20_50area / height vs anode_sum_area |
+| co60_590_v2_s1_2d_panels.png | S1 class parameter panels |
+| co60_590_v2_s2_2d_panels.png | S2 class parameter panels |
+| co60_590_v2_muon_2d_panels.png | muon class parameter panels |
+| co60_590_v2_s2_w15us_2d_panels.png | S2 with width &gt; 15 us, grey dashed cut guides |
+| co60_590_v2_s2_w15us_nch.png | n_ch: S2 / long-S2 / muon comparison |
+| co60_590_v2_s2_w15us_areas.png | long-S2 anode_sum_area and dynode_sum_area |
+| co60_590_v2_muon_s2_area.png | muon S2 segment area (anode unimodal, dynode bimodal) |
+| co60_590_v2_muon_s1s2_2d.png | muon S1/S2 parameter correlations |
+| co60_590_v2_muon_s1s2_intensity_liny.png | S1/S2 light intensity in PE/ns/PMT |
+| co60_590_v2_muon_7ch_s1_examples.png | 30 S1 waveforms of 7/7-triggered muon peaks |
+| co60_590_v2_muon_pair_dt.png | pairing dt + nearest-S1 dt for all long S2 |
+| co60_590_v2_muon_pair_params.png | paired-event parameters vs their parent classes |
+| co60_590_v2_muon_pair_waveforms_run593/599/600/604/605.png | S1 + S2 waveforms of the 5 matched pairs |
+
+===== Notes =====
+
+  * All parameters live in ``config/analysis.yaml``
+    (groups: matching / clustering / plotting / signal_id / muon_s1_s2 / muon_pair / features).
+  * Key configuration values: ``clustering.window_ns = 320``,
+    ``matching.dynode_shift_ns = 16`` (Co60 590+ uses **-16**), ``max_diff_ns = 40``,
+    ``plotting.dynode_scale = 113``, ``muon_s1_s2.method = second_derivative`` (3B),
+    ``muon_pair.window_ns = 25000``, ``muon_pair.s2_width_min_ns = 15000``.
+  * Data products: ``peak_level_v2/co60_590_peak_level_v2.csv`` (736,408 rows),
+    ``peak_level_v2/sum_waveforms/run_XXXXX.npz`` (18 files, ~523 MB, float32 + offsets),
+    ``peak_level_v3/co60_590_peak_level_v3.csv`` (adds ``peak_time_ns`` and
+    ``is_paired_event``) and ``peak_level_v3/muon_long_s2_s1_pairs.csv``.
+  * ``peaks_id`` is **per run** (each run renumbers from 0); cross-run references must carry
+    ``run_id``.
+  * Tests: ``python -m pytest tests/`` = **117 passed**; ``python -m pyflakes src/ scripts/
+    tests/`` is clean.
+  * Reference code: ``src/muon_analysis/`` (io / matching / clustering / pulsefinding /
+    features / signal_id / physical_pair / sum_store) and ``scripts/`` (batch drivers and
+    plotting).
+  * Full pipeline documentation: ``docs/muon_algorithm_architecture.md``.
+  * Date: 2026-09-23.
