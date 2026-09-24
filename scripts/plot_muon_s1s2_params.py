@@ -129,3 +129,26 @@ def draw_intensity(name):
 
 
 draw_intensity("co60_590_v2_muon_s1s2_intensity_liny.png")
+
+fig, axes = plt.subplots(1, 2, figsize=(26, 10))
+for ax, col, color in [(axes[0], "muon_s2_area_an", "royalblue"),
+                       (axes[1], "muon_s2_area_dy", "crimson")]:
+    v = m[col][m[col] > 0]
+    med = v.median()
+    ax.hist(v, bins=np.logspace(np.log10(v.min()), np.log10(v.max()), 140),
+            color=color, alpha=0.85)
+    ax.axvline(med, color="black", ls="--", lw=3.0, label=f"median = {med:.0f} PE")
+    ax.set_xscale("log")
+    ax.set_xlabel(f"{col} [PE]")
+    ax.set_ylabel("counts")
+    ax.set_title(f"{col}  (n={len(v)})")
+    ax.grid(True, alpha=0.25)
+    ax.legend(loc="upper right")
+fig.suptitle(f"Co60 590+ v2 muon peaks: S2 segment area distributions (n={len(m)})",
+             fontsize=26, fontweight="bold")
+fig.tight_layout(rect=(0, 0, 1, 0.94))
+for out in (f"{DOCS}/co60_590_v2_muon_s2_area.png",
+            f"{TMP}/co60_590_v2_muon_s2_area.png"):
+    fig.savefig(out, dpi=150)
+plt.close(fig)
+print("saved co60_590_v2_muon_s2_area.png")

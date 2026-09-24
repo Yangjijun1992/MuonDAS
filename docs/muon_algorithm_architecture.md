@@ -457,6 +457,21 @@ S2 = [s1_end, end_final]     s1_end    = muon_s1_end_sample   (S1 终点 == S2 �
 
 ### S1/S2 参数分布（n = 15,524 muon）
 
+**S2 段面积分布**（`muon_s2_area_an` / `muon_s2_area_dy`）：
+
+![muon S2 段面积分布](figures/co60_590_v2_muon_s2_area.png)
+
+| 量 | q1 | q25 | **中位** | q75 | q99 | max |
+|---|---|---|---|---|---|---|
+| `muon_s2_area_an` [PE] | 1,816 | 13,512 | **21,621** | 32,115 | 138,120 | 595,721 |
+| `muon_s2_area_dy` [PE] | 0 | 71 | **291** | 480 | 22,458 | 769,476 |
+
+> `anode` 侧**单峰**（log 域近似高斯，10³–10⁵ PE）；`dynode` 侧**双峰**
+> （~6×10¹ 与 ~3×10² PE 两簇）并带长尾，中位仅为 anode 侧的 **1/74**——
+> 反映打拿极记录窗普遍很短（见附录 A）。
+
+**S1/S2 参数 2D 相关**：
+
 ![muon S1/S2 参数 2D 相关](figures/co60_590_v2_muon_s1s2_2d.png)
 
 ![低面积组（area_an < 2.5e3 PE）的 2D 相关](figures/co60_590_v2_muon_s1s2_2d_lowarea.png)
